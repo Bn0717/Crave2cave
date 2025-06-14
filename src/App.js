@@ -19,7 +19,7 @@ const Crave2CaveSystem = () => {
   // Styles
   const styles = {
     container: {
-      minHeight: '1001vh',
+      minHeight: '100vh',
       backgroundColor: '#f3f4f6',
       padding: '16px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
