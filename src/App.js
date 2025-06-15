@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Receipt, Users, Truck, CheckCircle, Calculator, Camera, Scan, Lock, Eye, EyeOff } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBg56oKPkkQBHZYlqDe86gNKuM6CU9o0no",
@@ -15,6 +16,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 const Crave2CaveSystem = () => {
   const [activeTab, setActiveTab] = useState('student');
@@ -30,21 +32,19 @@ const Crave2CaveSystem = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
   const [showPasscode, setShowPasscode] = useState(false);
-  const [userStep, setUserStep] = useState(1); // 1: Register, 2: Pay commitment, 3: Submit order
+  const [userStep, setUserStep] = useState(1);
 
   const ADMIN_PASSCODE = 'YIEK';
 
-useEffect(() => {
-    // Check if the admin has already been authenticated in this session
+  useEffect(() => {
     const isAuthenticatedFromStorage = localStorage.getItem('isAdminAuthenticated');
     if (isAuthenticatedFromStorage === 'true') {
-        setIsAuthenticated(true); // Automatically authenticate if the flag exists
+      setIsAuthenticated(true);
     }
-    
+
     getPrebookUsers();
     getOrders();
-}, []);
-
+  }, []);
 
   // Firebase functions
   const savePrebookUser = async (user) => {
@@ -54,6 +54,20 @@ useEffect(() => {
       return docRef.id;
     } catch (e) {
       console.error('Error adding document: ', e);
+      throw e;
+    }
+  };
+
+  const uploadFileToStorage = async (file) => {
+    const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
+
+    try {
+      await uploadBytes(storageRef, file);
+      const fileURL = await getDownloadURL(storageRef);
+      console.log("File uploaded successfully. File URL:", fileURL);
+      return fileURL;
+    } catch (e) {
+      console.error("Error uploading file to Firebase Storage:", e);
       throw e;
     }
   };
@@ -75,7 +89,6 @@ useEffect(() => {
       const users = querySnapshot.docs.map(doc => ({ id: doc.id, firestoreId: doc.id, ...doc.data() }));
       setPrebookUsers(users);
 
-      // Check if minimum order reached
       const paidUsers = users.filter(u => u.commitmentPaid);
       setMinOrderReached(paidUsers.length >= 3);
     } catch (e) {
@@ -104,12 +117,6 @@ useEffect(() => {
     }
   };
 
-  useEffect(() => {
-    getPrebookUsers();
-    getOrders();
-  }, []);
-
-  // Styles
   const styles = {
     container: {
       minHeight: '100vh',
@@ -338,30 +345,32 @@ useEffect(() => {
     }
 
     try {
-      // Update Firestore that the user has paid and uploaded the receipt
+      console.log('Uploading receipt file:', receiptFile); // Add log to confirm the file is being processed
+      const receiptURL = await uploadFileToStorage(receiptFile);
+      console.log('Receipt uploaded. File URL:', receiptURL);
+
       await updatePrebookUser(selectedUserId, {
         commitmentPaid: true,
-        paymentReceiptUploaded: true
+        paymentReceiptUploaded: true,
+        receiptURL: receiptURL
       });
 
-      // Update the local state to reflect the user's payment status
       setPrebookUsers(prev => prev.map(user =>
         user.firestoreId === selectedUserId
-          ? { ...user, commitmentPaid: true }
+          ? { ...user, commitmentPaid: true, receiptURL: receiptURL }
           : user
       ));
 
-      // Refresh the prebooked users
-      await getPrebookUsers(); // Refresh data
-
-      // Set the user step to 3 (Submit Order)
+      await getPrebookUsers();
       setUserStep(3);
+
       alert('Commitment fee payment submitted! You can now submit your order total.');
     } catch (error) {
       alert('Error submitting payment. Please try again.');
-      console.error('Payment error:', error);
+      console.error('Payment error:', error); // Log the error to identify where it fails
     }
   };
+
 
 
   const handleOrderSubmission = async () => {
@@ -377,6 +386,7 @@ useEffect(() => {
     }
 
     try {
+      const orderImageURL = await uploadFileToStorage(orderImage);
       const selectedUser = prebookUsers.find(u => u.firestoreId === selectedUserId);
       const deliveryFee = calculateDeliveryFee(totalAmount);
 
@@ -388,7 +398,7 @@ useEffect(() => {
         deliveryFee: deliveryFee,
         totalWithDelivery: totalAmount + deliveryFee,
         timestamp: new Date().toISOString(),
-        orderImageUploaded: true
+        orderImageURL: orderImageURL,
       };
 
       await saveOrder(orderData);
@@ -396,16 +406,23 @@ useEffect(() => {
       await updatePrebookUser(selectedUserId, {
         orderTotal: totalAmount,
         orderSubmitted: true,
-        hasOrdered: true
+        hasOrdered: true,
+        orderImageURL: orderImageURL
       });
 
       await getPrebookUsers();
       await getOrders();
 
-      alert(`Order submitted successfully! 
-Order Total: RM${totalAmount}
-Delivery Fee: RM${deliveryFee}
-Total Amount: RM${totalAmount + deliveryFee}`);
+      alert(`Order submitted successfully! Order Total: RM${totalAmount} Delivery Fee: RM${deliveryFee} Total Amount: RM${totalAmount + deliveryFee}`);
+
+      // Reset form after successful submission
+      setOrderTotal('');
+      setOrderImage(null);
+      setUserStep(1);
+      setSelectedUserId('');
+      setStudentName('');
+      setStudentId('');
+
     } catch (error) {
       alert('Error submitting order. Please try again.');
       console.error('Order submission error:', error);
@@ -417,28 +434,24 @@ Total Amount: RM${totalAmount + deliveryFee}`);
     if (amount >= 50 && amount < 100) return 17;
     if (amount >= 100 && amount < 150) return 25;
     if (amount >= 150 && amount < 200) return 30;
-    return 35; // RM200+
+    return 35;
   };
 
-const handleAuthentication = () => {
+  const handleAuthentication = () => {
     if (passcode === ADMIN_PASSCODE) {
-        // Save authentication status to localStorage
-        localStorage.setItem('isAdminAuthenticated', 'true');  // Store the authentication flag
-
-        setIsAuthenticated(true);
-        setPasscode('');
+      localStorage.setItem('isAdminAuthenticated', 'true');
+      setIsAuthenticated(true);
+      setPasscode('');
     } else {
-        alert('Invalid passcode');
+      alert('Invalid passcode');
     }
-};
+  };
 
-
-
-const resetAuth = () => {
+  const resetAuth = () => {
     setIsAuthenticated(false);
     setPasscode('');
-    localStorage.removeItem('isAdminAuthenticated');  // Clear the authentication flag
-};
+    localStorage.removeItem('isAdminAuthenticated');
+  };
 
   const passcodeInputRef = useRef(null);
 
@@ -458,8 +471,8 @@ const resetAuth = () => {
             onChange={(e) => setPasscode(e.target.value)}
             style={styles.input}
             onKeyPress={(e) => e.key === 'Enter' && handleAuthentication()}
-            ref={passcodeInputRef}  // Added ref to the input
-            autoFocus  // Ensures the input remains in focus
+            ref={passcodeInputRef}
+            autoFocus
           />
           <button
             type="button"
@@ -609,9 +622,13 @@ const resetAuth = () => {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setReceiptFile(e.target.files[0])} // Update receipt file state
+                    onChange={(e) => {
+                      setReceiptFile(e.target.files[0]);
+                      console.log('Selected receipt file:', e.target.files[0]); // Log the selected file to ensure it is updated
+                    }}
                     style={styles.input}
                   />
+
 
                   {receiptFile && (
                     <div style={{ marginBottom: '16px' }}>
@@ -739,6 +756,22 @@ const resetAuth = () => {
                   </button>
                 </div>
               )}
+
+              {/* Show message if minimum order not reached */}
+              {userStep === 3 && !minOrderReached && (
+                <div style={{
+                  backgroundColor: '#fef3c7',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  border: '1px solid #f59e0b',
+                  textAlign: 'center'
+                }}>
+                  <p style={{ margin: 0, color: '#92400e' }}>
+                    Waiting for minimum 3 paid users before order submission opens.
+                    Current: {prebookUsers.filter(u => u.commitmentPaid).length}/3
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -774,40 +807,50 @@ const resetAuth = () => {
                     <p>Orders Submitted: {orders.length}</p>
                     <p>Total Commitment Fees: RM{prebookUsers.filter(u => u.commitmentPaid).length * 10}</p>
                     <p>Total Delivery Fees: RM{orders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)}</p>
-                  </div>
-
-                  {/* Prebook Users */}
-                  <div style={styles.card}>
-                    <h3>Registered Users</h3>
-                    {prebookUsers.map((user, index) => (
-                      <div key={user.id || index} style={styles.orderItem}>
-                        <p><strong>Name:</strong> {user.name}</p>
-                        <p><strong>Student ID:</strong> {user.studentId}</p>
-                        <p><strong>Commitment Paid:</strong> {user.commitmentPaid ? 'Yes' : 'No'}</p>
-                        <p><strong>Order Submitted:</strong> {user.orderSubmitted ? 'Yes' : 'No'}</p>
-                        {user.orderTotal && <p><strong>Order Total:</strong> RM{user.orderTotal}</p>}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Orders */}
-                  <div style={styles.card}>
-                    <h3>Summary</h3>
-                    <p>Total Registered Users: {prebookUsers.length}</p>
-                    <p>Paid Users: {prebookUsers.filter(u => u.commitmentPaid).length}</p>
-                    <p>Orders Submitted: {orders.length}</p>
-                    <p>Total Commitment Fees: RM{prebookUsers.filter(u => u.commitmentPaid).length * 10}</p>
-
-                    {/* Add Total Delivery Fees calculation here */}
-                    <p>Total Delivery Fees: RM{orders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)}</p>
-
                     <p>Total Order Amount: RM{orders.reduce((sum, order) => sum + (order.totalWithDelivery || 0), 0)}</p>
+                  </div>
+
+                  {/* Orders Submitted */}
+                  <div style={styles.card}>
+                    <h3>Orders Submitted</h3>
+                    {orders.length === 0 ? (
+                      <p style={{ color: '#6b7280', textAlign: 'center', padding: '20px' }}>
+                        No orders available yet.
+                      </p>
+                    ) : (
+                      orders.map((order, index) => (
+                        <div key={order.id || index} style={styles.orderItem}>
+                          <p><strong>Customer:</strong> {order.userName}</p>
+                          <p><strong>Student ID:</strong> {order.studentId}</p>
+                          <p><strong>Order Total:</strong> RM{order.orderTotal}</p>
+                          <p><strong>Delivery Fee:</strong> RM{order.deliveryFee}</p>
+                          <p><strong>Total with Delivery:</strong> RM{order.totalWithDelivery}</p>
+                          <p><strong>Order Time:</strong> {new Date(order.timestamp).toLocaleString()}</p>
+
+                          {order.orderImageURL && (
+                            <div style={{ marginTop: '12px' }}>
+                              <img
+                                src={order.orderImageURL}
+                                alt="Order"
+                                style={{
+                                  maxWidth: '200px',
+                                  maxHeight: '200px',
+                                  borderRadius: '8px',
+                                  border: '2px solid #e5e7eb'
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
             )}
           </>
         )}
+
 
         {/* Driver Portal */}
         {activeTab === 'driver' && (
@@ -848,6 +891,13 @@ const resetAuth = () => {
                         <p><strong>Student ID:</strong> {order.studentId}</p>
                         <p><strong>Order Total:</strong> RM{order.orderTotal}</p>
                         <p><strong>Order Time:</strong> {new Date(order.timestamp).toLocaleString()}</p>
+                        {order.orderImageURL && (
+                          <img
+                            src={order.orderImageURL}
+                            alt="Order"
+                            style={styles.orderImage}
+                          />
+                        )}
                       </div>
                     ))
                   )}
