@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Receipt, Users, Truck, CheckCircle, Calculator, Camera, Scan, Lock, Eye, EyeOff, QrCode, Search, Loader2, AlertCircle, Clock } from 'lucide-react';
+import { MapPin, Receipt, Users, Truck, CheckCircle, Calculator, Camera, Scan, Lock, Eye, EyeOff, QrCode, Search, Loader2, AlertCircle, Clock, TrendingUp, DollarSign, Package, UserCheck, BarChart3, PieChart, Calendar, Save, History } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, where, orderBy } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-
+import qrImage from './assets/qrtng.jpg';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBg56oKPkkQBHZYlqDe86gNKuM6CU9o0no",
@@ -18,6 +18,160 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
+
+// Chart Component
+const SimpleChart = ({ data, type = 'bar', title, height = 300 }) => {
+  const maxValue = Math.max(...data.map(d => d.value));
+  
+  const styles = {
+    container: {
+      backgroundColor: 'white',
+      padding: '20px',
+      borderRadius: '12px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+    },
+    title: {
+      fontSize: '18px',
+      fontWeight: 'bold',
+      marginBottom: '20px',
+      color: '#1f2937'
+    },
+    chartArea: {
+      position: 'relative',
+      height: `${height}px`
+    },
+    bar: {
+      position: 'absolute',
+      bottom: 0,
+      backgroundColor: '#3b82f6',
+      borderRadius: '4px 4px 0 0',
+      transition: 'all 0.3s ease',
+      cursor: 'pointer'
+    },
+    barLabel: {
+      position: 'absolute',
+      bottom: '-25px',
+      fontSize: '12px',
+      color: '#6b7280',
+      whiteSpace: 'nowrap',
+      transform: 'translateX(-50%)',
+      left: '50%'
+    },
+    barValue: {
+      position: 'absolute',
+      top: '-25px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      fontSize: '14px',
+      fontWeight: 'bold',
+      color: '#1f2937'
+    },
+    pieContainer: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '40px'
+    },
+    pieChart: {
+      width: '200px',
+      height: '200px',
+      position: 'relative'
+    },
+    pieLegend: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '12px'
+    },
+    legendItem: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px'
+    },
+    legendColor: {
+      width: '16px',
+      height: '16px',
+      borderRadius: '4px'
+    }
+  };
+
+  if (type === 'pie') {
+    const total = data.reduce((sum, item) => sum + item.value, 0);
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+    let currentAngle = -90;
+
+    return (
+      <div style={styles.container}>
+        <h3 style={styles.title}>{title}</h3>
+        <div style={styles.pieContainer}>
+          <svg viewBox="0 0 200 200" style={styles.pieChart}>
+            {data.map((item, index) => {
+              const percentage = (item.value / total) * 100;
+              const angle = (percentage / 100) * 360;
+              const largeArcFlag = angle > 180 ? 1 : 0;
+              
+              const startAngle = currentAngle;
+              const endAngle = currentAngle + angle;
+              
+              const startX = 100 + 80 * Math.cos(startAngle * Math.PI / 180);
+              const startY = 100 + 80 * Math.sin(startAngle * Math.PI / 180);
+              const endX = 100 + 80 * Math.cos(endAngle * Math.PI / 180);
+              const endY = 100 + 80 * Math.sin(endAngle * Math.PI / 180);
+              
+              currentAngle = endAngle;
+              
+              return (
+                <path
+                  key={index}
+                  d={`M 100 100 L ${startX} ${startY} A 80 80 0 ${largeArcFlag} 1 ${endX} ${endY} Z`}
+                  fill={colors[index % colors.length]}
+                  stroke="white"
+                  strokeWidth="2"
+                />
+              );
+            })}
+          </svg>
+          <div style={styles.pieLegend}>
+            {data.map((item, index) => (
+              <div key={index} style={styles.legendItem}>
+                <div style={{
+                  ...styles.legendColor,
+                  backgroundColor: colors[index % colors.length]
+                }}></div>
+                <span>{item.label}: {item.value} ({((item.value / total) * 100).toFixed(1)}%)</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const barWidth = 60;
+  const gap = 20;
+  const chartWidth = data.length * (barWidth + gap);
+
+  return (
+    <div style={styles.container}>
+      <h3 style={styles.title}>{title}</h3>
+      <div style={styles.chartArea}>
+        {data.map((item, index) => (
+          <div
+            key={index}
+            style={{
+              ...styles.bar,
+              left: `${index * (barWidth + gap) + gap}px`,
+              width: `${barWidth}px`,
+              height: `${(item.value / maxValue) * (height - 40)}px`,
+              backgroundColor: item.color || '#3b82f6'
+            }}
+          >
+            <span style={styles.barValue}>{item.value}</span>
+            <span style={styles.barLabel}>{item.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 // Countdown Timer Component
 const CountdownTimer = ({ targetTime = "19:00" }) => {
@@ -181,13 +335,15 @@ const SuccessAnimation = ({ title, message, onClose, additionalInfo, duration = 
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setVisible(false);
-      setTimeout(onClose, 500);
-    }, duration);
+    if (duration > 0 && !showOkButton) {
+      const timer = setTimeout(() => {
+        setVisible(false);
+        setTimeout(onClose, 500);
+      }, duration);
 
-    return () => clearTimeout(timer);
-  }, [onClose, duration]);
+      return () => clearTimeout(timer);
+    }
+  }, [onClose, duration, showOkButton]);
 
   const successStyles = {
     overlay: {
@@ -253,6 +409,13 @@ const SuccessAnimation = ({ title, message, onClose, additionalInfo, duration = 
     }
   };
 
+  const handleClose = () => {
+    setVisible(false);
+    setTimeout(() => {
+      if (onClose) onClose();
+    }, 500);
+  };
+
   return (
     <div style={successStyles.overlay}>
       <div style={successStyles.modal}>
@@ -267,22 +430,22 @@ const SuccessAnimation = ({ title, message, onClose, additionalInfo, duration = 
           </div>
         )}
         {showOkButton && (
-          <button
-            onClick={onClose}
-            style={{
-              padding: '12px 24px',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              marginTop: '20px',
-              cursor: 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            OK
-          </button>
-        )}
+        <button
+          onClick={handleClose}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: '#3b82f6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            marginTop: '20px',
+            cursor: 'pointer',
+            fontWeight: '600'
+          }}
+        >
+          OK
+        </button>
+      )}
       </div>
       <style jsx>{`
         @keyframes successPulse {
@@ -313,21 +476,9 @@ const SuccessAnimation = ({ title, message, onClose, additionalInfo, duration = 
   );
 };
 
-// Unified QR Code Display Component
 const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false }) => {
   const needsPayment = amount > 0;
   const displayAmount = isCommitmentFee ? 10 : amount;
-
-  // Generate TNG payment link
-  const generateTNGLink = (amount) => {
-    return `https://tngdigital.com.my/pay?phone=01110954671&amount=${amount.toFixed(2)}`;
-  };
-
-  // Generate QR code image URL
-  const generateQRCode = (amount) => {
-    const link = generateTNGLink(amount);
-    return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(link)}`;
-  };
 
   const qrStyles = {
     container: {
@@ -418,13 +569,9 @@ const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false }) => {
       
       <div style={qrStyles.qrWrapper}>
         <img 
-          src={generateQRCode(displayAmount)} 
+          src={qrImage}
           alt="TNG Payment QR Code"
           style={qrStyles.qrImage}
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' fill='%23f3f4f6'/%3E%3Ctext x='50%' y='50%' font-family='Arial' font-size='14' text-anchor='middle' dominant-baseline='middle' fill='%236b7280'%3EQR Code Error%3C/text%3E%3C/svg%3E";
-          }}
         />
       </div>
       
@@ -655,157 +802,6 @@ const WaitingPage = ({ onClose }) => {
   );
 };
 
-// Scan Modal Component
-const ScanModal = ({ onClose, onConfirm, orderDetails }) => {
-  const [isScanning, setIsScanning] = useState(false);
-
-  const handleScan = async () => {
-    setIsScanning(true);
-    // Simulate scanning delay
-    setTimeout(() => {
-      setIsScanning(false);
-      onConfirm();
-    }, 2000);
-  };
-
-  const styles = {
-    overlay: {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.7)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000,
-      padding: '16px'
-    },
-    modal: {
-      backgroundColor: 'white',
-      borderRadius: '24px',
-      padding: '32px',
-      width: '90%',
-      maxWidth: '500px',
-      maxHeight: '90vh',
-      overflowY: 'auto',
-      boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
-    },
-    header: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      marginBottom: '24px'
-    },
-    title: {
-      fontSize: '24px',
-      fontWeight: 'bold',
-      color: '#1f2937',
-      margin: 0
-    },
-    orderDetails: {
-      backgroundColor: '#f9fafb',
-      padding: '20px',
-      borderRadius: '12px',
-      marginBottom: '24px'
-    },
-    detailRow: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      marginBottom: '8px',
-      fontSize: '15px'
-    },
-    buttonGroup: {
-      display: 'flex',
-      gap: '12px',
-      marginTop: '24px'
-    },
-    button: {
-      flex: 1,
-      padding: '14px 24px',
-      borderRadius: '12px',
-      border: 'none',
-      cursor: 'pointer',
-      fontSize: '16px',
-      fontWeight: '600',
-      transition: 'all 0.2s'
-    },
-    primaryButton: {
-      backgroundColor: '#10b981',
-      color: 'white'
-    },
-    secondaryButton: {
-      backgroundColor: '#ef4444',
-      color: 'white'
-    }
-  };
-
-  return (
-    <div style={styles.overlay}>
-      {isScanning && <LoadingAnimation message="Scanning Order..." />}
-      
-      <div style={styles.modal}>
-        <div style={styles.header}>
-          <Scan size={32} color="#3b82f6" />
-          <h3 style={styles.title}>Confirm Your Order</h3>
-        </div>
-        
-        <div style={styles.orderDetails}>
-          <div style={styles.detailRow}>
-            <span style={{ color: '#6b7280' }}>Order Number:</span>
-            <span style={{ fontWeight: 'bold' }}>{orderDetails?.orderNumber || 'N/A'}</span>
-          </div>
-          
-          <div style={{ margin: '16px 0', borderTop: '1px solid #e5e7eb', paddingTop: '16px' }}>
-            <p style={{ fontWeight: 'bold', marginBottom: '8px' }}>Order Items:</p>
-            {orderDetails?.items?.map((item, index) => (
-              <div key={index} style={styles.detailRow}>
-                <span>{item.name}</span>
-                <span>RM{item.price.toFixed(2)}</span>
-              </div>
-            ))}
-          </div>
-          
-          <div style={{ 
-            borderTop: '2px solid #e5e7eb', 
-            paddingTop: '16px',
-            marginTop: '16px'
-          }}>
-            <div style={styles.detailRow}>
-              <span style={{ fontSize: '18px', fontWeight: 'bold' }}>Total Amount:</span>
-              <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#059669' }}>
-                RM{orderDetails?.total?.toFixed(2) || '0.00'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div style={styles.buttonGroup}>
-          <button
-            onClick={onClose}
-            style={{
-              ...styles.button,
-              ...styles.secondaryButton
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleScan}
-            style={{
-              ...styles.button,
-              ...styles.primaryButton
-            }}
-          >
-            Confirm Order
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // Retrieve Registration Component
 const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle }) => {
   const [retrieveName, setRetrieveName] = useState('');
@@ -956,6 +952,8 @@ const Crave2CaveSystem = () => {
   const [activeTab, setActiveTab] = useState('student');
   const [prebookUsers, setPrebookUsers] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [todayOrders, setTodayOrders] = useState([]);
+  const [todayUsers, setTodayUsers] = useState([]);
   const [minOrderReached, setMinOrderReached] = useState(false);
   const [studentName, setStudentName] = useState('');
   const [studentId, setStudentId] = useState('');
@@ -973,12 +971,11 @@ const Crave2CaveSystem = () => {
   const [loadingMessage, setLoadingMessage] = useState('');
   const [nameError, setNameError] = useState('');
   const [idError, setIdError] = useState('');
-  const [showScanModal, setShowScanModal] = useState(false);
-  const [scanResult, setScanResult] = useState(null);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
   const [currentOrder, setCurrentOrder] = useState(null);
   const [showRetrieve, setShowRetrieve] = useState(false);
   const [retrieveError, setRetrieveError] = useState('');
+  const [historyData, setHistoryData] = useState([]);
 
   const ADMIN_PASSCODE = 'YIEK';
 
@@ -990,15 +987,42 @@ const Crave2CaveSystem = () => {
 
     getPrebookUsers();
     getOrders();
+    getHistoryData();
   }, []);
+
+  const isToday = (dateString) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+           date.getMonth() === today.getMonth() &&
+           date.getFullYear() === today.getFullYear();
+  };
+
+  const filterTodayData = (orders, users) => {
+    const todayOrdersFiltered = orders.filter(order => isToday(order.timestamp));
+    const todayUserIds = new Set(todayOrdersFiltered.map(order => order.userId));
+    const todayUsersFiltered = users.filter(user => 
+      isToday(user.timestamp) || todayUserIds.has(user.firestoreId)
+    );
+    
+    setTodayOrders(todayOrdersFiltered);
+    setTodayUsers(todayUsersFiltered);
+  };
 
   const getProgressMax = () => {
     const paidUsersCount = prebookUsers.filter(u => u.commitmentPaid).length;
     return Math.max(3, paidUsersCount);
   };
 
-  const showSuccessAnimation = (title, message, additionalInfo = null, duration = 3000) => {
-    setSuccessConfig({ title, message, additionalInfo, duration });
+  const showSuccessAnimation = (title, message, additionalInfo = null, duration = 3000, showOkButton = false, onCloseCallback = null) => {
+    setSuccessConfig({ 
+      title, 
+      message, 
+      additionalInfo, 
+      duration,
+      showOkButton,
+      onClose: onCloseCallback 
+    });
     setShowSuccess(true);
   };
 
@@ -1057,6 +1081,11 @@ const Crave2CaveSystem = () => {
 
       const paidUsers = users.filter(u => u.commitmentPaid);
       setMinOrderReached(paidUsers.length >= 3);
+      
+      // Filter today's data after getting all data
+      if (orders.length > 0) {
+        filterTodayData(orders, users);
+      }
     } catch (e) {
       console.error('Error getting users: ', e);
     }
@@ -1076,11 +1105,113 @@ const Crave2CaveSystem = () => {
   const getOrders = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'orders'));
-      const orders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setOrders(orders);
+      const allOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setOrders(allOrders);
+      
+      // Filter today's data after getting all data
+      if (prebookUsers.length > 0) {
+        filterTodayData(allOrders, prebookUsers);
+      }
     } catch (e) {
       console.error('Error getting orders: ', e);
     }
+  };
+
+  const saveToHistory = async () => {
+    showLoadingAnimation('Saving to history...');
+    
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const todayRevenue = todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                          todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
+      const driverCost = 30;
+      const todayProfit = todayRevenue - driverCost;
+      
+      const historyEntry = {
+        date: today,
+        timestamp: new Date().toISOString(),
+        orders: todayOrders,
+        users: todayUsers,
+        totalOrders: todayOrders.length,
+        totalUsers: todayUsers.length,
+        paidUsers: todayUsers.filter(u => u.commitmentPaid).length,
+        totalRevenue: todayRevenue,
+        driverCost: driverCost,
+        profit: todayProfit,
+        commitmentFees: todayUsers.filter(u => u.commitmentPaid).length * 10,
+        deliveryFees: todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)
+      };
+
+      await addDoc(collection(db, 'history'), historyEntry);
+      await getHistoryData();
+      
+      hideLoadingAnimation();
+      showSuccessAnimation(
+        'Saved to History!',
+        `Today's data has been saved to history. Profit: RM${todayProfit.toFixed(2)}`,
+        null,
+        3000,
+        false
+      );
+    } catch (error) {
+      hideLoadingAnimation();
+      alert('Error saving to history. Please try again.');
+      console.error('History save error:', error);
+    }
+  };
+
+  const getHistoryData = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'history'));
+      const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setHistoryData(history.sort((a, b) => new Date(b.date) - new Date(a.date)));
+    } catch (e) {
+      console.error('Error getting history: ', e);
+    }
+  };
+
+  const calculateMonthProfit = () => {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    // Calculate from history
+    const monthHistory = historyData.filter(entry => {
+      const entryDate = new Date(entry.date);
+      return entryDate.getMonth() === currentMonth && entryDate.getFullYear() === currentYear;
+    });
+    
+    const historyProfit = monthHistory.reduce((sum, entry) => sum + (entry.profit || 0), 0);
+    
+    // Add today's profit if not already in history
+    const todayString = new Date().toISOString().split('T')[0];
+    const todayInHistory = monthHistory.some(entry => entry.date === todayString);
+    
+    if (!todayInHistory && todayOrders.length > 0) {
+      const todayRevenue = todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                          todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
+      const todayProfit = todayRevenue - 30;
+      return historyProfit + todayProfit;
+    }
+    
+    return historyProfit;
+  };
+
+  const calculateTotalProfit = () => {
+    // Calculate from history
+    const historyProfit = historyData.reduce((sum, entry) => sum + (entry.profit || 0), 0);
+    
+    // Add today's profit if not already in history
+    const todayString = new Date().toISOString().split('T')[0];
+    const todayInHistory = historyData.some(entry => entry.date === todayString);
+    
+    if (!todayInHistory && todayOrders.length > 0) {
+      const todayRevenue = todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                          todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
+      const todayProfit = todayRevenue - 30;
+      return historyProfit + todayProfit;
+    }
+    
+    return historyProfit;
   };
 
   // Handle retrieve registration
@@ -1107,7 +1238,8 @@ const Crave2CaveSystem = () => {
         `Welcome back ${foundUser.name}!`,
         'Your order has already been submitted.',
         <p>Redirecting to order status page...</p>,
-        2000
+        2000,
+        false
       );
       setTimeout(() => setOrderConfirmed(true), 1500);
     } else if (foundUser.commitmentPaid) {
@@ -1116,7 +1248,8 @@ const Crave2CaveSystem = () => {
           `Welcome back ${foundUser.name}!`,
           'Your payment has been confirmed. You can now submit your order.',
           null,
-          2500
+          2500,
+          false
         );
         setUserStep(3);
       } else {
@@ -1124,7 +1257,8 @@ const Crave2CaveSystem = () => {
           `Welcome back ${foundUser.name}!`,
           'Your payment has been confirmed.',
           <p>Waiting for minimum 3 paid users before order submission opens.</p>,
-          3000
+          3000,
+          false
         );
         setUserStep(3);
       }
@@ -1133,7 +1267,8 @@ const Crave2CaveSystem = () => {
         `Welcome back ${foundUser.name}!`,
         'Please complete your commitment fee payment to continue.',
         null,
-        2500
+        2500,
+        false
       );
       setUserStep(2);
     }
@@ -1405,6 +1540,42 @@ const Crave2CaveSystem = () => {
       '@media (max-width: 768px)': {
         display: 'none'
       }
+    },
+    statCard: {
+      backgroundColor: 'white',
+      padding: '24px',
+      borderRadius: '12px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '16px',
+      transition: 'all 0.2s',
+      cursor: 'pointer',
+      '&:hover': {
+        boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+        transform: 'translateY(-2px)'
+      }
+    },
+    statIcon: {
+      width: '56px',
+      height: '56px',
+      borderRadius: '12px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    statContent: {
+      flex: 1
+    },
+    statLabel: {
+      fontSize: '14px',
+      color: '#6b7280',
+      marginBottom: '4px'
+    },
+    statValue: {
+      fontSize: '24px',
+      fontWeight: 'bold',
+      color: '#1f2937'
     }
   };
 
@@ -1487,10 +1658,10 @@ const Crave2CaveSystem = () => {
         'Registration Successful!',
         'You have been registered for the food delivery service.',
         <p>Please proceed to pay the RM10 commitment fee.</p>,
-        2500 // Shorter duration
+        0,
+        true,
+        () => setUserStep(2)
       );
-      
-      setTimeout(() => setUserStep(2), 2300);
 
     } catch (error) {
       hideLoadingAnimation();
@@ -1508,9 +1679,7 @@ const Crave2CaveSystem = () => {
     showLoadingAnimation('Uploading receipt...');
 
     try {
-      console.log('Uploading receipt file:', receiptFile);
       const receiptURL = await uploadFileToStorage(receiptFile);
-      console.log('Receipt uploaded. File URL:', receiptURL);
 
       await updatePrebookUser(selectedUserId, {
         commitmentPaid: true,
@@ -1536,11 +1705,15 @@ const Crave2CaveSystem = () => {
         'Payment Confirmed!',
         'Your RM10 commitment fee has been received.',
         additionalInfo,
-        3000
+        0,
+        true,
+        () => {
+          if (minOrderReached) {
+            setUserStep(3);
+          }
+        }
       );
       
-      setTimeout(() => setUserStep(3), 2800);
-
     } catch (error) {
       hideLoadingAnimation();
       alert('Error submitting payment. Please try again.');
@@ -1549,8 +1722,8 @@ const Crave2CaveSystem = () => {
   };
 
   const handleOrderSubmission = async () => {
-    if (!orderTotal || !orderImage) {
-      alert('Please enter order total and upload order image');
+    if (!orderTotal) {
+      alert('Please enter order total');
       return;
     }
 
@@ -1563,7 +1736,12 @@ const Crave2CaveSystem = () => {
     const originalDeliveryFee = calculateDeliveryFee(totalAmount);
     const actualDeliveryFee = Math.max(0, originalDeliveryFee - 10);
 
-    if (actualDeliveryFee === 0) {
+    // Only require image if there's a delivery fee
+    if (actualDeliveryFee > 0 && !orderImage) {
+      alert('Please upload image of your order');
+      return;
+    }
+
     showLoadingAnimation('Processing order...');
 
     try {
@@ -1579,39 +1757,33 @@ const Crave2CaveSystem = () => {
         commitmentFeeDeducted: 10,
         totalWithDelivery: totalAmount + actualDeliveryFee,
         timestamp: new Date().toISOString(),
-        orderImageURL: null, // No image required
+        orderImageURL: null,
         orderNumber: `ORD-${Date.now()}`,
         status: 'pending'
       };
 
-      setCurrentOrder(orderData);
-      
-      // Skip scan modal and directly confirm order
-      const scanResponse = {
-        success: true,
-        orderNumber: orderData.orderNumber,
-        items: [
-          { name: "Food Order", price: orderData.orderTotal }
-        ],
-        total: orderData.totalWithDelivery
-      };
+      // Only upload image if provided
+      if (orderImage) {
+        const orderImageURL = await uploadFileToStorage(orderImage);
+        orderData.orderImageURL = orderImageURL;
+      }
 
-      setScanResult(scanResponse);
+      setCurrentOrder(orderData);
       
       await saveOrder(orderData);
       await updatePrebookUser(selectedUserId, {
         orderTotal: orderData.orderTotal,
         orderSubmitted: true,
         hasOrdered: true,
-        orderImageURL: null
+        orderImageURL: orderData.orderImageURL
       });
 
       hideLoadingAnimation();
       
-      setSuccessConfig({
-        title: 'Order Confirmed!',
-        message: 'Your order has been successfully submitted.',
-        additionalInfo: (
+      showSuccessAnimation(
+        'Order Confirmed!',
+        'Your order has been successfully submitted.',
+        (
           <div>
             <Truck size={32} color="#ea580c" style={{ marginBottom: '8px' }} />
             <p style={{ margin: '8px 0 0 0', fontSize: '16px', color: '#92400e', fontWeight: '600' }}>
@@ -1620,114 +1792,15 @@ const Crave2CaveSystem = () => {
             <CountdownTimer targetTime="19:00" />
           </div>
         ),
-        duration: 3000,
-        showOkButton: true // Add this flag to show OK button
-      });
-      setShowSuccess(true);
-      
-      setTimeout(() => {
-        setOrderConfirmed(true);
-      }, 2500);
+        0,
+        true,
+        () => setOrderConfirmed(true)
+      );
       
     } catch (error) {
       hideLoadingAnimation();
       alert('Error submitting order. Please try again.');
       console.error('Order submission error:', error);
-    }
-  } else {
-    // Normal flow with file upload required
-    if (!orderImage) {
-      alert('Please upload order image');
-      return;
-    }
-
-    showLoadingAnimation('Processing order...');
-
-    try {
-      const orderImageURL = await uploadFileToStorage(orderImage);
-      const selectedUser = prebookUsers.find(u => u.firestoreId === selectedUserId);
-
-      const orderData = {
-        userId: selectedUserId,
-        userName: selectedUser.name,
-        studentId: selectedUser.studentId,
-        orderTotal: totalAmount,
-        originalDeliveryFee: originalDeliveryFee,
-        deliveryFee: actualDeliveryFee,
-        commitmentFeeDeducted: 10,
-        totalWithDelivery: totalAmount + actualDeliveryFee,
-        timestamp: new Date().toISOString(),
-        orderImageURL: orderImageURL,
-        orderNumber: `ORD-${Date.now()}`,
-        status: 'pending'
-      };
-
-      setCurrentOrder(orderData);
-      hideLoadingAnimation();
-      setShowScanModal(true);
-    } catch (error) {
-      hideLoadingAnimation();
-      alert('Error submitting order. Please try again.');
-      console.error('Order submission error:', error);
-    }
-  }
-};
-
-  const handleScanConfirm = async () => {
-    showLoadingAnimation('Confirming order...');
-    
-    try {
-      // Simulate scan delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const scanResponse = {
-        success: true,
-        orderNumber: currentOrder.orderNumber,
-        items: [
-          { name: "Food Order", price: currentOrder.orderTotal }
-        ],
-        total: currentOrder.totalWithDelivery
-      };
-
-      if (scanResponse.success) {
-        setScanResult(scanResponse);
-        setShowScanModal(false);
-        
-        await saveOrder(currentOrder);
-        await updatePrebookUser(selectedUserId, {
-          orderTotal: currentOrder.orderTotal,
-          orderSubmitted: true,
-          hasOrdered: true,
-          orderImageURL: currentOrder.orderImageURL
-        });
-
-        hideLoadingAnimation();
-        
-        // Create config with shorter duration
-        setSuccessConfig({
-          title: 'Order Confirmed!',
-          message: 'Your order has been successfully submitted.',
-          additionalInfo: (
-            <div>
-              <Truck size={32} color="#ea580c" style={{ marginBottom: '8px' }} />
-              <p style={{ margin: '8px 0 0 0', fontSize: '16px', color: '#92400e', fontWeight: '600' }}>
-                Driver Pickup at 7:00 PM
-              </p>
-              <CountdownTimer targetTime="19:00" />
-            </div>
-          ),
-          duration: 4000 // Show for 4 seconds instead of 5
-        });
-        setShowSuccess(true);
-        
-        setTimeout(() => {
-          setOrderConfirmed(true);
-        }, 3500); // Show waiting page slightly before success animation closes (4000ms duration)
-      }
-    } catch (error) {
-      hideLoadingAnimation();
-      alert('Error confirming order. Please try again.');
-      console.error('Confirmation error:', error);
     }
   };
 
@@ -1817,18 +1890,12 @@ const Crave2CaveSystem = () => {
           message={successConfig.message}
           additionalInfo={successConfig.additionalInfo}
           duration={successConfig.duration}
-          onClose={() => setShowSuccess(false)}
-        />
-      )}
-
-      {showScanModal && currentOrder && (
-        <ScanModal
-          onClose={() => setShowScanModal(false)}
-          onConfirm={handleScanConfirm}
-          orderDetails={{
-            orderNumber: currentOrder.orderNumber,
-            items: [{ name: "Food Order", price: currentOrder.orderTotal }],
-            total: currentOrder.totalWithDelivery
+          showOkButton={successConfig.showOkButton}
+          onClose={() => {
+            setShowSuccess(false);
+            if (successConfig.onClose) {
+              successConfig.onClose();
+            }
           }}
         />
       )}
@@ -2087,7 +2154,7 @@ const Crave2CaveSystem = () => {
                   )}
 
                   <p style={{ marginBottom: '8px', color: '#6b7280' }}>
-                    Upload image of your order:
+                    Upload image of your order {Math.max(0, calculateDeliveryFee(parseFloat(orderTotal) || 0) - 10) === 0 ? '(optional)' : ''}:
                   </p>
 
                   <input
@@ -2114,12 +2181,12 @@ const Crave2CaveSystem = () => {
 
                   <button
                     onClick={handleOrderSubmission}
-                    disabled={!orderTotal || !orderImage}
+                    disabled={!orderTotal || (Math.max(0, calculateDeliveryFee(parseFloat(orderTotal) || 0) - 10) > 0 && !orderImage)}
                     style={{
                       ...styles.button,
                       ...styles.buttonOrange,
-                      opacity: (!orderTotal || !orderImage) ? 0.5 : 1,
-                      cursor: (!orderTotal || !orderImage) ? 'not-allowed' : 'pointer'
+                      opacity: (!orderTotal || (Math.max(0, calculateDeliveryFee(parseFloat(orderTotal) || 0) - 10) > 0 && !orderImage)) ? 0.5 : 1,
+                      cursor: (!orderTotal || (Math.max(0, calculateDeliveryFee(parseFloat(orderTotal) || 0) - 10) > 0 && !orderImage)) ? 'not-allowed' : 'pointer'
                     }}
                   >
                     Submit Order
@@ -2214,68 +2281,255 @@ const Crave2CaveSystem = () => {
                   flexWrap: 'wrap',
                   gap: '16px'
                 }}>
-                  <h2 style={{ margin: 0 }}>Admin Dashboard</h2>
-                  <button
-                    onClick={resetAuth}
-                    style={{
-                      ...styles.button,
-                      width: 'auto',
-                      backgroundColor: '#6b7280',
-                      color: 'white',
-                      padding: '12px 24px'
-                    }}
-                  >
-                    Logout
-                  </button>
+                  <div>
+                    <h2 style={{ margin: 0 }}>Admin Dashboard</h2>
+                    <p style={{ margin: '4px 0 0 0', color: '#6b7280' }}>
+                      Today's Data - {new Date().toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button
+                      onClick={saveToHistory}
+                      disabled={todayOrders.length === 0}
+                      style={{
+                        ...styles.button,
+                        width: 'auto',
+                        backgroundColor: todayOrders.length === 0 ? '#9ca3af' : '#10b981',
+                        color: 'white',
+                        padding: '12px 24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        opacity: todayOrders.length === 0 ? 0.5 : 1,
+                        cursor: todayOrders.length === 0 ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      <Save size={18} />
+                      Save to History
+                    </button>
+                    <button
+                      onClick={resetAuth}
+                      style={{
+                        ...styles.button,
+                        width: 'auto',
+                        backgroundColor: '#6b7280',
+                        color: 'white',
+                        padding: '12px 24px'
+                      }}
+                    >
+                      Logout
+                    </button>
+                  </div>
                 </div>
 
-                <div style={styles.grid}>
-                  {/* Statistics */}
-                  <div style={styles.card}>
-                    <h3>Summary</h3>
-                    <div style={{ display: 'grid', gap: '8px' }}>
-                      <p>Total Registered Users: <strong>{prebookUsers.length}</strong></p>
-                      <p>Paid Users: <strong>{prebookUsers.filter(u => u.commitmentPaid).length}</strong></p>
-                      <p>Orders Submitted: <strong>{orders.length}</strong></p>
-                      <p>Total Commitment Fees: <strong>RM{prebookUsers.filter(u => u.commitmentPaid).length * 10}</strong></p>
-                      <p>Total Delivery Fees: <strong>RM{orders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)}</strong></p>
-                      <p>Total Order Amount: <strong>RM{orders.reduce((sum, order) => sum + (order.totalWithDelivery || 0), 0)}</strong></p>
+                {/* Statistics Cards */}
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                  gap: '20px',
+                  marginBottom: '32px' 
+                }}>
+                  <div style={styles.statCard}>
+                    <div style={{ ...styles.statIcon, backgroundColor: '#dbeafe' }}>
+                      <Users size={28} color="#3b82f6" />
+                    </div>
+                    <div style={styles.statContent}>
+                      <p style={styles.statLabel}>Today's Registered</p>
+                      <p style={styles.statValue}>{todayUsers.length}</p>
                     </div>
                   </div>
 
-                  {/* Orders Submitted */}
-                  <div style={styles.card}>
-                    <h3>Orders Submitted</h3>
-                    {orders.length === 0 ? (
-                      <div style={{ 
-                        textAlign: 'center', 
-                        padding: '40px',
-                        color: '#6b7280'
-                      }}>
-                        <AlertCircle size={48} style={{ marginBottom: '16px' }} />
-                        <p>No orders available yet.</p>
-                      </div>
-                    ) : (
-                      orders.map((order, index) => (
-                        <div key={order.id || index} style={styles.orderItem}>
-                          <p><strong>Customer:</strong> {order.userName}</p>
-                          <p><strong>Student ID:</strong> {order.studentId}</p>
-                          <p><strong>Order Total:</strong> RM{order.orderTotal}</p>
-                          <p><strong>Delivery Fee:</strong> RM{order.deliveryFee}</p>
-                          <p><strong>Total with Delivery:</strong> RM{order.totalWithDelivery}</p>
-                          <p><strong>Order Time:</strong> {new Date(order.timestamp).toLocaleString()}</p>
-
-                          {order.orderImageURL && (
-                            <img
-                              src={order.orderImageURL}
-                              alt="Order"
-                              style={styles.orderImage}
-                            />
-                          )}
-                        </div>
-                      ))
-                    )}
+                  <div style={styles.statCard}>
+                    <div style={{ ...styles.statIcon, backgroundColor: '#d1fae5' }}>
+                      <UserCheck size={28} color="#10b981" />
+                    </div>
+                    <div style={styles.statContent}>
+                      <p style={styles.statLabel}>Today's Paid Users</p>
+                      <p style={styles.statValue}>{todayUsers.filter(u => u.commitmentPaid).length}</p>
+                    </div>
                   </div>
+
+                  <div style={styles.statCard}>
+                    <div style={{ ...styles.statIcon, backgroundColor: '#fee2e2' }}>
+                      <Package size={28} color="#ef4444" />
+                    </div>
+                    <div style={styles.statContent}>
+                      <p style={styles.statLabel}>Today's Orders</p>
+                      <p style={styles.statValue}>{todayOrders.length}</p>
+                    </div>
+                  </div>
+
+                  <div style={styles.statCard}>
+                    <div style={{ ...styles.statIcon, backgroundColor: '#fef3c7' }}>
+                      <DollarSign size={28} color="#f59e0b" />
+                    </div>
+                    <div style={styles.statContent}>
+                      <p style={styles.statLabel}>Today's Revenue</p>
+                      <p style={styles.statValue}>
+                        RM{(todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                          todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={styles.statCard}>
+                    <div style={{ ...styles.statIcon, backgroundColor: '#e0e7ff' }}>
+                      <TrendingUp size={28} color="#6366f1" />
+                    </div>
+                    <div style={styles.statContent}>
+                      <p style={styles.statLabel}>Month Profit</p>
+                      <p style={styles.statValue}>
+                        RM{calculateMonthProfit().toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={styles.statCard}>
+                    <div style={{ ...styles.statIcon, backgroundColor: '#fce7f3' }}>
+                      <TrendingUp size={28} color="#ec4899" />
+                    </div>
+                    <div style={styles.statContent}>
+                      <p style={styles.statLabel}>Total Profit</p>
+                      <p style={styles.statValue}>
+                        RM{calculateTotalProfit().toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Profit Breakdown */}
+                <div style={styles.card}>
+                  <h3>Today's Profit Calculation</h3>
+                  <div style={{ 
+                    backgroundColor: '#f9fafb', 
+                    padding: '20px', 
+                    borderRadius: '12px',
+                    marginBottom: '20px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span>Commitment Fees ({todayUsers.filter(u => u.commitmentPaid).length} × RM10):</span>
+                      <span style={{ fontWeight: 'bold' }}>
+                        +RM{(todayUsers.filter(u => u.commitmentPaid).length * 10).toFixed(2)}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span>Delivery Fees:</span>
+                      <span style={{ fontWeight: 'bold' }}>
+                        +RM{todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0).toFixed(2)}
+                      </span>
+                    </div>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      borderTop: '1px solid #e5e7eb',
+                      paddingTop: '12px',
+                      marginTop: '12px' 
+                    }}>
+                      <span>Total Revenue:</span>
+                      <span style={{ fontWeight: 'bold' }}>
+                        RM{(todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                          todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)).toFixed(2)}
+                      </span>
+                    </div>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between',
+                      marginTop: '12px'
+                    }}>
+                      <span>Driver Cost:</span>
+                      <span style={{ fontWeight: 'bold', color: '#dc2626' }}>
+                        -RM30.00
+                      </span>
+                    </div>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between',
+                      borderTop: '2px solid #e5e7eb',
+                      paddingTop: '12px',
+                      marginTop: '12px'
+                    }}>
+                      <span style={{ fontSize: '18px', fontWeight: 'bold' }}>Today's Profit:</span>
+                      <span style={{ 
+                        fontSize: '18px', 
+                        fontWeight: 'bold', 
+                        color: (todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                               todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 30) >= 0 
+                               ? '#059669' : '#dc2626' 
+                      }}>
+                        RM{((todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                            todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 30).toFixed(2))}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Charts */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '32px' }}>
+                  <SimpleChart
+                    type="bar"
+                    title="Today's Order Distribution by Amount"
+                    data={[
+                      { label: '<RM50', value: todayOrders.filter(o => o.orderTotal < 50).length, color: '#3b82f6' },
+                      { label: 'RM50-100', value: todayOrders.filter(o => o.orderTotal >= 50 && o.orderTotal < 100).length, color: '#10b981' },
+                      { label: 'RM100-150', value: todayOrders.filter(o => o.orderTotal >= 100 && o.orderTotal < 150).length, color: '#f59e0b' },
+                      { label: '>RM150', value: todayOrders.filter(o => o.orderTotal >= 150).length, color: '#ef4444' }
+                    ]}
+                  />
+
+                  <SimpleChart
+                    type="pie"
+                    title="Today's Revenue Breakdown"
+                    data={[
+                      { label: 'Commitment Fees', value: todayUsers.filter(u => u.commitmentPaid).length * 10 },
+                      { label: 'Delivery Fees', value: todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) }
+                    ]}
+                  />
+                </div>
+
+                {/* Today's Orders Table */}
+                <div style={styles.card}>
+                  <h3>Today's Orders</h3>
+                  {todayOrders.length === 0 ? (
+                    <div style={{ 
+                      textAlign: 'center', 
+                      padding: '40px',
+                      color: '#6b7280'
+                    }}>
+                      <AlertCircle size={48} style={{ marginBottom: '16px' }} />
+                      <p>No orders for today yet.</p>
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                            <th style={{ padding: '12px', textAlign: 'left' }}>Order #</th>
+                            <th style={{ padding: '12px', textAlign: 'left' }}>Customer</th>
+                            <th style={{ padding: '12px', textAlign: 'left' }}>Student ID</th>
+                            <th style={{ padding: '12px', textAlign: 'right' }}>Order Total</th>
+                            <th style={{ padding: '12px', textAlign: 'right' }}>Delivery Fee</th>
+                            <th style={{ padding: '12px', textAlign: 'right' }}>Total</th>
+                            <th style={{ padding: '12px', textAlign: 'left' }}>Time</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {todayOrders.map((order, index) => (
+                            <tr key={order.id || index} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                              <td style={{ padding: '12px' }}>{order.orderNumber}</td>
+                              <td style={{ padding: '12px' }}>{order.userName}</td>
+                              <td style={{ padding: '12px' }}>{order.studentId}</td>
+                              <td style={{ padding: '12px', textAlign: 'right' }}>RM{order.orderTotal}</td>
+                              <td style={{ padding: '12px', textAlign: 'right' }}>RM{order.deliveryFee}</td>
+                              <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold' }}>
+                                RM{order.totalWithDelivery}
+                              </td>
+                              <td style={{ padding: '12px' }}>{new Date(order.timestamp).toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -2297,7 +2551,12 @@ const Crave2CaveSystem = () => {
                   flexWrap: 'wrap',
                   gap: '16px'
                 }}>
-                  <h2 style={{ margin: 0 }}>Driver Portal</h2>
+                  <div>
+                    <h2 style={{ margin: 0 }}>Driver Portal</h2>
+                    <p style={{ margin: '4px 0 0 0', color: '#6b7280' }}>
+                      Pickup Date: {new Date().toLocaleDateString()}
+                    </p>
+                  </div>
                   <button
                     onClick={resetAuth}
                     style={{
@@ -2312,67 +2571,138 @@ const Crave2CaveSystem = () => {
                   </button>
                 </div>
 
+                {/* Summary Cards */}
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+                  gap: '20px',
+                  marginBottom: '32px' 
+                }}>
+                  <div style={styles.statCard}>
+                    <div style={{ ...styles.statIcon, backgroundColor: '#fee2e2' }}>
+                      <Package size={28} color="#ef4444" />
+                    </div>
+                    <div style={styles.statContent}>
+                      <p style={styles.statLabel}>Total Orders</p>
+                      <p style={styles.statValue}>{todayOrders.length}</p>
+                    </div>
+                  </div>
+
+                  <div style={styles.statCard}>
+                    <div style={{ ...styles.statIcon, backgroundColor: '#dbeafe' }}>
+                      <Clock size={28} color="#3b82f6" />
+                    </div>
+                    <div style={styles.statContent}>
+                      <p style={styles.statLabel}>Pickup Time</p>
+                      <p style={styles.statValue}>7:00 PM</p>
+                    </div>
+                  </div>
+
+                  <div style={styles.statCard}>
+                    <div style={{ ...styles.statIcon, backgroundColor: '#d1fae5' }}>
+                      <Calendar size={28} color="#10b981" />
+                    </div>
+                    <div style={styles.statContent}>
+                      <p style={styles.statLabel}>Date</p>
+                      <p style={styles.statValue}>{new Date().toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                </div>
+
                 <div style={styles.card}>
                   <div style={styles.cardHeader}>
                     <Truck color="#ea580c" size={24} />
-                    <h2 style={styles.cardTitle}>Delivery Orders - Pickup at 7:00 PM</h2>
+                    <h2 style={styles.cardTitle}>Today's Orders Summary</h2>
                   </div>
 
-                  {orders.length === 0 ? (
+                  {todayOrders.length === 0 ? (
                     <div style={{ 
                       textAlign: 'center', 
                       padding: '40px',
                       color: '#6b7280'
                     }}>
                       <Clock size={48} style={{ marginBottom: '16px' }} />
-                      <p>No orders available yet.</p>
+                      <p>No orders for today yet.</p>
                     </div>
                   ) : (
-                    orders.map((order, index) => (
-                      <div key={order.id || index} style={styles.orderItem}>
-                        <div style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          marginBottom: '12px',
-                          flexWrap: 'wrap',
-                          gap: '8px'
+                    <div style={{ display: 'grid', gap: '16px' }}>
+                      {todayOrders.map((order, index) => (
+                        <div key={order.id || index} style={{
+                          ...styles.orderItem,
+                          border: '2px solid #e5e7eb'
                         }}>
-                          <h4 style={{ margin: 0 }}>Order #{index + 1}</h4>
-                          <span style={{
-                            backgroundColor: '#fef3c7',
-                            color: '#92400e',
-                            padding: '4px 12px',
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            fontWeight: '600'
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '16px',
+                            flexWrap: 'wrap',
+                            gap: '8px'
                           }}>
-                            {order.orderNumber}
-                          </span>
+                            <h4 style={{ margin: 0, fontSize: '18px' }}>Order #{index + 1}</h4>
+                            <span style={{
+                              backgroundColor: '#fef3c7',
+                              color: '#92400e',
+                              padding: '6px 16px',
+                              borderRadius: '8px',
+                              fontSize: '14px',
+                              fontWeight: '600'
+                            }}>
+                              {order.orderNumber}
+                            </span>
+                          </div>
+                          
+                          <div style={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                            gap: '12px',
+                            marginBottom: '16px'
+                          }}>
+                            <div>
+                              <p style={{ margin: '4px 0', color: '#6b7280' }}>Customer</p>
+                              <p style={{ margin: '0', fontWeight: '600' }}>{order.userName}</p>
+                            </div>
+                            <div>
+                              <p style={{ margin: '4px 0', color: '#6b7280' }}>Student ID</p>
+                              <p style={{ margin: '0', fontWeight: '600' }}>{order.studentId}</p>
+                            </div>
+                          </div>
+                          
+                          <div style={{
+                            backgroundColor: '#f0fdf4',
+                            padding: '16px',
+                            borderRadius: '8px'
+                          }}>
+                            <p style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Order Details:</p>
+                            <p style={{ margin: '0', fontWeight: '600', fontSize: '16px' }}>
+                              Food Order - RM{order.orderTotal}
+                            </p>
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between',
+                              borderTop: '2px solid #10b981',
+                              paddingTop: '8px',
+                              marginTop: '8px'
+                            }}>
+                              <span style={{ fontSize: '18px', fontWeight: 'bold' }}>Total Amount:</span>
+                              <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#059669' }}>
+                                RM{order.orderTotal}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {order.orderImageURL && (
+                            <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                              <img
+                                src={order.orderImageURL}
+                                alt="Order"
+                                style={styles.orderImage}
+                              />
+                            </div>
+                          )}
                         </div>
-                        
-                        <p><strong>Customer:</strong> {order.userName}</p>
-                        <p><strong>Student ID:</strong> {order.studentId}</p>
-                        <p><strong>Order Total:</strong> RM{order.orderTotal}</p>
-                        <p><strong>Delivery Fee:</strong> RM{order.deliveryFee}</p>
-                        <p style={{ 
-                          fontSize: '18px', 
-                          fontWeight: 'bold',
-                          color: '#059669'
-                        }}>
-                          Total to Collect: RM{order.totalWithDelivery}
-                        </p>
-                        <p><strong>Order Time:</strong> {new Date(order.timestamp).toLocaleString()}</p>
-                        
-                        {order.orderImageURL && (
-                          <img
-                            src={order.orderImageURL}
-                            alt="Order"
-                            style={styles.orderImage}
-                          />
-                        )}
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
