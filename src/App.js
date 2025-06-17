@@ -976,39 +976,59 @@ const Crave2CaveSystem = () => {
   const [showRetrieve, setShowRetrieve] = useState(false);
   const [retrieveError, setRetrieveError] = useState('');
   const [historyData, setHistoryData] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(true);
 
   const ADMIN_PASSCODE = 'YIEK';
 
   useEffect(() => {
-    const isAuthenticatedFromStorage = localStorage.getItem('isAdminAuthenticated');
-    if (isAuthenticatedFromStorage === 'true') {
-      setIsAuthenticated(true);
+  const isAuthenticatedFromStorage = localStorage.getItem('isAdminAuthenticated');
+  if (isAuthenticatedFromStorage === 'true') {
+    setIsAuthenticated(true);
+  }
+
+  // Create an async function to properly sequence the data fetching
+  const fetchAllData = async () => {
+    try {
+      setLoadingUsers(true);
+      setLoadingOrders(true);
+      setLoadingHistory(true);
+      
+      // Fetch all data in parallel
+      const [users, orders, history] = await Promise.all([
+        getPrebookUsers(),
+        getOrders(),
+        getHistoryData()
+      ]);
+      
+      // Now filter today's data with all data available
+      filterTodayData(orders, users);
+      
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoadingUsers(false);
+      setLoadingOrders(false);
+      setLoadingHistory(false);
     }
-
-    getPrebookUsers();
-    getOrders();
-    getHistoryData();
-  }, []);
-
-  const isToday = (dateString) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    return date.getDate() === today.getDate() &&
-           date.getMonth() === today.getMonth() &&
-           date.getFullYear() === today.getFullYear();
   };
 
-  const filterTodayData = (orders, users) => {
-    const todayOrdersFiltered = orders.filter(order => isToday(order.timestamp));
-    const todayUserIds = new Set(todayOrdersFiltered.map(order => order.userId));
-    const todayUsersFiltered = users.filter(user => 
-      isToday(user.timestamp) || todayUserIds.has(user.firestoreId)
-    );
-    
-    setTodayOrders(todayOrdersFiltered);
-    setTodayUsers(todayUsersFiltered);
-  };
+  fetchAllData();
+}, []);
 
+  
+  const filterTodayData = (orders = [], users = []) => {
+  const todayOrdersFiltered = orders.filter(order => isToday(order.timestamp));
+  const todayUserIds = new Set(todayOrdersFiltered.map(order => order.userId));
+  const todayUsersFiltered = users.filter(user => 
+    isToday(user.timestamp) || todayUserIds.has(user.firestoreId)
+  );
+  
+  setTodayOrders(todayOrdersFiltered);
+  setTodayUsers(todayUsersFiltered);
+};
   const getProgressMax = () => {
     const paidUsersCount = prebookUsers.filter(u => u.commitmentPaid).length;
     return Math.max(3, paidUsersCount);
@@ -1074,27 +1094,30 @@ const Crave2CaveSystem = () => {
   };
 
   const getPrebookUsers = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'prebookUsers'));
-      const users = querySnapshot.docs.map(doc => ({ id: doc.id, firestoreId: doc.id, ...doc.data() }));
-      setPrebookUsers(users);
+  try {
+    const querySnapshot = await getDocs(collection(db, 'prebookUsers'));
+    const users = querySnapshot.docs.map(doc => ({ id: doc.id, firestoreId: doc.id, ...doc.data() }));
+    setPrebookUsers(users);
 
-      const paidUsers = users.filter(u => u.commitmentPaid);
-      setMinOrderReached(paidUsers.length >= 3);
-      
-      // Filter today's data after getting all data
-      if (orders.length > 0) {
-        filterTodayData(orders, users);
-      }
-    } catch (e) {
-      console.error('Error getting users: ', e);
-    }
-  };
+    const paidUsers = users.filter(u => u.commitmentPaid);
+    const newMinOrderReached = paidUsers.length >= 3;
+    setMinOrderReached(newMinOrderReached);
+    
+    return users; // Return the users data
+  } catch (e) {
+    console.error('Error getting users: ', e);
+    return [];
+  }
+};
 
   const saveOrder = async (order) => {
     try {
       const docRef = await addDoc(collection(db, 'orders'), order);
       console.log('Order saved with ID: ', docRef.id);
+      
+      // Automatically update history when order is saved
+      await updateDailyHistory();
+      
       return docRef.id;
     } catch (e) {
       console.error('Error saving order: ', e);
@@ -1103,71 +1126,89 @@ const Crave2CaveSystem = () => {
   };
 
   const getOrders = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'orders'));
-      const allOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setOrders(allOrders);
-      
-      // Filter today's data after getting all data
-      if (prebookUsers.length > 0) {
-        filterTodayData(allOrders, prebookUsers);
-      }
-    } catch (e) {
-      console.error('Error getting orders: ', e);
-    }
-  };
+  try {
+    const querySnapshot = await getDocs(collection(db, 'orders'));
+    const allOrders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setOrders(allOrders);
+    return allOrders; // Return the orders data
+  } catch (e) {
+    console.error('Error getting orders: ', e);
+    return [];
+  }
+};
 
-  const saveToHistory = async () => {
-    showLoadingAnimation('Saving to history...');
-    
+  const updateDailyHistory = async () => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const todayRevenue = todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-                          todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
-      const driverCost = 30;
+      
+      // Get fresh data from Firebase
+      const usersSnapshot = await getDocs(collection(db, 'prebookUsers'));
+      const ordersSnapshot = await getDocs(collection(db, 'orders'));
+      
+      const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, firestoreId: doc.id, ...doc.data() }));
+      const allOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Get today's data
+      const todayOrdersTemp = allOrders.filter(order => isToday(order.timestamp));
+      const todayUserIds = new Set(todayOrdersTemp.map(order => order.userId));
+      const todayUsersTemp = allUsers.filter(user => 
+        isToday(user.timestamp) || todayUserIds.has(user.firestoreId)
+      );
+      
+      const todayRevenue = todayUsersTemp.filter(u => u.commitmentPaid).length * 10 + 
+                          todayOrdersTemp.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
+      const driverCost = todayOrdersTemp.length > 0 ? 30 : 0;
       const todayProfit = todayRevenue - driverCost;
       
-      const historyEntry = {
+      // Check if today's history already exists
+      const historyQuery = query(collection(db, 'history'), where('date', '==', today));
+      const historySnapshot = await getDocs(historyQuery);
+      
+      const historyData = {
         date: today,
         timestamp: new Date().toISOString(),
-        orders: todayOrders,
-        users: todayUsers,
-        totalOrders: todayOrders.length,
-        totalUsers: todayUsers.length,
-        paidUsers: todayUsers.filter(u => u.commitmentPaid).length,
+        orders: todayOrdersTemp,
+        users: todayUsersTemp,
+        totalOrders: todayOrdersTemp.length,
+        totalUsers: todayUsersTemp.length,
+        registeredUsers: todayUsersTemp.filter(u => isToday(u.timestamp)).length,
+        paidUsers: todayUsersTemp.filter(u => u.commitmentPaid).length,
         totalRevenue: todayRevenue,
         driverCost: driverCost,
         profit: todayProfit,
-        commitmentFees: todayUsers.filter(u => u.commitmentPaid).length * 10,
-        deliveryFees: todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)
+        commitmentFees: todayUsersTemp.filter(u => u.commitmentPaid).length * 10,
+        deliveryFees: todayOrdersTemp.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)
       };
-
-      await addDoc(collection(db, 'history'), historyEntry);
-      await getHistoryData();
       
-      hideLoadingAnimation();
-      showSuccessAnimation(
-        'Saved to History!',
-        `Today's data has been saved to history. Profit: RM${todayProfit.toFixed(2)}`,
-        null,
-        3000,
-        false
-      );
+      if (historySnapshot.empty) {
+        // Create new history entry
+        await addDoc(collection(db, 'history'), historyData);
+      } else {
+        // Update existing history entry
+        const docId = historySnapshot.docs[0].id;
+        await updateDoc(doc(db, 'history', docId), historyData);
+      }
+      
+      // Update local state
+      await getPrebookUsers();
+      await getOrders();
+      await getHistoryData();
     } catch (error) {
-      hideLoadingAnimation();
-      alert('Error saving to history. Please try again.');
-      console.error('History save error:', error);
+      console.error('Error updating daily history:', error);
     }
   };
 
   const getHistoryData = async () => {
+    setLoadingHistory(true);
     try {
       const querySnapshot = await getDocs(collection(db, 'history'));
       const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setHistoryData(history.sort((a, b) => new Date(b.date) - new Date(a.date)));
     } catch (e) {
       console.error('Error getting history: ', e);
-    }
+    } finally {
+    setLoadingHistory(false);
+  }
   };
 
   const calculateMonthProfit = () => {
@@ -1214,6 +1255,46 @@ const Crave2CaveSystem = () => {
     return historyProfit;
   };
 
+  const isToday = (dateString) => {
+  if (!dateString) return false;
+  
+  const date = new Date(dateString);
+  const today = new Date();
+  
+  return (
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
+  );
+};
+
+  const getTotalHistoryStats = () => {
+    const totalRegistered = historyData.reduce((sum, entry) => sum + (entry.registeredUsers || 0), 0);
+    const totalRevenue = historyData.reduce((sum, entry) => sum + (entry.totalRevenue || 0), 0);
+    const totalProfit = historyData.reduce((sum, entry) => sum + (entry.profit || 0), 0);
+    const totalOrders = historyData.reduce((sum, entry) => sum + (entry.totalOrders || 0), 0);
+    
+    // Add today's data if not in history
+    const todayString = new Date().toISOString().split('T')[0];
+    const todayInHistory = historyData.some(entry => entry.date === todayString);
+    
+    if (!todayInHistory) {
+      const todayRegistered = todayUsers.filter(u => isToday(u.timestamp)).length;
+      const todayRevenue = todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                          todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
+      const todayProfit = todayRevenue - (todayOrders.length > 0 ? 30 : 0);
+      
+      return {
+        totalRegistered: totalRegistered + todayRegistered,
+        totalRevenue: totalRevenue + todayRevenue,
+        totalProfit: totalProfit + todayProfit,
+        totalOrders: totalOrders + todayOrders.length
+      };
+    }
+    
+    return { totalRegistered, totalRevenue, totalProfit, totalOrders };
+  };
+
   // Handle retrieve registration
   const handleRetrieveRegistration = (name, id) => {
     setRetrieveError('');
@@ -1256,11 +1337,17 @@ const Crave2CaveSystem = () => {
         showSuccessAnimation(
           `Welcome back ${foundUser.name}!`,
           'Your payment has been confirmed.',
-          <p>Waiting for minimum 3 paid users before order submission opens.</p>,
-          3000,
-          false
+          <p>We still need {3 - prebookUsers.filter(u => u.commitmentPaid).length} more paid users before order submission opens. Please check back later!</p>,
+          0,
+          true,
+          () => {
+            // Reset to home page
+            setUserStep(1);
+            setStudentName('');
+            setStudentId('');
+            setSelectedUserId('');
+          }
         );
-        setUserStep(3);
       }
     } else {
       showSuccessAnimation(
@@ -1652,6 +1739,9 @@ const Crave2CaveSystem = () => {
       setPrebookUsers(prev => [...prev, userWithId]);
       setSelectedUserId(firestoreId);
       
+      // Update history automatically
+      await updateDailyHistory();
+      
       hideLoadingAnimation();
       
       showSuccessAnimation(
@@ -1687,32 +1777,56 @@ const Crave2CaveSystem = () => {
         receiptURL: receiptURL
       });
 
-      setPrebookUsers(prev => prev.map(user =>
-        user.firestoreId === selectedUserId
-          ? { ...user, commitmentPaid: true, receiptURL: receiptURL }
-          : user
-      ));
+      // Update local state first
+      setPrebookUsers(prev => {
+        const updated = prev.map(user =>
+          user.firestoreId === selectedUserId
+            ? { ...user, commitmentPaid: true, receiptURL: receiptURL }
+            : user
+        );
+        return updated;
+      });
 
-      await getPrebookUsers();
+      // Get fresh data and check if minimum is reached
+      const isMinReached = await getPrebookUsers();
+      
+      // Update history automatically
+      await updateDailyHistory();
       
       hideLoadingAnimation();
       
-      const additionalInfo = minOrderReached ? 
-        <p>You can now submit your order!</p> :
-        <p>Waiting for minimum 3 users before orders open.</p>;
+      // Get updated count after fetching fresh data
+      const querySnapshot = await getDocs(collection(db, 'prebookUsers'));
+      const freshUsers = querySnapshot.docs.map(doc => ({ ...doc.data() }));
+      const currentPaidUsers = freshUsers.filter(u => u.commitmentPaid).length;
       
-      showSuccessAnimation(
-        'Payment Confirmed!',
-        'Your RM10 commitment fee has been received.',
-        additionalInfo,
-        0,
-        true,
-        () => {
-          if (minOrderReached) {
-            setUserStep(3);
+      if (isMinReached) {
+        showSuccessAnimation(
+          'Payment Confirmed!',
+          'Your RM10 commitment fee has been received.',
+          <p>You can now submit your order!</p>,
+          0,
+          true,
+          () => setUserStep(3)
+        );
+      } else {
+        const remainingUsers = 3 - currentPaidUsers;
+        showSuccessAnimation(
+          'Payment Confirmed!',
+          'Your RM10 commitment fee has been received.',
+          <p>We need {remainingUsers} more paid user{remainingUsers > 1 ? 's' : ''} before order submission opens. Please check back later!</p>,
+          0,
+          true,
+          () => {
+            // Reset to home page
+            setUserStep(1);
+            setStudentName('');
+            setStudentId('');
+            setSelectedUserId('');
+            setReceiptFile(null);
           }
-        }
-      );
+        );
+      }
       
     } catch (error) {
       hideLoadingAnimation();
@@ -1988,7 +2102,7 @@ const Crave2CaveSystem = () => {
                   <h3 style={{ marginBottom: '16px' }}>Step 1: Register</h3>
                   <input
                     type="text"
-                    placeholder="Enter your full name (e.g., John Doe)"
+                    placeholder="Enter your full name (e.g., Lim Ethan)"
                     value={studentName}
                     onChange={(e) => {
                       setStudentName(e.target.value);
@@ -2015,9 +2129,7 @@ const Crave2CaveSystem = () => {
                     }}
                   />
                   {idError && <p style={styles.errorText}>{idError}</p>}
-                  {!idError && studentId.length === 0 && (
-                    <p style={styles.hint}>Format example: 0469/24, 1234/23</p>
-                  )}
+                  {!idError && studentId.length === 0}
                   
                   <button
                     onClick={handlePrebook}
@@ -2252,13 +2364,31 @@ const Crave2CaveSystem = () => {
                       </p>
                     </div>
                     <p style={{ 
-                      margin: '0', 
+                      margin: '0 0 16px 0', 
                       color: '#6b7280',
                       fontSize: '14px'
                     }}>
                       You'll be able to submit your order once we reach the minimum requirement.
                       Please check back later or wait for a notification.
                     </p>
+                    <button
+                      onClick={() => {
+                        setUserStep(1);
+                        setStudentName('');
+                        setStudentId('');
+                        setSelectedUserId('');
+                        setReceiptFile(null);
+                      }}
+                      style={{
+                        ...styles.button,
+                        backgroundColor: '#6b7280',
+                        color: 'white',
+                        width: 'auto',
+                        padding: '12px 24px'
+                      }}
+                    >
+                      Return to Home
+                    </button>
                   </div>
                 </div>
               )}
@@ -2268,280 +2398,453 @@ const Crave2CaveSystem = () => {
 
         {/* Admin Dashboard */}
         {activeTab === 'admin' && (
-          <>
-            {!isAuthenticated ? (
-              <AuthScreen title="Admin Dashboard" />
-            ) : (
+        <>
+          {!isAuthenticated ? (
+            <AuthScreen title="Admin Dashboard" />
+          ) : (
+            <div>
+              {(loadingUsers || loadingOrders || loadingHistory) ? (
+                <div style={{ 
+                  textAlign: 'center', 
+                  padding: '40px',
+                  backgroundColor: 'white',
+                  borderRadius: '16px',
+                  marginBottom: '24px'
+                }}>
+                  <Loader2 size={48} color="#3b82f6" style={{ animation: 'spin 1s linear infinite' }} />
+                  <p style={{ marginTop: '16px', color: '#6b7280' }}>Loading dashboard data...</p>
+                </div>
+              ) : (
               <div>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center', 
-                  marginBottom: '24px',
-                  flexWrap: 'wrap',
-                  gap: '16px'
-                }}>
-                  <div>
-                    <h2 style={{ margin: 0 }}>Admin Dashboard</h2>
-                    <p style={{ margin: '4px 0 0 0', color: '#6b7280' }}>
-                      Today's Data - {new Date().toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <button
-                      onClick={saveToHistory}
-                      disabled={todayOrders.length === 0}
-                      style={{
-                        ...styles.button,
-                        width: 'auto',
-                        backgroundColor: todayOrders.length === 0 ? '#9ca3af' : '#10b981',
-                        color: 'white',
-                        padding: '12px 24px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        opacity: todayOrders.length === 0 ? 0.5 : 1,
-                        cursor: todayOrders.length === 0 ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      <Save size={18} />
-                      Save to History
-                    </button>
-                    <button
-                      onClick={resetAuth}
-                      style={{
-                        ...styles.button,
-                        width: 'auto',
-                        backgroundColor: '#6b7280',
-                        color: 'white',
-                        padding: '12px 24px'
-                      }}
-                    >
-                      Logout
-                    </button>
-                  </div>
-                </div>
-
-                {/* Statistics Cards */}
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-                  gap: '20px',
-                  marginBottom: '32px' 
-                }}>
-                  <div style={styles.statCard}>
-                    <div style={{ ...styles.statIcon, backgroundColor: '#dbeafe' }}>
-                      <Users size={28} color="#3b82f6" />
-                    </div>
-                    <div style={styles.statContent}>
-                      <p style={styles.statLabel}>Today's Registered</p>
-                      <p style={styles.statValue}>{todayUsers.length}</p>
-                    </div>
-                  </div>
-
-                  <div style={styles.statCard}>
-                    <div style={{ ...styles.statIcon, backgroundColor: '#d1fae5' }}>
-                      <UserCheck size={28} color="#10b981" />
-                    </div>
-                    <div style={styles.statContent}>
-                      <p style={styles.statLabel}>Today's Paid Users</p>
-                      <p style={styles.statValue}>{todayUsers.filter(u => u.commitmentPaid).length}</p>
-                    </div>
-                  </div>
-
-                  <div style={styles.statCard}>
-                    <div style={{ ...styles.statIcon, backgroundColor: '#fee2e2' }}>
-                      <Package size={28} color="#ef4444" />
-                    </div>
-                    <div style={styles.statContent}>
-                      <p style={styles.statLabel}>Today's Orders</p>
-                      <p style={styles.statValue}>{todayOrders.length}</p>
-                    </div>
-                  </div>
-
-                  <div style={styles.statCard}>
-                    <div style={{ ...styles.statIcon, backgroundColor: '#fef3c7' }}>
-                      <DollarSign size={28} color="#f59e0b" />
-                    </div>
-                    <div style={styles.statContent}>
-                      <p style={styles.statLabel}>Today's Revenue</p>
-                      <p style={styles.statValue}>
-                        RM{(todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-                          todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)).toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={styles.statCard}>
-                    <div style={{ ...styles.statIcon, backgroundColor: '#e0e7ff' }}>
-                      <TrendingUp size={28} color="#6366f1" />
-                    </div>
-                    <div style={styles.statContent}>
-                      <p style={styles.statLabel}>Month Profit</p>
-                      <p style={styles.statValue}>
-                        RM{calculateMonthProfit().toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={styles.statCard}>
-                    <div style={{ ...styles.statIcon, backgroundColor: '#fce7f3' }}>
-                      <TrendingUp size={28} color="#ec4899" />
-                    </div>
-                    <div style={styles.statContent}>
-                      <p style={styles.statLabel}>Total Profit</p>
-                      <p style={styles.statValue}>
-                        RM{calculateTotalProfit().toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Profit Breakdown */}
-                <div style={styles.card}>
-                  <h3>Today's Profit Calculation</h3>
-                  <div style={{ 
-                    backgroundColor: '#f9fafb', 
-                    padding: '20px', 
-                    borderRadius: '12px',
-                    marginBottom: '20px'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                      <span>Commitment Fees ({todayUsers.filter(u => u.commitmentPaid).length} × RM10):</span>
-                      <span style={{ fontWeight: 'bold' }}>
-                        +RM{(todayUsers.filter(u => u.commitmentPaid).length * 10).toFixed(2)}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                      <span>Delivery Fees:</span>
-                      <span style={{ fontWeight: 'bold' }}>
-                        +RM{todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0).toFixed(2)}
-                      </span>
-                    </div>
+                {!showHistory ? (
+                  <>
+                    {/* Today's View */}
                     <div style={{ 
                       display: 'flex', 
                       justifyContent: 'space-between', 
-                      borderTop: '1px solid #e5e7eb',
-                      paddingTop: '12px',
-                      marginTop: '12px' 
+                      alignItems: 'center', 
+                      marginBottom: '24px',
+                      flexWrap: 'wrap',
+                      gap: '16px'
                     }}>
-                      <span>Total Revenue:</span>
-                      <span style={{ fontWeight: 'bold' }}>
-                        RM{(todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-                          todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)).toFixed(2)}
-                      </span>
+                      <div>
+                        <h2 style={{ margin: 0 }}>Admin Dashboard</h2>
+                        <p style={{ margin: '4px 0 0 0', color: '#6b7280' }}>
+                          Today's Data - {new Date().toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <button
+                          onClick={() => setShowHistory(true)}
+                          style={{
+                            ...styles.button,
+                            width: 'auto',
+                            backgroundColor: '#6366f1',
+                            color: 'white',
+                            padding: '12px 24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          <History size={18} />
+                          View History
+                        </button>
+                        <button
+                          onClick={resetAuth}
+                          style={{
+                            ...styles.button,
+                            width: 'auto',
+                            backgroundColor: '#6b7280',
+                            color: 'white',
+                            padding: '12px 24px'
+                          }}
+                        >
+                          Logout
+                        </button>
+                      </div>
                     </div>
+
+                    {/* Statistics Cards */}
                     <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      marginTop: '12px'
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                      gap: '20px',
+                      marginBottom: '32px' 
                     }}>
-                      <span>Driver Cost:</span>
-                      <span style={{ fontWeight: 'bold', color: '#dc2626' }}>
-                        -RM30.00
-                      </span>
+                      <div style={styles.statCard}>
+                        <div style={{ ...styles.statIcon, backgroundColor: '#dbeafe' }}>
+                          <Users size={28} color="#3b82f6" />
+                        </div>
+                        <div style={styles.statContent}>
+                          <p style={styles.statLabel}>Today Registered/Paid</p>
+                          <p style={styles.statValue}>
+                            {todayUsers.filter(u => u.commitmentPaid).length}/{todayUsers.filter(u => isToday(u.timestamp)).length}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div style={styles.statCard}>
+                        <div style={{ ...styles.statIcon, backgroundColor: '#fee2e2' }}>
+                          <Package size={28} color="#ef4444" />
+                        </div>
+                        <div style={styles.statContent}>
+                          <p style={styles.statLabel}>Today's Orders</p>
+                          <p style={styles.statValue}>{todayOrders.length}</p>
+                        </div>
+                      </div>
+
+                      <div style={styles.statCard}>
+                        <div style={{ ...styles.statIcon, backgroundColor: '#fef3c7' }}>
+                          <DollarSign size={28} color="#f59e0b" />
+                        </div>
+                        <div style={styles.statContent}>
+                          <p style={styles.statLabel}>Today's Revenue</p>
+                          <p style={styles.statValue}>
+                            RM{(todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                              todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div style={styles.statCard}>
+                        <div style={{ ...styles.statIcon, backgroundColor: '#d1fae5' }}>
+                          <TrendingUp size={28} color="#10b981" />
+                        </div>
+                        <div style={styles.statContent}>
+                          <p style={styles.statLabel}>Today's Profit</p>
+                          <p style={styles.statValue}>
+                            RM{((todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                              todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
+                              (todayOrders.length > 0 ? 30 : 0))).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      borderTop: '2px solid #e5e7eb',
-                      paddingTop: '12px',
-                      marginTop: '12px'
-                    }}>
-                      <span style={{ fontSize: '18px', fontWeight: 'bold' }}>Today's Profit:</span>
-                      <span style={{ 
-                        fontSize: '18px', 
-                        fontWeight: 'bold', 
-                        color: (todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-                               todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 30) >= 0 
-                               ? '#059669' : '#dc2626' 
+
+                    {/* Profit Breakdown */}
+                    <div style={styles.card}>
+                      <h3>Today's Profit Calculation</h3>
+                      <div style={{ 
+                        backgroundColor: '#f9fafb', 
+                        padding: '20px', 
+                        borderRadius: '12px',
+                        marginBottom: '20px'
                       }}>
-                        RM{((todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-                            todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 30).toFixed(2))}
-                      </span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                          <span>Commitment Fees ({todayUsers.filter(u => u.commitmentPaid).length} × RM10):</span>
+                          <span style={{ fontWeight: 'bold' }}>
+                            +RM{(todayUsers.filter(u => u.commitmentPaid).length * 10).toFixed(2)}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                          <span>Delivery Fees:</span>
+                          <span style={{ fontWeight: 'bold' }}>
+                            +RM{todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0).toFixed(2)}
+                          </span>
+                        </div>
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          borderTop: '1px solid #e5e7eb',
+                          paddingTop: '12px',
+                          marginTop: '12px' 
+                        }}>
+                          <span>Total Revenue:</span>
+                          <span style={{ fontWeight: 'bold' }}>
+                            RM{(todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                              todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)).toFixed(2)}
+                          </span>
+                        </div>
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between',
+                          marginTop: '12px'
+                        }}>
+                          <span>Driver Cost:</span>
+                          <span style={{ fontWeight: 'bold', color: '#dc2626' }}>
+                            -RM{todayOrders.length > 0 ? '30.00' : '0.00'}
+                          </span>
+                        </div>
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between',
+                          borderTop: '2px solid #e5e7eb',
+                          paddingTop: '12px',
+                          marginTop: '12px'
+                        }}>
+                          <span style={{ fontSize: '18px', fontWeight: 'bold' }}>Today's Profit:</span>
+                          <span style={{ 
+                            fontSize: '18px', 
+                            fontWeight: 'bold', 
+                            color: (todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                                   todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
+                                   (todayOrders.length > 0 ? 30 : 0)) >= 0 
+                                   ? '#059669' : '#dc2626' 
+                          }}>
+                            RM{((todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                                todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
+                                (todayOrders.length > 0 ? 30 : 0)).toFixed(2))}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* Charts */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '32px' }}>
-                  <SimpleChart
-                    type="bar"
-                    title="Today's Order Distribution by Amount"
-                    data={[
-                      { label: '<RM50', value: todayOrders.filter(o => o.orderTotal < 50).length, color: '#3b82f6' },
-                      { label: 'RM50-100', value: todayOrders.filter(o => o.orderTotal >= 50 && o.orderTotal < 100).length, color: '#10b981' },
-                      { label: 'RM100-150', value: todayOrders.filter(o => o.orderTotal >= 100 && o.orderTotal < 150).length, color: '#f59e0b' },
-                      { label: '>RM150', value: todayOrders.filter(o => o.orderTotal >= 150).length, color: '#ef4444' }
-                    ]}
-                  />
+                    {/* Charts */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '32px' }}>
+                      <SimpleChart
+                        type="bar"
+                        title="Today's Order Distribution by Amount"
+                        data={[
+                          { label: '<RM50', value: todayOrders.filter(o => o.orderTotal < 50).length, color: '#3b82f6' },
+                          { label: 'RM50-100', value: todayOrders.filter(o => o.orderTotal >= 50 && o.orderTotal < 100).length, color: '#10b981' },
+                          { label: 'RM100-150', value: todayOrders.filter(o => o.orderTotal >= 100 && o.orderTotal < 150).length, color: '#f59e0b' },
+                          { label: '>RM150', value: todayOrders.filter(o => o.orderTotal >= 150).length, color: '#ef4444' }
+                        ]}
+                      />
 
-                  <SimpleChart
-                    type="pie"
-                    title="Today's Revenue Breakdown"
-                    data={[
-                      { label: 'Commitment Fees', value: todayUsers.filter(u => u.commitmentPaid).length * 10 },
-                      { label: 'Delivery Fees', value: todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) }
-                    ]}
-                  />
-                </div>
+                      <SimpleChart
+                        type="pie"
+                        title="Today's Revenue Breakdown"
+                        data={[
+                          { label: 'Commitment Fees', value: todayUsers.filter(u => u.commitmentPaid).length * 10 },
+                          { label: 'Delivery Fees', value: todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) }
+                        ]}
+                      />
+                    </div>
 
-                {/* Today's Orders Table */}
-                <div style={styles.card}>
-                  <h3>Today's Orders</h3>
-                  {todayOrders.length === 0 ? (
+                    {/* Today's Orders Table */}
+                    <div style={styles.card}>
+                      <h3>Today's Orders</h3>
+                      {todayOrders.length === 0 ? (
+                        <div style={{ 
+                          textAlign: 'center', 
+                          padding: '40px',
+                          color: '#6b7280'
+                        }}>
+                          <AlertCircle size={48} style={{ marginBottom: '16px' }} />
+                          <p>No orders for today yet.</p>
+                        </div>
+                      ) : (
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                                <th style={{ padding: '12px', textAlign: 'left' }}>Order #</th>
+                                <th style={{ padding: '12px', textAlign: 'left' }}>Customer</th>
+                                <th style={{ padding: '12px', textAlign: 'left' }}>Student ID</th>
+                                <th style={{ padding: '12px', textAlign: 'right' }}>Order Total</th>
+                                <th style={{ padding: '12px', textAlign: 'right' }}>Delivery Fee</th>
+                                <th style={{ padding: '12px', textAlign: 'right' }}>Total</th>
+                                <th style={{ padding: '12px', textAlign: 'left' }}>Time</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {todayOrders.map((order, index) => (
+                                <tr key={order.id || index} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                                  <td style={{ padding: '12px' }}>{order.orderNumber}</td>
+                                  <td style={{ padding: '12px' }}>{order.userName}</td>
+                                  <td style={{ padding: '12px' }}>{order.studentId}</td>
+                                  <td style={{ padding: '12px', textAlign: 'right' }}>RM{order.orderTotal}</td>
+                                  <td style={{ padding: '12px', textAlign: 'right' }}>RM{order.deliveryFee}</td>
+                                  <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold' }}>
+                                    RM{order.totalWithDelivery}
+                                  </td>
+                                  <td style={{ padding: '12px' }}>{new Date(order.timestamp).toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* History View */}
                     <div style={{ 
-                      textAlign: 'center', 
-                      padding: '40px',
-                      color: '#6b7280'
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      marginBottom: '24px',
+                      flexWrap: 'wrap',
+                      gap: '16px'
                     }}>
-                      <AlertCircle size={48} style={{ marginBottom: '16px' }} />
-                      <p>No orders for today yet.</p>
+                      <div>
+                        <h2 style={{ margin: 0 }}>History Overview</h2>
+                        <p style={{ margin: '4px 0 0 0', color: '#6b7280' }}>
+                          All-time data and analytics
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowHistory(false)}
+                        style={{
+                          ...styles.button,
+                          width: 'auto',
+                          backgroundColor: '#6b7280',
+                          color: 'white',
+                          padding: '12px 24px'
+                        }}
+                      >
+                        Back to Today
+                      </button>
                     </div>
-                  ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
-                            <th style={{ padding: '12px', textAlign: 'left' }}>Order #</th>
-                            <th style={{ padding: '12px', textAlign: 'left' }}>Customer</th>
-                            <th style={{ padding: '12px', textAlign: 'left' }}>Student ID</th>
-                            <th style={{ padding: '12px', textAlign: 'right' }}>Order Total</th>
-                            <th style={{ padding: '12px', textAlign: 'right' }}>Delivery Fee</th>
-                            <th style={{ padding: '12px', textAlign: 'right' }}>Total</th>
-                            <th style={{ padding: '12px', textAlign: 'left' }}>Time</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {todayOrders.map((order, index) => (
-                            <tr key={order.id || index} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                              <td style={{ padding: '12px' }}>{order.orderNumber}</td>
-                              <td style={{ padding: '12px' }}>{order.userName}</td>
-                              <td style={{ padding: '12px' }}>{order.studentId}</td>
-                              <td style={{ padding: '12px', textAlign: 'right' }}>RM{order.orderTotal}</td>
-                              <td style={{ padding: '12px', textAlign: 'right' }}>RM{order.deliveryFee}</td>
-                              <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold' }}>
-                                RM{order.totalWithDelivery}
-                              </td>
-                              <td style={{ padding: '12px' }}>{new Date(order.timestamp).toLocaleString()}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+
+                    {/* History Statistics */}
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                      gap: '20px',
+                      marginBottom: '32px' 
+                    }}>
+                      <div style={styles.statCard}>
+                        <div style={{ ...styles.statIcon, backgroundColor: '#dbeafe' }}>
+                          <Users size={28} color="#3b82f6" />
+                        </div>
+                        <div style={styles.statContent}>
+                          <p style={styles.statLabel}>Total Registered</p>
+                          <p style={styles.statValue}>{getTotalHistoryStats().totalRegistered}</p>
+                        </div>
+                      </div>
+
+                      <div style={styles.statCard}>
+                        <div style={{ ...styles.statIcon, backgroundColor: '#fee2e2' }}>
+                          <Package size={28} color="#ef4444" />
+                        </div>
+                        <div style={styles.statContent}>
+                          <p style={styles.statLabel}>Total Orders</p>
+                          <p style={styles.statValue}>{getTotalHistoryStats().totalOrders}</p>
+                        </div>
+                      </div>
+
+                      <div style={styles.statCard}>
+                        <div style={{ ...styles.statIcon, backgroundColor: '#fef3c7' }}>
+                          <DollarSign size={28} color="#f59e0b" />
+                        </div>
+                        <div style={styles.statContent}>
+                          <p style={styles.statLabel}>Total Revenue</p>
+                          <p style={styles.statValue}>
+                            RM{getTotalHistoryStats().totalRevenue.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div style={styles.statCard}>
+                        <div style={{ ...styles.statIcon, backgroundColor: '#d1fae5' }}>
+                          <TrendingUp size={28} color="#10b981" />
+                        </div>
+                        <div style={styles.statContent}>
+                          <p style={styles.statLabel}>Total Profit</p>
+                          <p style={styles.statValue}>
+                            RM{getTotalHistoryStats().totalProfit.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
+
+                    {/* History Charts */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '32px' }}>
+                      <SimpleChart
+                        type="bar"
+                        title="Daily Orders Trend (Last 7 Days)"
+                        data={historyData.slice(0, 7).reverse().map(entry => ({
+                          label: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                          value: entry.totalOrders || 0,
+                          color: '#3b82f6'
+                        }))}
+                      />
+
+                      <SimpleChart
+                        type="bar"
+                        title="Daily Profit Trend (Last 7 Days)"
+                        data={historyData.slice(0, 7).reverse().map(entry => ({
+                          label: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                          value: entry.profit || 0,
+                          color: entry.profit >= 0 ? '#10b981' : '#ef4444'
+                        }))}
+                      />
+                    </div>
+
+                    {/* History Table */}
+                    <div style={styles.card}>
+                      <h3>Daily History</h3>
+                      {historyData.length === 0 ? (
+                        <div style={{ 
+                          textAlign: 'center', 
+                          padding: '40px',
+                          color: '#6b7280'
+                        }}>
+                          <History size={48} style={{ marginBottom: '16px' }} />
+                          <p>No history data available yet.</p>
+                        </div>
+                      ) : (
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                                <th style={{ padding: '12px', textAlign: 'left' }}>Date</th>
+                                <th style={{ padding: '12px', textAlign: 'center' }}>Registered</th>
+                                <th style={{ padding: '12px', textAlign: 'center' }}>Paid Users</th>
+                                <th style={{ padding: '12px', textAlign: 'center' }}>Orders</th>
+                                <th style={{ padding: '12px', textAlign: 'right' }}>Revenue</th>
+                                <th style={{ padding: '12px', textAlign: 'right' }}>Driver Cost</th>
+                                <th style={{ padding: '12px', textAlign: 'right' }}>Profit</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {historyData.map((entry, index) => (
+                                <tr key={entry.id || index} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                                  <td style={{ padding: '12px' }}>{new Date(entry.date).toLocaleDateString()}</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>{entry.registeredUsers || 0}</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>{entry.paidUsers || 0}</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>{entry.totalOrders || 0}</td>
+                                  <td style={{ padding: '12px', textAlign: 'right' }}>RM{(entry.totalRevenue || 0).toFixed(2)}</td>
+                                  <td style={{ padding: '12px', textAlign: 'right', color: '#dc2626' }}>
+                                    -RM{(entry.driverCost || 0).toFixed(2)}
+                                  </td>
+                                  <td style={{ 
+                                    padding: '12px', 
+                                    textAlign: 'right', 
+                                    fontWeight: 'bold',
+                                    color: (entry.profit || 0) >= 0 ? '#059669' : '#dc2626'
+                                  }}>
+                                    RM{(entry.profit || 0).toFixed(2)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
+          </div>
+          )}
           </>
         )}
 
         {/* Driver Portal */}
         {activeTab === 'driver' && (
-          <>
-            {!isAuthenticated ? (
-              <AuthScreen title="Driver Portal" />
-            ) : (
+        <>
+          {!isAuthenticated ? (
+            <AuthScreen title="Driver Portal" />
+          ) : (
+            <div>
+              {(loadingUsers || loadingOrders) ? (
+                <div style={{ 
+                  textAlign: 'center', 
+                  padding: '40px',
+                  backgroundColor: 'white',
+                  borderRadius: '16px',
+                  marginBottom: '24px'
+                }}>
+                  <Loader2 size={48} color="#3b82f6" style={{ animation: 'spin 1s linear infinite' }} />
+                  <p style={{ marginTop: '16px', color: '#6b7280' }}>Loading driver data...</p>
+                </div>
+              ) : (
               <div>
                 <div style={{ 
                   display: 'flex', 
@@ -2652,20 +2955,9 @@ const Crave2CaveSystem = () => {
                             </span>
                           </div>
                           
-                          <div style={{ 
-                            display: 'grid', 
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-                            gap: '12px',
-                            marginBottom: '16px'
-                          }}>
-                            <div>
-                              <p style={{ margin: '4px 0', color: '#6b7280' }}>Customer</p>
-                              <p style={{ margin: '0', fontWeight: '600' }}>{order.userName}</p>
-                            </div>
-                            <div>
-                              <p style={{ margin: '4px 0', color: '#6b7280' }}>Student ID</p>
-                              <p style={{ margin: '0', fontWeight: '600' }}>{order.studentId}</p>
-                            </div>
+                          <div style={{ marginBottom: '16px' }}>
+                            <p style={{ margin: '4px 0', color: '#6b7280' }}>Customer</p>
+                            <p style={{ margin: '0', fontWeight: '600', fontSize: '16px' }}>{order.userName}</p>
                           </div>
                           
                           <div style={{
@@ -2693,10 +2985,15 @@ const Crave2CaveSystem = () => {
                           
                           {order.orderImageURL && (
                             <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                              <p style={{ margin: '0 0 8px 0', color: '#6b7280', fontSize: '14px' }}>Order Photo:</p>
                               <img
                                 src={order.orderImageURL}
                                 alt="Order"
-                                style={styles.orderImage}
+                                style={{
+                                  ...styles.orderImage,
+                                  maxWidth: '300px',
+                                  width: '100%'
+                                }}
                               />
                             </div>
                           )}
@@ -2707,7 +3004,9 @@ const Crave2CaveSystem = () => {
                 </div>
               </div>
             )}
-          </>
+          </div>
+        )}
+        </>
         )}
       </div>
     </div>
