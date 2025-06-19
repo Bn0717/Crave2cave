@@ -272,11 +272,6 @@ const calculateDeliveryFee = (amount) => {
       <p style={{ margin: '6px 0', fontSize: '18px' }}>
         <strong>Amount to Pay: RM{actualDeliveryFee.toFixed(2)}</strong>
       </p>
-      {isFourthOrLaterUser && (
-        <p style={{ margin: '12px 0 0 0', color: '#3b82f6', fontSize: '14px' }}>
-          * As the {userOrder?.order || (userIndex + 1)}th user, you proceed directly without commitment fee!
-        </p>
-      )}
     </div>
   );
 };
@@ -2075,6 +2070,12 @@ const Crave2CaveSystem = () => {
     return;
   }
 
+  // Check if user has already ordered today
+  if (foundUser.orderSubmitted && isToday(foundUser.timestamp)) {
+    alert('You have already submitted an order today. Please try again tomorrow.');
+    return;
+  }
+
   // Find the user's registration order
   const userOrder = registrationOrder.find(order => order.userId === foundUser.firestoreId);
   const userIndex = userOrder ? userOrder.order - 1 : prebookUsers.findIndex(u => u.firestoreId === foundUser.firestoreId);
@@ -2414,14 +2415,27 @@ const Crave2CaveSystem = () => {
     return;
   }
 
-  // Check if user has already ordered today
   const existingUser = prebookUsers.find(user => 
-    user.name && user.name.toLowerCase() === studentName.toLowerCase() && 
-    user.studentId === studentId
+    isToday(user.timestamp) && (
+      user.studentId === studentId || 
+      user.name.toLowerCase() === studentName.toLowerCase()
+    )
   );
 
-  if (existingUser && existingUser.orderSubmitted && isToday(existingUser.timestamp)) {
-    alert('You have already submitted an order today. Please try again tomorrow.');
+  if (existingUser) {
+    // Determine what exactly is duplicated
+    let message = 'You have already registered today.';
+    
+    if (existingUser.studentId === studentId && 
+        existingUser.name.toLowerCase() === studentName.toLowerCase()) {
+      message = `Both your name (${studentName}) and student ID (${studentId}) have been used for registration today.`;
+    } else if (existingUser.studentId === studentId) {
+      message = `Student ID ${studentId} has already been used for registration today.`;
+    } else if (existingUser.name.toLowerCase() === studentName.toLowerCase()) {
+      message = `Name "${studentName}" has already been used for registration today.`;
+    }
+
+    alert(`${message} Please try again tomorrow.`);
     return;
   }
 
@@ -2575,6 +2589,13 @@ const Crave2CaveSystem = () => {
     alert('Please upload image of your order');
     return;
   }
+  
+
+  // Only require payment proof if delivery fee > 0
+  if (deliveryFee > 0 && !paymentProof) {
+    alert('Please upload payment proof for delivery fee');
+    return;
+  }
 
   // Check if user is among first 3 or 4th+ user
   const userIndex = prebookUsers.findIndex(u => u.firestoreId === selectedUserId);
@@ -2583,8 +2604,9 @@ const Crave2CaveSystem = () => {
   const deliveryFee = calculateDeliveryFee(totalAmount);
   
   // Only first 3 users who paid commitment fee get RM10 deduction
-  const commitmentFeeDeducted = (userIndex < 3 && user.commitmentPaid) ? 10 : 0;
+  const commitmentFeeDeducted = (currentUserIndex < 3 && prebookUsers.find(u => u.firestoreId === selectedUserId)?.commitmentPaid) ? 10 : 0;
   const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
+
 
   // Only require payment proof if actual delivery fee > 0
   if (actualDeliveryFee > 0 && !paymentProof) {
@@ -2985,79 +3007,90 @@ const Crave2CaveSystem = () => {
                   />
 
                   {orderTotal && (
-                    <FeeBreakdown
-                      orderTotal={parseFloat(orderTotal) || 0}
-                      userIndex={currentUserIndex}
-                      isCommitmentFeePaid={prebookUsers.find(u => u.firestoreId === selectedUserId)?.commitmentPaid}
-                      registrationOrder={registrationOrder}
-                      selectedUserId={selectedUserId}
-                    />
-                  )}
-
-
-                  {/* Step 2: Payment (if delivery fee > 0) */}
-                  {orderTotal && calculateDeliveryFee(parseFloat(orderTotal) || 0) > 0 && (
-                    <div style={{
-                      backgroundColor: '#f8fafc',
-                      padding: '24px',
-                      borderRadius: '16px',
-                      marginBottom: '24px',
-                      border: '2px solid #e2e8f0'
-                    }}>
-                      <h4 style={{ margin: '0 0 16px 0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{
-                          backgroundColor: '#3b82f6',
-                          color: 'white',
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '50%',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '14px',
-                          fontWeight: 'bold'
-                        }}>2</span>
-                        Payment Proof
-                      </h4>
-
-                      <UnifiedQRCodeDisplay 
-                        amount={(() => {
-                          const userIndex = prebookUsers.findIndex(u => u.firestoreId === selectedUserId);
-                          const deliveryFee = calculateDeliveryFee(parseFloat(orderTotal) || 0);
-                          if (userIndex < 3 && deliveryFee > 0) {
-                            return Math.max(0, deliveryFee - 10);
-                          }
-                          return deliveryFee;
-                        })()} 
+                    <>
+                      <FeeBreakdown
+                        orderTotal={parseFloat(orderTotal) || 0}
+                        userIndex={currentUserIndex}
+                        isCommitmentFeePaid={prebookUsers.find(u => u.firestoreId === selectedUserId)?.commitmentPaid}
+                        registrationOrder={registrationOrder}
+                        selectedUserId={selectedUserId}
                       />
 
-                      <p style={{ marginBottom: '12px', color: '#64748b' }}>
-                        Upload proof of payment:
-                      </p>
+                      {/* Calculate fees here */}
+                      {(() => {
+                        const deliveryFee = calculateDeliveryFee(parseFloat(orderTotal));
+                        const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
+                        const userOrder = registrationOrder.find(order => order.userId === selectedUserId);
+                        const isFourthOrLaterUser = userOrder ? userOrder.order >= 4 : currentUserIndex >= 3;
+                        const commitmentFeeDeducted = (!isFourthOrLaterUser && currentUserIndex < 3 && user?.commitmentPaid && deliveryFee > 0) ? 10 : 0;
+                        const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
 
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setPaymentProof(e.target.files[0])}
-                        style={styles.input}
-                      />
+                        return (
+                          <>
+                            {/* Payment proof section only if actual delivery fee > 0 */}
+                            {actualDeliveryFee > 0 && (
+                              <div style={{
+                                backgroundColor: '#f8fafc',
+                                padding: '24px',
+                                borderRadius: '16px',
+                                marginBottom: '24px',
+                                border: '2px solid #e2e8f0'
+                              }}>
+                                <h4 style={{ margin: '0 0 16px 0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{
+                                    backgroundColor: '#3b82f6',
+                                    color: 'white',
+                                    width: '28px',
+                                    height: '28px',
+                                    borderRadius: '50%',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '14px',
+                                    fontWeight: 'bold'
+                                  }}>2</span>
+                                  Payment Proof
+                                </h4>
 
-                      {paymentProof && (
-                        <div style={{ marginBottom: '20px', textAlign: 'center' }}>
-                          <img
-                            src={URL.createObjectURL(paymentProof)}
-                            alt="Payment Proof"
-                            style={{
-                              maxWidth: '100%',
-                              maxHeight: '200px',
-                              borderRadius: '12px',
-                              border: '2px solid #e2e8f0',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
+                                <UnifiedQRCodeDisplay amount={actualDeliveryFee} />
+
+                                <p style={{ marginBottom: '12px', color: '#64748b' }}>
+                                  Upload proof of payment:
+                                </p>
+
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => setPaymentProof(e.target.files[0])}
+                                  style={styles.input}
+                                />
+
+                                {paymentProof && (
+                                  <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+                                    <img
+                                      src={URL.createObjectURL(paymentProof)}
+                                      alt="Payment Proof"
+                                      style={{
+                                        maxWidth: '100%',
+                                        maxHeight: '200px',
+                                        borderRadius: '12px',
+                                        border: '2px solid #e2e8f0',
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Show message when no payment is needed */}
+                            {actualDeliveryFee === 0 && (
+                              <UnifiedQRCodeDisplay amount={0} />
+                            )}
+                          </>
+                        );
+                      })()}
+                    </>
                   )}
 
                   <div style={{
@@ -3095,23 +3128,29 @@ const Crave2CaveSystem = () => {
                     />
                   </div>
 
-                  {/* Show payment not required message for orders < RM50 */}
-                  {orderTotal && calculateDeliveryFee(parseFloat(orderTotal) || 0) === 0 && (
-                    <UnifiedQRCodeDisplay amount={0} />
-                  )}
+                  {orderTotal && (() => {
+                    const deliveryFee = calculateDeliveryFee(parseFloat(orderTotal));
+                    const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
+                    const userOrder = registrationOrder.find(order => order.userId === selectedUserId);
+                    const isFourthOrLaterUser = userOrder ? userOrder.order >= 4 : currentUserIndex >= 3;
+                    const commitmentFeeDeducted = (!isFourthOrLaterUser && currentUserIndex < 3 && user?.commitmentPaid && deliveryFee > 0) ? 10 : 0;
+                    const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
 
-                  <button
-                    onClick={handleOrderSubmission}
-                    disabled={!orderTotal || !orderImage || (calculateDeliveryFee(parseFloat(orderTotal) || 0) > 0 && !paymentProof)}
-                    style={{
-                      ...styles.button,
-                      ...styles.buttonOrange,
-                      opacity: (!orderTotal || !orderImage || (calculateDeliveryFee(parseFloat(orderTotal) || 0) > 0 && !paymentProof)) ? 0.5 : 1,
-                      cursor: (!orderTotal || !orderImage || (calculateDeliveryFee(parseFloat(orderTotal) || 0) > 0 && !paymentProof)) ? 'not-allowed' : 'pointer'
-                    }}
-                  >
-                    Submit Order
-                  </button>
+                    return (
+                      <button
+                        onClick={handleOrderSubmission}
+                        disabled={!orderImage || (actualDeliveryFee > 0 && !paymentProof)}
+                        style={{
+                          ...styles.button,
+                          ...styles.buttonOrange,
+                          opacity: (!orderImage || (actualDeliveryFee > 0 && !paymentProof)) ? 0.5 : 1,
+                          cursor: (!orderImage || (actualDeliveryFee > 0 && !paymentProof)) ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        Submit Order
+                      </button>
+                    );
+                  })()}
                 </div>
               )}
 
