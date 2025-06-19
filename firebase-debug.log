@@ -1,0 +1,87 @@
+[debug] [2025-06-17T19:24:23.736Z] ----------------------------------------------------------------------
+[debug] [2025-06-17T19:24:23.738Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Bryan Ngu\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js init functions
+[debug] [2025-06-17T19:24:23.738Z] CLI Version:   14.7.0
+[debug] [2025-06-17T19:24:23.738Z] Platform:      win32
+[debug] [2025-06-17T19:24:23.739Z] Node Version:  v22.16.0
+[debug] [2025-06-17T19:24:23.739Z] Time:          Wed Jun 18 2025 03:24:23 GMT+0800 (Singapore Standard Time)
+[debug] [2025-06-17T19:24:23.739Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-06-17T19:24:23.741Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2025-06-17T19:24:23.974Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-06-17T19:24:23.974Z] > authorizing via signed-in user (nguzhukiet0717@gmail.com)
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  C:\Users\Bryan Ngu\Documents\GitHub\crave2cave-project
+
+Before we get started, keep in mind:
+
+  * You are initializing within an existing Firebase project directory
+
+[debug] [2025-06-17T19:24:24.483Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2025-06-17T19:24:24.484Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] but for now we'll just set up a default project.
+[info] 
+[debug] [2025-06-17T19:24:29.682Z] Using project from CLI flag: crave-2-cave
+[debug] [2025-06-17T19:24:29.683Z] Checked if tokens are valid: false, expires at: 1750135554131
+[debug] [2025-06-17T19:24:29.684Z] Checked if tokens are valid: false, expires at: 1750135554131
+[debug] [2025-06-17T19:24:29.684Z] > refreshing access token with scopes: []
+[debug] [2025-06-17T19:24:29.686Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-06-17T19:24:29.686Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-06-17T19:24:30.103Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-06-17T19:24:30.103Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-06-17T19:24:30.112Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/crave-2-cave [none]
+[debug] [2025-06-17T19:24:30.774Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/crave-2-cave 200
+[debug] [2025-06-17T19:24:30.774Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/crave-2-cave {"projectId":"crave-2-cave","projectNumber":"328846262825","displayName":"crave-2-cave","name":"projects/crave-2-cave","resources":{"hostingSite":"crave-2-cave","realtimeDatabaseInstance":"crave-2-cave-default-rtdb"},"state":"ACTIVE","etag":"1_c0b5355f-3c20-4e89-a7d9-cda3ce71394e"}
+[info] i  Using project crave-2-cave (crave-2-cave) 
+[info] 
+=== Functions Setup
+[debug] [2025-06-17T19:24:30.782Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-06-17T19:24:30.783Z] > authorizing via signed-in user (nguzhukiet0717@gmail.com)
+[debug] [2025-06-17T19:24:30.783Z] [iam] checking project crave-2-cave for permissions ["firebase.projects.get"]
+[debug] [2025-06-17T19:24:30.784Z] Checked if tokens are valid: true, expires at: 1750191869104
+[debug] [2025-06-17T19:24:30.784Z] Checked if tokens are valid: true, expires at: 1750191869104
+[debug] [2025-06-17T19:24:30.784Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave:testIamPermissions [none]
+[debug] [2025-06-17T19:24:30.784Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave:testIamPermissions x-goog-quota-user=projects/crave-2-cave
+[debug] [2025-06-17T19:24:30.784Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave:testIamPermissions {"permissions":["firebase.projects.get"]}
+[debug] [2025-06-17T19:24:32.037Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave:testIamPermissions 200
+[debug] [2025-06-17T19:24:32.037Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave:testIamPermissions {"permissions":["firebase.projects.get"]}
+[debug] [2025-06-17T19:24:32.038Z] Checked if tokens are valid: true, expires at: 1750191869104
+[debug] [2025-06-17T19:24:32.038Z] Checked if tokens are valid: true, expires at: 1750191869104
+[debug] [2025-06-17T19:24:32.039Z] Checked if tokens are valid: true, expires at: 1750191869104
+[debug] [2025-06-17T19:24:32.039Z] Checked if tokens are valid: true, expires at: 1750191869104
+[debug] [2025-06-17T19:24:32.039Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/crave-2-cave/services/cloudfunctions.googleapis.com [none]
+[debug] [2025-06-17T19:24:32.039Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/crave-2-cave/services/cloudfunctions.googleapis.com x-goog-quota-user=projects/crave-2-cave
+[debug] [2025-06-17T19:24:32.041Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/crave-2-cave/services/runtimeconfig.googleapis.com [none]
+[debug] [2025-06-17T19:24:32.041Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/crave-2-cave/services/runtimeconfig.googleapis.com x-goog-quota-user=projects/crave-2-cave
+[debug] [2025-06-17T19:24:33.790Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/crave-2-cave/services/cloudfunctions.googleapis.com 200
+[debug] [2025-06-17T19:24:33.790Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/crave-2-cave/services/cloudfunctions.googleapis.com [omitted]
+[debug] [2025-06-17T19:24:33.797Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/crave-2-cave/services/runtimeconfig.googleapis.com 200
+[debug] [2025-06-17T19:24:33.797Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/crave-2-cave/services/runtimeconfig.googleapis.com [omitted]
+[info] 
+Detected existing codebase(s): default, scheduled-resets
+
+[debug] [2025-06-17T19:25:55.708Z] ExitPromptError: User force closed the prompt with SIGINT
+    at Interface.sigint (C:\Users\Bryan Ngu\AppData\Roaming\npm\node_modules\firebase-tools\node_modules\@inquirer\core\dist\commonjs\lib\create-prompt.js:101:37)
+    at Interface.emit (node:events:518:28)
+    at Interface.emit (node:domain:489:12)
+    at [_ttyWrite] [as _ttyWrite] (node:internal/readline/interface:1128:18)
+    at ReadStream.onkeypress (node:internal/readline/interface:267:20)
+    at ReadStream.emit (node:events:530:35)
+    at ReadStream.emit (node:domain:489:12)
+    at emitKeys (node:internal/readline/utils:370:14)
+    at emitKeys.next (<anonymous>)
+    at ReadStream.onData (node:internal/readline/emitKeypressEvents:64:36)
+[error] 
+[error] Error: An unexpected error has occurred.
