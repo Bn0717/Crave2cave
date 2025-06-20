@@ -57,7 +57,7 @@ const Navigation = ({ activeTab, setActiveTab, setIsAuthenticated }) => {
       height: '70px',
       width: 'auto',
       objectFit: 'contain',
-      maxWidth: '200px',
+      maxWidth: '199px',
       '@media (max-width: 480px)': {
         height: '45px',
         maxWidth: '150px'
