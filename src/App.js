@@ -1585,9 +1585,19 @@ const Crave2CaveSystem = () => {
   const [currentUserIndex, setCurrentUserIndex] = useState(0);
   const [registrationOrder, setRegistrationOrder] = useState([]);
   const [paymentProof, setPaymentProof] = useState(null);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
   const ADMIN_PASSCODE = 'YIEK';
   const isFourthUser = currentOrder ? (currentOrder.order === 4) : (currentUserIndex === 3);
+
+  useEffect(() => {
+  const handleResize = () => {
+    setWindowWidth(window.innerWidth);
+  };
+
+  window.addEventListener('resize', handleResize);
+  return () => window.removeEventListener('resize', handleResize);
+}, []);
 
   // Add global styles
   useEffect(() => {
@@ -2325,57 +2335,84 @@ const Crave2CaveSystem = () => {
       marginBottom: '20px'
     },
     statCard: {
-    backgroundColor: 'white',
-    padding: '28px',
-    borderRadius: '16px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '20px',
-    transition: 'all 0.3s ease',
-    cursor: 'pointer',
-    border: '1px solid #f1f5f9',
-    '@media (max-width: 768px)': {
-      padding: '20px',
-      gap: '16px'
+      backgroundColor: 'white',
+      padding: '28px',
+      borderRadius: '16px',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '20px',
+      transition: 'all 0.3s ease',
+      cursor: 'pointer',
+      border: '1px solid #f1f5f9',
+      '@media (max-width: 768px)': {
+        padding: '16px',
+        gap: '12px',
+        borderRadius: '12px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.06)'
+      },
+      '@media (max-width: 480px)': {
+        padding: '12px',
+        gap: '10px',
+        borderRadius: '10px',
+        minHeight: 'auto'
+      },
+      '&:hover': {
+        boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+        transform: 'translateY(-4px)'
+      }
     },
-    '@media (max-width: 480px)': {
-      padding: '16px',
-      gap: '12px'
-    },
-    '&:hover': {
-      boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-      transform: 'translateY(-4px)'
-    }
-  },
     statIcon: {
       width: '64px',
       height: '64px',
       borderRadius: '16px',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center'
+      justifyContent: 'center',
+      flexShrink: 0,
+      '@media (max-width: 768px)': {
+        width: '48px',
+        height: '48px',
+        borderRadius: '12px'
+      },
+      '@media (max-width: 480px)': {
+        width: '40px',
+        height: '40px',
+        borderRadius: '10px'
+      }
     },
     statContent: {
-      flex: 1
+      flex: 1,
+      minWidth: 0
     },
     statLabel: {
       fontSize: '14px',
       color: '#64748b',
       marginBottom: '4px',
-      fontWeight: '500'
+      fontWeight: '500',
+      '@media (max-width: 768px)': {
+        fontSize: '12px',
+        marginBottom: '2px'
+      },
+      '@media (max-width: 480px)': {
+        fontSize: '11px',
+        marginBottom: '1px',
+        lineHeight: '1.3'
+      }
     },
     statValue: {
-    fontSize: '28px',
-    fontWeight: 'bold',
-    color: '#1e293b',
-    '@media (max-width: 768px)': {
-      fontSize: '24px'
+      fontSize: '28px',
+      fontWeight: 'bold',
+      color: '#1e293b',
+      lineHeight: '1.2',
+      '@media (max-width: 768px)': {
+        fontSize: '20px'
+      },
+      '@media (max-width: 480px)': {
+        fontSize: '18px',
+        lineHeight: '1.1'
+      }
     },
-    '@media (max-width: 480px)': {
-      fontSize: '20px'
-    }
-  }
   };
   const validateName = (name) => {
     if (!name.trim()) {
@@ -2590,6 +2627,7 @@ const Crave2CaveSystem = () => {
     return;
   }
   
+  const deliveryFee = calculateDeliveryFee(totalAmount);
 
   // Only require payment proof if delivery fee > 0
   if (deliveryFee > 0 && !paymentProof) {
@@ -2601,7 +2639,6 @@ const Crave2CaveSystem = () => {
   const userIndex = prebookUsers.findIndex(u => u.firestoreId === selectedUserId);
   const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
   const isFourthOrLaterUser = userIndex >= 3; // Define this variable here
-  const deliveryFee = calculateDeliveryFee(totalAmount);
   
   // Only first 3 users who paid commitment fee get RM10 deduction
   const commitmentFeeDeducted = (currentUserIndex < 3 && prebookUsers.find(u => u.firestoreId === selectedUserId)?.commitmentPaid) ? 10 : 0;
@@ -3315,61 +3352,141 @@ const Crave2CaveSystem = () => {
                       </div>
 
                       {/* Statistics Cards */}
-                      <div style={{ 
-                        display: 'grid', 
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
-                        gap: '24px',
-                        marginBottom: '40px' 
-                      }}>
-                        <div style={styles.statCard}>
-                          <div style={{ ...styles.statIcon, background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)' }}>
-                            <Users size={32} color="#3b82f6" />
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: window.innerWidth <= 480 
+                            ? 'repeat(2, 1fr)' 
+                            : window.innerWidth <= 768 
+                            ? 'repeat(2, 1fr)' 
+                            : 'repeat(auto-fit, minmax(240px, 1fr))', 
+                          gap: window.innerWidth <= 480 ? '10px' : window.innerWidth <= 768 ? '16px' : '24px',
+                          marginBottom: window.innerWidth <= 480 ? '24px' : '40px' 
+                        }}>
+                          <div style={{
+                            ...styles.statCard,
+                            ...(window.innerWidth <= 768 ? {
+                              padding: window.innerWidth <= 480 ? '12px' : '16px',
+                              gap: window.innerWidth <= 480 ? '10px' : '12px',
+                            } : {})
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+                              ...(window.innerWidth <= 768 ? {
+                                width: window.innerWidth <= 480 ? '40px' : '48px',
+                                height: window.innerWidth <= 480 ? '40px' : '48px',
+                              } : {})
+                            }}>
+                              <Users size={window.innerWidth <= 480 ? 20 : window.innerWidth <= 768 ? 24 : 32} color="#3b82f6" />
+                            </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                ...(window.innerWidth <= 480 ? { fontSize: '11px' } : {})
+                              }}>Today's Registered / Paid</p>
+                              <p style={{
+                                ...styles.statValue,
+                                ...(window.innerWidth <= 480 ? { fontSize: '18px' } : {})
+                              }}>
+                                {todayUsers.filter(u => isToday(u.timestamp)).length}/{todayUsers.filter(u => u.commitmentPaid).length}
+                              </p>
+                            </div>
                           </div>
-                          <div style={styles.statContent}>
-                            <p style={styles.statLabel}>Today's Registered / Paid</p>
-                            <p style={styles.statValue}>
-                              {todayUsers.filter(u => isToday(u.timestamp)).length}/{todayUsers.filter(u => u.commitmentPaid).length}
-                            </p>
-                          </div>
-                        </div>
 
-                        <div style={styles.statCard}>
-                          <div style={{ ...styles.statIcon, background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)' }}>
-                            <Package size={32} color="#ef4444" />
+                          <div style={{
+                            ...styles.statCard,
+                            ...(window.innerWidth <= 768 ? {
+                              padding: window.innerWidth <= 480 ? '12px' : '16px',
+                              gap: window.innerWidth <= 480 ? '10px' : '12px',
+                            } : {})
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+                              ...(window.innerWidth <= 768 ? {
+                                width: window.innerWidth <= 480 ? '40px' : '48px',
+                                height: window.innerWidth <= 480 ? '40px' : '48px',
+                              } : {})
+                            }}>
+                              <Package size={window.innerWidth <= 480 ? 20 : window.innerWidth <= 768 ? 24 : 32} color="#ef4444" />
+                            </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                ...(window.innerWidth <= 480 ? { fontSize: '11px' } : {})
+                              }}>Today's Orders</p>
+                              <p style={{
+                                ...styles.statValue,
+                                ...(window.innerWidth <= 480 ? { fontSize: '18px' } : {})
+                              }}>{todayOrders.length}</p>
+                            </div>
                           </div>
-                          <div style={styles.statContent}>
-                            <p style={styles.statLabel}>Today's Orders</p>
-                            <p style={styles.statValue}>{todayOrders.length}</p>
-                          </div>
-                        </div>
 
-                        <div style={styles.statCard}>
-                          <div style={{ ...styles.statIcon, background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' }}>
-                            <DollarSign size={32} color="#f59e0b" />
+                          <div style={{
+                            ...styles.statCard,
+                            ...(window.innerWidth <= 768 ? {
+                              padding: window.innerWidth <= 480 ? '12px' : '16px',
+                              gap: window.innerWidth <= 480 ? '10px' : '12px',
+                            } : {})
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                              ...(window.innerWidth <= 768 ? {
+                                width: window.innerWidth <= 480 ? '40px' : '48px',
+                                height: window.innerWidth <= 480 ? '40px' : '48px',
+                              } : {})
+                            }}>
+                              <DollarSign size={window.innerWidth <= 480 ? 20 : window.innerWidth <= 768 ? 24 : 32} color="#f59e0b" />
+                            </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                ...(window.innerWidth <= 480 ? { fontSize: '11px' } : {})
+                              }}>Today's Revenue</p>
+                              <p style={{
+                                ...styles.statValue,
+                                ...(window.innerWidth <= 480 ? { fontSize: '18px' } : {})
+                              }}>
+                                RM{(todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                                  todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)).toFixed(2)}
+                              </p>
+                            </div>
                           </div>
-                          <div style={styles.statContent}>
-                            <p style={styles.statLabel}>Today's Revenue</p>
-                            <p style={styles.statValue}>
-                              RM{(todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-                                todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)).toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
 
-                        <div style={styles.statCard}>
-                          <div style={{ ...styles.statIcon, background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' }}>
-                            <TrendingUp size={32} color="#10b981" />
-                          </div>
-                          <div style={styles.statContent}>
-                            <p style={styles.statLabel}>Today's Profit</p>
-                            <p style={styles.statValue}>
-                              RM{((todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-                                todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
-                                (todayOrders.length > 0 ? 30 : 0))).toFixed(2)}
-                            </p>
+                          <div style={{
+                            ...styles.statCard,
+                            ...(window.innerWidth <= 768 ? {
+                              padding: window.innerWidth <= 480 ? '12px' : '16px',
+                              gap: window.innerWidth <= 480 ? '10px' : '12px',
+                            } : {})
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+                              ...(window.innerWidth <= 768 ? {
+                                width: window.innerWidth <= 480 ? '40px' : '48px',
+                                height: window.innerWidth <= 480 ? '40px' : '48px',
+                              } : {})
+                            }}>
+                              <TrendingUp size={window.innerWidth <= 480 ? 20 : window.innerWidth <= 768 ? 24 : 32} color="#10b981" />
+                            </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                ...(window.innerWidth <= 480 ? { fontSize: '11px' } : {})
+                              }}>Today's Profit</p>
+                              <p style={{
+                                ...styles.statValue,
+                                ...(window.innerWidth <= 480 ? { fontSize: '18px' } : {})
+                              }}>
+                                RM{((todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                                  todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
+                                  (todayOrders.length > 0 ? 30 : 0))).toFixed(2)}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
                       {/* Profit Breakdown */}
                       <div style={styles.card}>
@@ -3831,42 +3948,103 @@ const Crave2CaveSystem = () => {
                     </div>
 
                     {/* Summary Cards */}
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
-                      gap: '24px',
-                      marginBottom: '40px' 
-                    }}>
-                      <div style={styles.statCard}>
-                        <div style={{ ...styles.statIcon, background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)' }}>
-                          <Package size={32} color="#ef4444" />
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: window.innerWidth <= 480 
+                          ? '1fr' 
+                          : window.innerWidth <= 768 
+                          ? 'repeat(2, 1fr)' 
+                          : 'repeat(auto-fit, minmax(280px, 1fr))', 
+                        gap: window.innerWidth <= 480 ? '10px' : window.innerWidth <= 768 ? '16px' : '24px',
+                        marginBottom: window.innerWidth <= 480 ? '24px' : '40px' 
+                      }}>
+                        <div style={{
+                          ...styles.statCard,
+                          ...(window.innerWidth <= 768 ? {
+                            padding: window.innerWidth <= 480 ? '12px' : '16px',
+                            gap: window.innerWidth <= 480 ? '10px' : '12px',
+                          } : {})
+                        }}>
+                          <div style={{ 
+                            ...styles.statIcon, 
+                            background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+                            ...(window.innerWidth <= 768 ? {
+                              width: window.innerWidth <= 480 ? '40px' : '48px',
+                              height: window.innerWidth <= 480 ? '40px' : '48px',
+                            } : {})
+                          }}>
+                            <Package size={window.innerWidth <= 480 ? 20 : window.innerWidth <= 768 ? 24 : 32} color="#ef4444" />
+                          </div>
+                          <div style={styles.statContent}>
+                            <p style={{
+                              ...styles.statLabel,
+                              ...(window.innerWidth <= 480 ? { fontSize: '11px' } : {})
+                            }}>Total Orders</p>
+                            <p style={{
+                              ...styles.statValue,
+                              ...(window.innerWidth <= 480 ? { fontSize: '18px' } : {})
+                            }}>{todayOrders.length}</p>
+                          </div>
                         </div>
-                        <div style={styles.statContent}>
-                          <p style={styles.statLabel}>Total Orders</p>
-                          <p style={styles.statValue}>{todayOrders.length}</p>
-                        </div>
-                      </div>
 
-                      <div style={styles.statCard}>
-                        <div style={{ ...styles.statIcon, background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)' }}>
-                          <Clock size={32} color="#3b82f6" />
+                        <div style={{
+                          ...styles.statCard,
+                          ...(window.innerWidth <= 768 ? {
+                            padding: window.innerWidth <= 480 ? '12px' : '16px',
+                            gap: window.innerWidth <= 480 ? '10px' : '12px',
+                          } : {})
+                        }}>
+                          <div style={{ 
+                            ...styles.statIcon, 
+                            background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+                            ...(window.innerWidth <= 768 ? {
+                              width: window.innerWidth <= 480 ? '40px' : '48px',
+                              height: window.innerWidth <= 480 ? '40px' : '48px',
+                            } : {})
+                          }}>
+                            <Clock size={window.innerWidth <= 480 ? 20 : window.innerWidth <= 768 ? 24 : 32} color="#3b82f6" />
+                          </div>
+                          <div style={styles.statContent}>
+                            <p style={{
+                              ...styles.statLabel,
+                              ...(window.innerWidth <= 480 ? { fontSize: '11px' } : {})
+                            }}>Pickup Time</p>
+                            <p style={{
+                              ...styles.statValue,
+                              ...(window.innerWidth <= 480 ? { fontSize: '18px' } : {})
+                            }}>7:00 PM</p>
+                          </div>
                         </div>
-                        <div style={styles.statContent}>
-                          <p style={styles.statLabel}>Pickup Time</p>
-                          <p style={styles.statValue}>7:00 PM</p>
-                        </div>
-                      </div>
 
-                      <div style={styles.statCard}>
-                        <div style={{ ...styles.statIcon, background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' }}>
-                          <Calendar size={32} color="#10b981" />
-                        </div>
-                        <div style={styles.statContent}>
-                          <p style={styles.statLabel}>Date</p>
-                          <p style={styles.statValue}>{new Date().toLocaleDateString()}</p>
+                        <div style={{
+                          ...styles.statCard,
+                          ...(window.innerWidth <= 768 ? {
+                            padding: window.innerWidth <= 480 ? '12px' : '16px',
+                            gap: window.innerWidth <= 480 ? '10px' : '12px',
+                          } : {})
+                        }}>
+                          <div style={{ 
+                            ...styles.statIcon, 
+                            background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+                            ...(window.innerWidth <= 768 ? {
+                              width: window.innerWidth <= 480 ? '40px' : '48px',
+                              height: window.innerWidth <= 480 ? '40px' : '48px',
+                            } : {})
+                          }}>
+                            <Calendar size={window.innerWidth <= 480 ? 20 : window.innerWidth <= 768 ? 24 : 32} color="#10b981" />
+                          </div>
+                          <div style={styles.statContent}>
+                            <p style={{
+                              ...styles.statLabel,
+                              ...(window.innerWidth <= 480 ? { fontSize: '11px' } : {})
+                            }}>Date</p>
+                            <p style={{
+                              ...styles.statValue,
+                              ...(window.innerWidth <= 480 ? { fontSize: '18px' } : {})
+                            }}>{new Date().toLocaleDateString()}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
                     {/* Updated Order Boxes Grid */}
                     <div style={styles.card}>
