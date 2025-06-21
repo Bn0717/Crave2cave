@@ -4,7 +4,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, where, orderBy, writeBatch} from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import qrImage from './assets/qrtng.jpg';
-import logo from './assets/logo.png';
+import logo from './assets/logo(1).png';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBg56oKPkkQBHZYlqDe86gNKuM6CU9o0no",
@@ -278,6 +278,7 @@ const calculateDeliveryFee = (amount) => {
 
 
 // Enhanced Chart Component
+// Enhanced Chart Component with better mobile responsiveness
 const SimpleChart = ({ data, type = 'bar', title, height = 300 }) => {
   const [containerWidth, setContainerWidth] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
@@ -300,28 +301,28 @@ const SimpleChart = ({ data, type = 'bar', title, height = 300 }) => {
   }, []);
 
   const maxValue = Math.max(...data.map(d => d.value));
-  const chartHeight = isMobile ? 200 : height;
+  const chartHeight = isMobile ? 180 : height;
   
   const styles = {
     container: {
       backgroundColor: 'white',
-      padding: isMobile ? '16px' : '24px',
+      padding: isMobile ? '12px' : '20px',
       borderRadius: '16px',
       boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
       border: '1px solid #f3f4f6',
       width: '100%',
+      maxWidth: '100%', // Ensure it doesn't exceed container
       boxSizing: 'border-box',
       overflow: 'hidden'
     },
     title: {
-      fontSize: isMobile ? '16px' : '18px',
+      fontSize: isMobile ? '14px' : '16px',
       fontWeight: '600',
-      marginBottom: isMobile ? '16px' : '24px',
+      marginBottom: isMobile ? '12px' : '20px',
       color: '#1f2937',
       overflow: 'hidden',
       textOverflow: 'ellipsis',
-      whiteSpace: 'normal',
-      wordBreak: 'break-word'
+      whiteSpace: 'nowrap'
     },
     chartArea: {
       position: 'relative',
@@ -329,82 +330,85 @@ const SimpleChart = ({ data, type = 'bar', title, height = 300 }) => {
       display: 'flex',
       alignItems: 'flex-end',
       justifyContent: 'space-around',
-      gap: isMobile ? '4px' : '8px',
-      paddingBottom: '50px',
-      overflowX: 'auto',
-      overflowY: 'hidden',
-      WebkitOverflowScrolling: 'touch'
+      gap: isMobile ? '2px' : '6px',
+      paddingBottom: '40px',
+      width: '100%',
+      overflow: 'hidden' // Remove scroll
     },
     bar: {
       position: 'relative',
       backgroundColor: '#3b82f6',
-      borderRadius: '8px 8px 0 0',
+      borderRadius: '6px 6px 0 0',
       transition: 'all 0.3s ease',
       cursor: 'pointer',
-      flex: '0 0 auto',
-      width: isMobile ? '30px' : '50px',
-      minWidth: isMobile ? '30px' : '50px',
+      flex: '1',
+      maxWidth: isMobile ? '25px' : '40px',
+      minWidth: isMobile ? '20px' : '30px',
       background: 'linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%)'
     },
     barLabel: {
       position: 'absolute',
-      bottom: '-40px',
+      bottom: '-35px',
       left: '50%',
       transform: 'translateX(-50%)',
-      fontSize: isMobile ? '9px' : '11px',
+      fontSize: isMobile ? '8px' : '10px',
       color: '#6b7280',
       whiteSpace: 'nowrap',
       fontWeight: '500',
-      writingMode: isMobile && data.length > 6 ? 'vertical-rl' : 'horizontal-tb',
-      textOrientation: 'mixed'
+      writingMode: isMobile && data.length > 4 ? 'vertical-rl' : 'horizontal-tb',
+      textOrientation: 'mixed',
+      maxWidth: '40px',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
     },
     barValue: {
       position: 'absolute',
-      top: '-20px',
+      top: '-18px',
       left: '50%',
       transform: 'translateX(-50%)',
-      fontSize: isMobile ? '10px' : '12px',
+      fontSize: isMobile ? '9px' : '11px',
       fontWeight: 'bold',
       color: '#1f2937',
       backgroundColor: '#f3f4f6',
-      padding: '1px 4px',
-      borderRadius: '4px',
+      padding: '1px 3px',
+      borderRadius: '3px',
       whiteSpace: 'nowrap'
     },
     pieContainer: {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: isMobile ? '20px' : '40px',
+      gap: isMobile ? '16px' : '32px',
       flexWrap: 'wrap',
       flexDirection: isMobile ? 'column' : 'row'
     },
     pieChart: {
-      width: isMobile ? '150px' : '200px',
-      height: isMobile ? '150px' : '200px',
+      width: isMobile ? '120px' : '160px',
+      height: isMobile ? '120px' : '160px',
       position: 'relative'
     },
     legend: {
       display: 'flex',
       flexDirection: 'column',
-      gap: isMobile ? '6px' : '10px',
-      fontSize: isMobile ? '11px' : '13px',
-      maxWidth: isMobile ? '100%' : '200px'
+      gap: isMobile ? '4px' : '8px',
+      fontSize: isMobile ? '10px' : '12px',
+      maxWidth: '100%'
     },
     legendItem: {
       display: 'flex',
       alignItems: 'center',
-      gap: '6px',
+      gap: '4px',
       flexWrap: 'wrap'
     },
     legendColor: {
-      width: isMobile ? '14px' : '18px',
-      height: isMobile ? '14px' : '18px',
-      borderRadius: '4px',
+      width: isMobile ? '12px' : '16px',
+      height: isMobile ? '12px' : '16px',
+      borderRadius: '3px',
       flexShrink: 0
     }
   };
 
+  // Rest of the component remains the same...
   if (type === 'pie') {
     const total = data.reduce((sum, item) => sum + item.value, 0);
     const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
@@ -449,7 +453,9 @@ const SimpleChart = ({ data, type = 'bar', title, height = 300 }) => {
                   ...styles.legendColor,
                   backgroundColor: colors[index % colors.length]
                 }}></div>
-                <span style={{ color: '#4b5563' }}>{item.label}: {item.value} ({((item.value / total) * 100).toFixed(1)}%)</span>
+                <span style={{ color: '#4b5563', fontSize: 'inherit' }}>
+                  {item.label}: {item.value} ({((item.value / total) * 100).toFixed(1)}%)
+                </span>
               </div>
             ))}
           </div>
@@ -467,7 +473,7 @@ const SimpleChart = ({ data, type = 'bar', title, height = 300 }) => {
             key={index}
             style={{
               ...styles.bar,
-              height: `${(item.value / maxValue) * (chartHeight - 70)}px`,
+              height: `${(item.value / maxValue) * (chartHeight - 60)}px`,
               backgroundColor: item.color || '#3b82f6'
             }}
           >
@@ -715,20 +721,24 @@ const LoadingAnimation = ({ message = "Processing..." }) => {
   );
 };
 
-// Enhanced Image Modal Component
+// Enhanced Image Modal Component with pinch-to-zoom
 const ImageModal = ({ imageUrl, onClose }) => {
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [initialDistance, setInitialDistance] = useState(0);
+  const [initialScale, setInitialScale] = useState(1);
   const imageRef = useRef(null);
 
+  // Mouse wheel zoom
   const handleWheel = (e) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
     setScale(prev => Math.min(Math.max(prev * delta, 0.5), 5));
   };
 
+  // Mouse drag
   const handleMouseDown = (e) => {
     if (scale > 1) {
       setIsDragging(true);
@@ -752,8 +762,20 @@ const ImageModal = ({ imageUrl, onClose }) => {
     setIsDragging(false);
   };
 
+  // Touch pinch-to-zoom
+  const getDistance = (touches) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
   const handleTouchStart = (e) => {
-    if (e.touches.length === 1 && scale > 1) {
+    if (e.touches.length === 2) {
+      // Pinch start
+      setInitialDistance(getDistance(e.touches));
+      setInitialScale(scale);
+    } else if (e.touches.length === 1 && scale > 1) {
+      // Single touch drag
       setIsDragging(true);
       setDragStart({
         x: e.touches[0].clientX - position.x,
@@ -763,7 +785,15 @@ const ImageModal = ({ imageUrl, onClose }) => {
   };
 
   const handleTouchMove = (e) => {
-    if (e.touches.length === 1 && isDragging) {
+    e.preventDefault();
+    if (e.touches.length === 2) {
+      // Pinch zoom
+      const currentDistance = getDistance(e.touches);
+      const scaleChange = currentDistance / initialDistance;
+      const newScale = initialScale * scaleChange;
+      setScale(Math.min(Math.max(newScale, 0.5), 5));
+    } else if (e.touches.length === 1 && isDragging) {
+      // Single touch drag
       setPosition({
         x: e.touches[0].clientX - dragStart.x,
         y: e.touches[0].clientY - dragStart.y
@@ -771,7 +801,11 @@ const ImageModal = ({ imageUrl, onClose }) => {
     }
   };
 
-  
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    setInitialDistance(0);
+  };
+
   const modalStyles = {
     overlay: {
       position: 'fixed',
@@ -786,7 +820,7 @@ const ImageModal = ({ imageUrl, onClose }) => {
       zIndex: 3000,
       padding: '20px',
       cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
-      touchAction: 'none' // Prevent default touch behavior
+      touchAction: 'none'
     },
     container: {
       position: 'relative',
@@ -804,7 +838,7 @@ const ImageModal = ({ imageUrl, onClose }) => {
       left: 0,
       right: 0,
       backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      padding: '16px',
+      padding: '12px 16px',
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
@@ -813,73 +847,64 @@ const ImageModal = ({ imageUrl, onClose }) => {
     },
     zoomControls: {
       display: 'flex',
-      gap: '12px',
+      gap: '8px',
       alignItems: 'center'
     },
     zoomButton: {
       backgroundColor: '#f3f4f6',
       border: 'none',
-      padding: '8px',
-      borderRadius: '8px',
+      padding: window.innerWidth <= 480 ? '6px' : '8px',
+      borderRadius: '6px',
       cursor: 'pointer',
-      fontSize: '14px',
+      fontSize: '12px',
       fontWeight: '500',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      width: '36px',
-      height: '36px',
+      width: window.innerWidth <= 480 ? '28px' : '32px',
+      height: window.innerWidth <= 480 ? '28px' : '32px',
       transition: 'all 0.2s ease'
     },
     zoomLevel: {
-      fontSize: '14px',
+      fontSize: window.innerWidth <= 480 ? '12px' : '14px',
       fontWeight: '600',
       color: '#1f2937',
-      minWidth: '60px',
+      minWidth: window.innerWidth <= 480 ? '45px' : '60px',
       textAlign: 'center'
     },
     closeButton: {
       backgroundColor: '#ef4444',
       color: 'white',
       border: 'none',
-      padding: '8px 16px',
-      borderRadius: '8px',
+      padding: window.innerWidth <= 480 ? '8px' : '8px 12px',
+      borderRadius: '6px',
       cursor: 'pointer',
-      fontSize: '14px',
+      fontSize: window.innerWidth <= 480 ? '12px' : '14px',
       fontWeight: '600',
-      transition: 'all 0.2s ease'
+      transition: 'all 0.2s ease',
+      display: 'flex',
+      alignItems: 'center',
+      gap: window.innerWidth <= 480 ? '0' : '4px'
     },
     imageContainer: {
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      paddingTop: '60px',
-      minHeight: '200px', 
+      paddingTop: '50px',
+      minHeight: '200px',
       overflow: 'hidden',
       position: 'relative',
       touchAction: 'none'
     },
     image: {
       maxWidth: '100%',
-      maxHeight: 'calc(90vh - 100px)', 
+      maxHeight: 'calc(90vh - 80px)',
       height: 'auto',
       transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
       transition: isDragging ? 'none' : 'transform 0.3s ease',
       userSelect: 'none',
       touchAction: 'none',
-      objectFit: 'contain' 
-    },
-    instructions: {
-      position: 'absolute',
-      bottom: '20px',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      backgroundColor: 'rgba(0, 0, 0, 0.7)',
-      color: 'white',
-      padding: '8px 16px',
-      borderRadius: '8px',
-      fontSize: '14px',
-      pointerEvents: 'none'
+      objectFit: 'contain'
     }
   };
 
@@ -910,21 +935,27 @@ const ImageModal = ({ imageUrl, onClose }) => {
         <div style={modalStyles.header}>
           <div style={modalStyles.zoomControls}>
             <button style={modalStyles.zoomButton} onClick={handleZoomOut}>
-              <span style={{ fontSize: '20px' }}>−</span>
+              <span style={{ fontSize: window.innerWidth <= 480 ? '16px' : '18px' }}>−</span>
             </button>
             <span style={modalStyles.zoomLevel}>{Math.round(scale * 100)}%</span>
             <button style={modalStyles.zoomButton} onClick={handleZoomIn}>
-              <span style={{ fontSize: '20px' }}>+</span>
+              <span style={{ fontSize: window.innerWidth <= 480 ? '16px' : '18px' }}>+</span>
             </button>
             <button 
-              style={{...modalStyles.zoomButton, width: 'auto', padding: '8px 12px'}} 
+              style={{
+                ...modalStyles.zoomButton, 
+                width: 'auto', 
+                padding: window.innerWidth <= 480 ? '6px 8px' : '8px 10px',
+                fontSize: window.innerWidth <= 480 ? '10px' : '12px'
+              }} 
               onClick={handleZoomReset}
             >
               Reset
             </button>
           </div>
           <button style={modalStyles.closeButton} onClick={onClose}>
-            <X size={16} style={{ display: 'inline', marginRight: '4px' }} /> Close
+            <X size={window.innerWidth <= 480 ? 14 : 16} />
+            {window.innerWidth > 480 && <span style={{ marginLeft: '4px' }}>Close</span>}
           </button>
         </div>
         <div 
@@ -933,7 +964,7 @@ const ImageModal = ({ imageUrl, onClose }) => {
           onMouseDown={handleMouseDown}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
-          onTouchEnd={handleMouseUp}
+          onTouchEnd={handleTouchEnd}
         >
           <img 
             ref={imageRef}
@@ -948,7 +979,140 @@ const ImageModal = ({ imageUrl, onClose }) => {
   );
 };
 
-// Enhanced Table Component
+// Beautiful Message Component
+const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClose }) => {
+  const getMessageStyles = () => {
+    switch (type) {
+      case 'success':
+        return {
+          background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+          border: '2px solid #10b981',
+          iconBg: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          iconColor: 'white',
+          textColor: '#047857'
+        };
+      case 'warning':
+        return {
+          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+          border: '2px solid #f59e0b',
+          iconBg: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+          iconColor: 'white',
+          textColor: '#92400e'
+        };
+      case 'error':
+        return {
+          background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+          border: '2px solid #ef4444',
+          iconBg: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+          iconColor: 'white',
+          textColor: '#991b1b'
+        };
+      default:
+        return {
+          background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+          border: '2px solid #3b82f6',
+          iconBg: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+          iconColor: 'white',
+          textColor: '#1e40af'
+        };
+    }
+  };
+
+  const messageStyles = getMessageStyles();
+
+  return (
+    <div style={{
+      background: messageStyles.background,
+      border: messageStyles.border,
+      borderRadius: '20px',
+      padding: window.innerWidth <= 480 ? '20px' : '28px',
+      marginBottom: '24px',
+      boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Decorative pattern */}
+      <div style={{
+        position: 'absolute',
+        top: '-50px',
+        right: '-50px',
+        width: '100px',
+        height: '100px',
+        borderRadius: '50%',
+        background: 'rgba(255, 255, 255, 0.1)',
+        pointerEvents: 'none'
+      }} />
+      
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: window.innerWidth <= 480 ? '12px' : '16px'
+      }}>
+        {icon && (
+          <div style={{
+            width: window.innerWidth <= 480 ? '48px' : '56px',
+            height: window.innerWidth <= 480 ? '48px' : '56px',
+            borderRadius: '16px',
+            background: messageStyles.iconBg,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+          }}>
+            {React.cloneElement(icon, { 
+              size: window.innerWidth <= 480 ? 24 : 28, 
+              color: messageStyles.iconColor 
+            })}
+          </div>
+        )}
+        
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {title && (
+            <h4 style={{
+              margin: '0 0 8px 0',
+              fontSize: window.innerWidth <= 480 ? '16px' : '18px',
+              fontWeight: 'bold',
+              color: messageStyles.textColor
+            }}>
+              {title}
+            </h4>
+          )}
+          
+          <p style={{
+            margin: '0 0 12px 0',
+            fontSize: window.innerWidth <= 480 ? '14px' : '15px',
+            color: messageStyles.textColor,
+            lineHeight: '1.5'
+          }}>
+            {message}
+          </p>
+          
+          {children}
+        </div>
+        
+        {onClose && (
+          <button
+            onClick={onClose}
+            style={{
+              background: 'rgba(255, 255, 255, 0.2)',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '8px',
+              cursor: 'pointer',
+              color: messageStyles.textColor,
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Enhanced Responsive Table Component
 const ResponsiveTable = ({ headers, data, onImageClick }) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
@@ -961,108 +1125,159 @@ const ResponsiveTable = ({ headers, data, onImageClick }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const tableStyles = {
-    container: {
+  if (isMobile) {
+    // Mobile card layout
+    return (
+      <div style={{ width: '100%' }}>
+        {data.map((row, rowIndex) => (
+          <div key={rowIndex} style={{
+            backgroundColor: '#f8fafc',
+            border: '2px solid #e2e8f0',
+            borderRadius: '12px',
+            padding: '16px',
+            marginBottom: '12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+          }}>
+            {row.map((cell, cellIndex) => (
+              <div key={cellIndex} style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '8px 0',
+                borderBottom: cellIndex < row.length - 1 ? '1px solid #e2e8f0' : 'none'
+              }}>
+                <span style={{
+                  fontWeight: '600',
+                  color: '#374151',
+                  fontSize: '13px',
+                  flex: '0 0 auto',
+                  marginRight: '12px'
+                }}>
+                  {headers[cellIndex]}:
+                </span>
+                <div style={{ flex: '1', textAlign: 'right' }}>
+                  {cell.type === 'image' ? (
+                    <img
+                      src={cell.value}
+                      alt="Order"
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        objectFit: 'cover',
+                        borderRadius: '6px',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => onImageClick && onImageClick(cell.value)}
+                    />
+                  ) : cell.type === 'status' ? (
+                    <span style={{
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: '500',
+                      backgroundColor: cell.value >= 0 ? '#d1fae5' : '#fee2e2',
+                      color: cell.value >= 0 ? '#065f46' : '#991b1b'
+                    }}>
+                      {cell.display}
+                    </span>
+                  ) : (
+                    <span style={{ 
+                      fontSize: '13px', 
+                      color: '#1f2937',
+                      wordBreak: 'break-word'
+                    }}>
+                      {cell}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Desktop table layout
+  return (
+    <div style={{
       overflowX: 'auto',
       width: '100%',
       borderRadius: '12px',
       boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-      WebkitOverflowScrolling: 'touch',
-      msOverflowStyle: '-ms-autohiding-scrollbar'
-    },
-    table: {
-      width: '100%',
-      borderCollapse: 'collapse',
-      minWidth: isMobile ? '500px' : '600px'
-    },
-    th: {
-      backgroundColor: '#f9fafb',
-      padding: isMobile ? '10px 8px' : '12px',
-      textAlign: 'left',
-      fontWeight: '600',
-      fontSize: isMobile ? '12px' : '14px',
-      color: '#4b5563',
-      borderBottom: '2px solid #e5e7eb',
-      whiteSpace: 'nowrap'
-    },
-    td: {
-      padding: isMobile ? '10px 8px' : '12px',
-      borderBottom: '1px solid #f3f4f6',
-      fontSize: isMobile ? '12px' : '14px',
-      color: '#1f2937',
-      wordBreak: 'break-word',
-      maxWidth: isMobile ? '150px' : 'none'
-    },
-    tr: {
-      transition: 'background-color 0.2s ease',
-      '&:hover': {
-        backgroundColor: '#f9fafb'
-      }
-    },
-    image: {
-      width: isMobile ? '40px' : '60px',
-      height: isMobile ? '40px' : '60px',
-      objectFit: 'cover',
-      borderRadius: '8px',
-      cursor: 'pointer',
-      transition: 'transform 0.2s ease',
-      '&:hover': {
-        transform: 'scale(1.05)'
-      }
-    },
-    mobileHint: {
-      fontSize: '11px',
-      color: '#6b7280',
-      marginTop: '8px',
-      textAlign: 'center'
-    }
-  };
-
-  return (
-    <div>
-      <div style={tableStyles.container}>
-        <table style={tableStyles.table}>
-          <thead>
-            <tr>
-              {headers.map((header, index) => (
-                <th key={index} style={tableStyles.th}>{header}</th>
+      WebkitOverflowScrolling: 'touch'
+    }}>
+      <table style={{
+        width: '100%',
+        borderCollapse: 'collapse',
+        minWidth: '600px'
+      }}>
+        <thead>
+          <tr>
+            {headers.map((header, index) => (
+              <th key={index} style={{
+                backgroundColor: '#f9fafb',
+                padding: '12px',
+                textAlign: 'left',
+                fontWeight: '600',
+                fontSize: '14px',
+                color: '#4b5563',
+                borderBottom: '2px solid #e5e7eb',
+                whiteSpace: 'nowrap'
+              }}>
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row, rowIndex) => (
+            <tr key={rowIndex} style={{
+              transition: 'background-color 0.2s ease',
+              '&:hover': { backgroundColor: '#f9fafb' }
+            }}>
+              {row.map((cell, cellIndex) => (
+                <td key={cellIndex} style={{
+                  padding: '12px',
+                  borderBottom: '1px solid #f3f4f6',
+                  fontSize: '14px',
+                  color: '#1f2937'
+                }}>
+                  {cell.type === 'image' ? (
+                    <img
+                      src={cell.value}
+                      alt="Order"
+                      style={{
+                        width: '60px',
+                        height: '60px',
+                        objectFit: 'cover',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s ease'
+                      }}
+                      onClick={() => onImageClick && onImageClick(cell.value)}
+                    />
+                  ) : cell.type === 'status' ? (
+                    <span style={{
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      backgroundColor: cell.value >= 0 ? '#d1fae5' : '#fee2e2',
+                      color: cell.value >= 0 ? '#065f46' : '#991b1b',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {cell.display}
+                    </span>
+                  ) : (
+                    cell
+                  )}
+                </td>
               ))}
             </tr>
-          </thead>
-          <tbody>
-            {data.map((row, rowIndex) => (
-              <tr key={rowIndex} style={tableStyles.tr}>
-                {row.map((cell, cellIndex) => (
-                  <td key={cellIndex} style={tableStyles.td}>
-                    {cell.type === 'image' ? (
-                      <img
-                        src={cell.value}
-                        alt="Order"
-                        style={tableStyles.image}
-                        onClick={() => onImageClick && onImageClick(cell.value)}
-                      />
-                    ) : cell.type === 'status' ? (
-                      <span style={{
-                        padding: '4px 12px',
-                        borderRadius: '6px',
-                        fontSize: isMobile ? '11px' : '12px',
-                        fontWeight: '500',
-                        backgroundColor: cell.value >= 0 ? '#d1fae5' : '#fee2e2',
-                        color: cell.value >= 0 ? '#065f46' : '#991b1b',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {cell.display}
-                      </span>
-                    ) : (
-                      cell
-                    )}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
@@ -1127,19 +1342,71 @@ const CountdownTimer = ({ targetTime = "19:00" }) => {
   };
 
   return (
-    <div style={timerStyles.container}>
-      <p style={timerStyles.label}>
-        {timeLeft.isReady ? '🎉 Ready for pickup!' : '⏰ Time until pickup:'}
+    <div style={{
+      backgroundColor: '#fef3c7',
+      padding: '24px',
+      borderRadius: '16px',
+      textAlign: 'center',
+      margin: '20px 0',
+      border: '2px solid #fbbf24',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+    }}>
+      <p style={{ 
+        margin: '0 0 12px 0', 
+        fontSize: '18px',
+        fontWeight: '600',
+        color: '#92400e',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px'
+      }}>
+        {timeLeft.isReady ? (
+          <><CheckCircle size={20} color="#059669" /> Ready for pickup!</>
+        ) : (
+          <><Clock size={20} color="#dc2626" /> Time until pickup:</>
+        )}
       </p>
-      <div style={timerStyles.timer}>
-        <span style={timerStyles.segment}>{String(timeLeft.hours).padStart(2, '0')}</span>
-        <span>:</span>
-        <span style={timerStyles.segment}>{String(timeLeft.minutes).padStart(2, '0')}</span>
-        <span>:</span>
-        <span style={timerStyles.segment}>{String(timeLeft.seconds).padStart(2, '0')}</span>
+      
+      <div style={{
+        fontSize: '36px',
+        fontWeight: 'bold',
+        color: timeLeft.isReady ? '#059669' : '#dc2626',
+        fontVariantNumeric: 'tabular-nums',
+        letterSpacing: '0.025em',
+        display: 'flex',
+        justifyContent: 'center',
+        gap: '4px'
+      }}>
+        {['hours', 'minutes', 'seconds'].map((unit, index) => (
+          <div key={unit} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{
+              backgroundColor: '#fef3c7',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              minWidth: '60px',
+              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
+            }}>
+              {String(timeLeft[unit]).padStart(2, '0')}
+            </div>
+            <span style={{ fontSize: '12px', color: '#92400e', marginTop: '4px' }}>
+              {unit.toUpperCase()}
+            </span>
+          </div>
+        ))}
       </div>
+      
       {!timeLeft.isReady && (
-        <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '12px', margin: 0 }}>
+        <p style={{ 
+          fontSize: '14px', 
+          color: '#6b7280', 
+          marginTop: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '6px'
+        }}>
+          <MapPin size={16} color="#64748b" />
           Please arrive at the main gate by 7:00 PM
         </p>
       )}
@@ -1156,18 +1423,27 @@ const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false, userIndex = 0, 
   if (!isCommitmentFee && amount === 0) {
     return (
       <div style={{
-        padding: '24px',
+        padding: window.innerWidth <= 480 ? '16px' : '24px',
         backgroundColor: '#f0fdf4',
         borderRadius: '16px',
         border: '2px solid #86efac',
         textAlign: 'center',
         marginBottom: '24px'
       }}>
-        <CheckCircle color="#16a34a" size={36} />
-        <p style={{ margin: '12px 0 0 0', fontWeight: '600', color: '#166534', fontSize: '17px' }}>
+        <CheckCircle color="#16a34a" size={window.innerWidth <= 480 ? 28 : 36} />
+        <p style={{ 
+          margin: '12px 0 0 0', 
+          fontWeight: '600', 
+          color: '#166534', 
+          fontSize: window.innerWidth <= 480 ? '15px' : '17px' 
+        }}>
           No delivery fee for orders under RM50!
         </p>
-        <p style={{ margin: '8px 0 0 0', fontSize: '15px', color: '#166534' }}>
+        <p style={{ 
+          margin: '8px 0 0 0', 
+          fontSize: window.innerWidth <= 480 ? '13px' : '15px', 
+          color: '#166534' 
+        }}>
           Please proceed to upload your order image.
         </p>
       </div>
@@ -1178,28 +1454,45 @@ const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false, userIndex = 0, 
     return (
       <div style={{
         backgroundColor: '#f0fdf4',
-        padding: '20px',
+        padding: window.innerWidth <= 480 ? '16px' : '20px',
         borderRadius: '12px',
         border: '2px solid #86efac',
-        marginBottom: '24px'
+        marginBottom: '24px',
+        textAlign: 'center'
       }}>
-        <CheckCircle color="#16a34a" size={32} />
-        <p style={{ margin: '12px 0 0 0', fontWeight: '600', color: '#166534', fontSize: '18px' }}>
+        <CheckCircle color="#16a34a" size={window.innerWidth <= 480 ? 24 : 32} />
+        <p style={{ 
+          margin: '12px 0 0 0', 
+          fontWeight: '600', 
+          color: '#166534', 
+          fontSize: window.innerWidth <= 480 ? '16px' : '18px' 
+        }}>
           Congratulations! You're the 4th registrant!
         </p>
-        <p style={{ margin: '8px 0 0 0', fontSize: '15px', color: '#166534' }}>
+        <p style={{ 
+          margin: '8px 0 0 0', 
+          fontSize: window.innerWidth <= 480 ? '13px' : '15px', 
+          color: '#166534' 
+        }}>
           Your commitment fee is waived. Please proceed to continue.
         </p>
       </div>
     );
   }
 
+  // Calculate responsive QR code size
+  const getQRSize = () => {
+    if (window.innerWidth <= 480) return '180px';
+    if (window.innerWidth <= 768) return '200px';
+    return '220px';
+  };
+
   return (
     <div style={{
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      padding: '32px',
+      padding: window.innerWidth <= 480 ? '20px' : '32px',
       background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
       borderRadius: '20px',
       border: '2px solid #7dd3fc',
@@ -1209,62 +1502,70 @@ const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false, userIndex = 0, 
       boxSizing: 'border-box'
     }}>
       <div style={{
-        fontSize: '20px',
+        fontSize: window.innerWidth <= 480 ? '16px' : '20px',
         fontWeight: 'bold',
         color: '#0369a1',
-        marginBottom: '20px',
+        marginBottom: window.innerWidth <= 480 ? '16px' : '20px',
         display: 'flex',
         alignItems: 'center',
-        gap: '10px'
+        gap: '10px',
+        textAlign: 'center'
       }}>
-        <QrCode size={28} />
+        <QrCode size={window.innerWidth <= 480 ? 20 : 28} />
         {isCommitmentFee ? 'Commitment Fee Payment' : 'Delivery Fee Payment'}
       </div>
       
       <div style={{
-        padding: '20px',
+        padding: window.innerWidth <= 480 ? '16px' : '20px',
         backgroundColor: 'white',
         borderRadius: '16px',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
       }}>
         <img 
           src={qrImage}
           alt="TNG Payment QR Code"
           style={{
-            width: '220px',
-            height: '220px',
-            display: 'block'
+            width: getQRSize(),
+            height: getQRSize(),
+            display: 'block',
+            objectFit: 'contain' // Prevent squeezing
           }}
         />
       </div>
       
       <div style={{
-        marginTop: '20px',
-        padding: '16px 32px',
+        marginTop: window.innerWidth <= 480 ? '16px' : '20px',
+        padding: window.innerWidth <= 480 ? '12px 24px' : '16px 32px',
         background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
         color: 'white',
         borderRadius: '12px',
         fontWeight: 'bold',
-        fontSize: '20px',
+        fontSize: window.innerWidth <= 480 ? '16px' : '20px',
         boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)'
       }}>
         Amount: RM{displayAmount.toFixed(2)}
       </div>
       
       <p style={{
-        fontSize: '15px',
+        fontSize: window.innerWidth <= 480 ? '13px' : '15px',
         color: '#64748b',
         marginTop: '16px',
-        textAlign: 'center'
+        textAlign: 'center',
+        margin: '16px 0 0 0'
       }}>
-        Scan with Touch 'n Go eWallet to pay
+        Scan to pay
       </p>
     </div>
   );
 };
 
 // Waiting Page Component
-const WaitingPage = ({ onClose }) => {
+const WaitingPage = ({ onClose, currentOrder }) => {
+  const [showImage, setShowImage] = useState(false);
+  
   const styles = {
     container: {
       position: 'fixed',
@@ -1277,9 +1578,10 @@ const WaitingPage = ({ onClose }) => {
       flexDirection: 'column',
       justifyContent: 'center',
       alignItems: 'center',
-      zIndex: 1000,
+      zIndex: 2000,
       padding: '20px',
-      textAlign: 'center'
+      textAlign: 'center',
+      overflowY: 'auto'
     },
     card: {
       backgroundColor: 'white',
@@ -1288,57 +1590,133 @@ const WaitingPage = ({ onClose }) => {
       boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
       maxWidth: '520px',
       width: '100%',
+      position: 'relative',
       animation: 'slideUp 0.5s ease-out'
     },
-    iconContainer: {
-      width: '96px',
-      height: '96px',
-      margin: '0 auto 32px',
+    closeButton: {
+      position: 'absolute',
+      top: '20px',
+      right: '20px',
+      backgroundColor: '#f1f5f9',
+      border: 'none',
       borderRadius: '50%',
-      background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+      width: '40px',
+      height: '40px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      animation: 'pulse 2s infinite',
-      boxShadow: '0 8px 24px rgba(59, 130, 246, 0.3)'
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+      ':hover': {
+        backgroundColor: '#e2e8f0',
+        transform: 'scale(1.1)'
+      }
+    },
+    iconContainer: {
+      width: '88px',
+      height: '88px',
+      borderRadius: '50%',
+      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: '0 auto 24px',
+      animation: 'successPulse 0.8s ease-out',
+      boxShadow: '0 10px 25px -5px rgba(16, 185, 129, 0.3)'
     },
     title: {
       fontSize: '28px',
       fontWeight: 'bold',
-      marginBottom: '20px',
-      color: '#1e293b'
+      color: '#1f2937',
+      marginBottom: '12px'
     },
     locationInfo: {
-      backgroundColor: '#f8fafc',
-      padding: '20px',
-      borderRadius: '16px',
-      marginBottom: '28px',
-      border: '1px solid #e2e8f0',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: '10px'
+      gap: '8px',
+      backgroundColor: '#f0f9ff',
+      padding: '12px 24px',
+      borderRadius: '12px',
+      margin: '20px 0',
+      border: '1px solid #bfdbfe'
+    },
+    orderBox: {
+      padding: '24px',
+      border: '2px solid #e2e8f0',
+      borderRadius: '16px',
+      backgroundColor: '#f8fafc',
+      margin: '24px 0',
+      textAlign: 'left'
+    },
+    orderHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: '16px',
+      flexWrap: 'wrap',
+      gap: '8px'
+    },
+    orderGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+      gap: '12px',
+      marginBottom: '16px'
+    },
+    orderLabel: {
+      margin: '0',
+      color: '#64748b',
+      fontSize: '14px',
+      fontWeight: '500'
+    },
+    orderValue: {
+      margin: '0',
+      fontWeight: '600',
+      fontSize: '16px'
+    },
+    viewPhotoButton: {
+      padding: '12px 24px',
+      backgroundColor: '#3b82f6',
+      color: 'white',
+      border: 'none',
+      borderRadius: '12px',
+      cursor: 'pointer',
+      fontSize: '15px',
+      fontWeight: '500',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '8px',
+      transition: 'all 0.2s',
+      width: '100%',
+      marginTop: '16px',
+      ':hover': {
+        backgroundColor: '#2563eb',
+        transform: 'translateY(-2px)'
+      }
     },
     message: {
-      fontSize: '17px',
+      fontSize: '16px',
       color: '#64748b',
-      marginBottom: '32px',
-      lineHeight: '1.6'
+      lineHeight: '1.6',
+      margin: '24px 0'
     },
     button: {
       padding: '16px 40px',
-      background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+      backgroundColor: '#3b82f6',
       color: 'white',
       border: 'none',
-      borderRadius: '14px',
-      fontSize: '17px',
-      fontWeight: '600',
+      borderRadius: '12px',
       cursor: 'pointer',
+      fontSize: '16px',
+      fontWeight: '600',
       transition: 'all 0.3s ease',
-      boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)',
-      '&:hover': {
+      boxShadow: '0 4px 14px rgba(59, 130, 246, 0.3)',
+      ':hover': {
+        backgroundColor: '#2563eb',
         transform: 'translateY(-2px)',
-        boxShadow: '0 6px 20px rgba(59, 130, 246, 0.5)'
+        boxShadow: '0 6px 20px rgba(59, 130, 246, 0.4)'
       }
     }
   };
@@ -1346,8 +1724,12 @@ const WaitingPage = ({ onClose }) => {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
+        <button style={styles.closeButton} onClick={onClose}>
+          <X size={24} color="#64748b" />
+        </button>
+        
         <div style={styles.iconContainer}>
-          <CheckCircle size={56} color="white" />
+          <CheckCircle size={48} color="white" strokeWidth={3} />
         </div>
         
         <h2 style={styles.title}>Your Order is Being Prepared</h2>
@@ -1355,11 +1737,66 @@ const WaitingPage = ({ onClose }) => {
         <CountdownTimer targetTime="19:00" />
         
         <div style={styles.locationInfo}>
-          <MapPin size={22} color="#64748b" />
-          <span style={{ fontWeight: '600', color: '#475569', fontSize: '16px' }}>
+          <MapPin size={20} color="#3b82f6" />
+          <span style={{ fontWeight: '600', color: '#1e40af' }}>
             Pickup Location: Main Gate
           </span>
         </div>
+
+        {currentOrder && (
+          <div style={styles.orderBox}>
+            <div style={styles.orderHeader}>
+              <h4 style={{ margin: 0, fontSize: '18px', color: '#1e293b' }}>
+                Your Order Details
+              </h4>
+              <span style={{
+                backgroundColor: '#fef3c7',
+                color: '#92400e',
+                padding: '6px 16px',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '600'
+              }}>
+                {currentOrder.orderNumber}
+              </span>
+            </div>
+            
+            <div style={styles.orderGrid}>
+              <div>
+                <p style={styles.orderLabel}>Order Total</p>
+                <p style={{ ...styles.orderValue, color: '#059669' }}>
+                  RM{currentOrder.orderTotal}
+                </p>
+              </div>
+              <div>
+                <p style={styles.orderLabel}>Delivery Fee</p>
+                <p style={styles.orderValue}>
+                  RM{currentOrder.deliveryFee}
+                </p>
+              </div>
+              <div>
+                <p style={styles.orderLabel}>Total Amount</p>
+                <p style={{ ...styles.orderValue, color: '#dc2626' }}>
+                  RM{currentOrder.totalWithDelivery}
+                </p>
+              </div>
+              <div>
+                <p style={styles.orderLabel}>Student ID</p>
+                <p style={styles.orderValue}>{currentOrder.studentId}</p>
+              </div>
+            </div>
+            
+            {currentOrder.orderImageURL && (
+              <button
+                onClick={() => setShowImage(true)}
+                style={styles.viewPhotoButton}
+              >
+                <Camera size={20} />
+                View Order Photo
+              </button>
+            )}
+          </div>
+        )}
         
         <p style={styles.message}>
           Please arrive at the main gate by 7:00 PM to receive your order
@@ -1369,27 +1806,23 @@ const WaitingPage = ({ onClose }) => {
           Close
         </button>
       </div>
+      
+      {showImage && currentOrder?.orderImageURL && (
+        <ImageModal 
+          imageUrl={currentOrder.orderImageURL} 
+          onClose={() => setShowImage(false)} 
+        />
+      )}
+      
       <style jsx>{`
         @keyframes slideUp {
-          from {
-            transform: translateY(20px);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0);
-            opacity: 1;
-          }
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
         }
-        @keyframes pulse {
-          0% {
-            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
-          }
-          70% {
-            box-shadow: 0 0 0 20px rgba(59, 130, 246, 0);
-          }
-          100% {
-            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
-          }
+        @keyframes successPulse {
+          0% { transform: scale(0); opacity: 0; }
+          50% { transform: scale(1.2); }
+          100% { transform: scale(1); opacity: 1; }
         }
       `}</style>
     </div>
@@ -1400,6 +1833,13 @@ const WaitingPage = ({ onClose }) => {
 const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle }) => {
   const [retrieveName, setRetrieveName] = useState('');
   const [retrieveId, setRetrieveId] = useState('');
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleRetrieve = () => {
     if (!retrieveName.trim() || !retrieveId.trim()) {
@@ -1413,6 +1853,9 @@ const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle }) => {
     setRetrieveName('');
     setRetrieveId('');
   };
+
+  const isSmallScreen = windowWidth <= 480;
+  const isMediumScreen = windowWidth <= 768;
 
   const styles = {
     container: {
@@ -1429,12 +1872,12 @@ const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle }) => {
       alignItems: 'center',
       justifyContent: 'center',
       gap: '8px',
-      padding: '16px',
+      padding: isSmallScreen ? '12px' : isMediumScreen ? '14px' : '16px',
       backgroundColor: '#3b82f6',
       color: 'white',
       border: 'none',
       cursor: 'pointer',
-      fontSize: '15px',
+      fontSize: isSmallScreen ? '13px' : isMediumScreen ? '14px' : '15px',
       fontWeight: '600',
       transition: 'all 0.2s',
       '&:hover': {
@@ -1442,24 +1885,24 @@ const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle }) => {
       }
     },
     content: {
-      padding: isVisible ? '24px' : '0',
+      padding: isVisible ? (isSmallScreen ? '16px' : isMediumScreen ? '20px' : '24px') : '0',
       maxHeight: isVisible ? '400px' : '0',
       opacity: isVisible ? 1 : 0,
       transition: 'all 0.3s ease'
     },
     title: {
-      fontSize: '18px',
+      fontSize: isSmallScreen ? '16px' : '18px',
       fontWeight: 'bold',
       color: '#1e40af',
       marginBottom: '12px'
     },
     input: {
       width: '100%',
-      padding: '14px 18px',
+      padding: isSmallScreen ? '12px 14px' : '14px 18px',
       border: '2px solid #e5e7eb',
       borderRadius: '10px',
       marginBottom: '16px',
-      fontSize: '15px',
+      fontSize: isSmallScreen ? '14px' : '15px',
       boxSizing: 'border-box',
       transition: 'all 0.2s',
       '&:focus': {
@@ -1475,11 +1918,11 @@ const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle }) => {
     },
     button: {
       flex: 1,
-      padding: '14px 20px',
+      padding: isSmallScreen ? '12px 16px' : '14px 20px',
       borderRadius: '10px',
       border: 'none',
       cursor: 'pointer',
-      fontSize: '15px',
+      fontSize: isSmallScreen ? '14px' : '15px',
       fontWeight: '600',
       transition: 'all 0.2s',
       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
@@ -1503,19 +1946,23 @@ const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle }) => {
   return (
     <div style={styles.container}>
       <button onClick={onToggle} style={styles.toggleButton}>
-        <Search size={18} />
+        <Search size={isSmallScreen ? 16 : 18} />
         {isVisible ? 'Hide' : 'Already Registered? Retrieve Your Registration'}
       </button>
       
       <div style={styles.content}>
         <h3 style={styles.title}>Retrieve Your Registration</h3>
-        <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '20px' }}>
+        <p style={{ 
+          color: '#6b7280', 
+          fontSize: isSmallScreen ? '13px' : '14px',
+          marginBottom: '20px' 
+        }}>
           Enter your name and student ID to continue where you left off.
         </p>
         
         <input
           type="text"
-          placeholder="Enter your full name"
+          placeholder="Enter your full name (Bryan Ngu)"
           value={retrieveName}
           onChange={(e) => setRetrieveName(e.target.value)}
           style={styles.input}
@@ -1523,7 +1970,7 @@ const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle }) => {
         
         <input
           type="text"
-          placeholder="Enter your student ID (e.g., 0469/24)"
+          placeholder="Enter your student ID (0469/24)"
           value={retrieveId}
           onChange={(e) => setRetrieveId(e.target.value)}
           style={styles.input}
@@ -1586,18 +2033,17 @@ const Crave2CaveSystem = () => {
   const [registrationOrder, setRegistrationOrder] = useState([]);
   const [paymentProof, setPaymentProof] = useState(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [systemActivatedToday, setSystemActivatedToday] = useState(false);
 
-  const ADMIN_PASSCODE = 'YIEK';
+  const ADMIN_PASSCODE = 'byyc';
   const isFourthUser = currentOrder ? (currentOrder.order === 4) : (currentUserIndex === 3);
 
   useEffect(() => {
-  const handleResize = () => {
-    setWindowWidth(window.innerWidth);
-  };
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-  window.addEventListener('resize', handleResize);
-  return () => window.removeEventListener('resize', handleResize);
-}, []);
 
   // Add global styles
   useEffect(() => {
@@ -1785,15 +2231,144 @@ const Crave2CaveSystem = () => {
   const lastAccessDate = localStorage.getItem('lastAccessDate');
   const today = new Date().toDateString();
   
+  
   if (lastAccessDate !== today) {
-    // Reset registration data for a new day
     localStorage.setItem('lastAccessDate', today);
-    setPrebookUsers([]);
-    setTodayUsers([]);
-    setTodayOrders([]);
-    setMinOrderReached(false);
   }
   
+  // Beautiful Message Component
+const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClose }) => {
+  const getMessageStyles = () => {
+    switch (type) {
+      case 'success':
+        return {
+          background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+          border: '2px solid #10b981',
+          iconBg: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          iconColor: 'white',
+          textColor: '#047857'
+        };
+      case 'warning':
+        return {
+          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+          border: '2px solid #f59e0b',
+          iconBg: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+          iconColor: 'white',
+          textColor: '#92400e'
+        };
+      case 'error':
+        return {
+          background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+          border: '2px solid #ef4444',
+          iconBg: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+          iconColor: 'white',
+          textColor: '#991b1b'
+        };
+      default:
+        return {
+          background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+          border: '2px solid #3b82f6',
+          iconBg: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+          iconColor: 'white',
+          textColor: '#1e40af'
+        };
+    }
+  };
+
+  const messageStyles = getMessageStyles();
+
+  return (
+    <div style={{
+      background: messageStyles.background,
+      border: messageStyles.border,
+      borderRadius: '20px',
+      padding: window.innerWidth <= 480 ? '20px' : '28px',
+      marginBottom: '24px',
+      boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Decorative pattern */}
+      <div style={{
+        position: 'absolute',
+        top: '-50px',
+        right: '-50px',
+        width: '100px',
+        height: '100px',
+        borderRadius: '50%',
+        background: 'rgba(255, 255, 255, 0.1)',
+        pointerEvents: 'none'
+      }} />
+      
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: window.innerWidth <= 480 ? '12px' : '16px'
+      }}>
+        {icon && (
+          <div style={{
+            width: window.innerWidth <= 480 ? '48px' : '56px',
+            height: window.innerWidth <= 480 ? '48px' : '56px',
+            borderRadius: '16px',
+            background: messageStyles.iconBg,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+          }}>
+            {React.cloneElement(icon, { 
+              size: window.innerWidth <= 480 ? 24 : 28, 
+              color: messageStyles.iconColor 
+            })}
+          </div>
+        )}
+        
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {title && (
+            <h4 style={{
+              margin: '0 0 8px 0',
+              fontSize: window.innerWidth <= 480 ? '16px' : '18px',
+              fontWeight: 'bold',
+              color: messageStyles.textColor
+            }}>
+              {title}
+            </h4>
+          )}
+          
+          <p style={{
+            margin: '0 0 12px 0',
+            fontSize: window.innerWidth <= 480 ? '14px' : '15px',
+            color: messageStyles.textColor,
+            lineHeight: '1.5'
+          }}>
+            {message}
+          </p>
+          
+          {children}
+        </div>
+        
+        {onClose && (
+          <button
+            onClick={onClose}
+            style={{
+              background: 'rgba(255, 255, 255, 0.2)',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '8px',
+              cursor: 'pointer',
+              color: messageStyles.textColor,
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
   const isAuthenticatedFromStorage = localStorage.getItem('isAdminAuthenticated');
   if (isAuthenticatedFromStorage === 'true') {
     setIsAuthenticated(true);
@@ -1836,15 +2411,36 @@ const Crave2CaveSystem = () => {
   };
 
   const filterTodayData = (orders = [], users = []) => {
-    const todayOrdersFiltered = orders.filter(order => isToday(order.timestamp));
-    const todayUserIds = new Set(todayOrdersFiltered.map(order => order.userId));
-    const todayUsersFiltered = users.filter(user => 
-      isToday(user.timestamp) || todayUserIds.has(user.firestoreId)
-    );
-    
-    setTodayOrders(todayOrdersFiltered);
-    setTodayUsers(todayUsersFiltered);
-  };
+  const today = new Date();
+  const todayString = today.toISOString().split('T')[0];
+
+  // Filter today's orders
+  const todayOrdersFiltered = orders.filter(order => 
+    order.timestamp && order.timestamp.startsWith(todayString)
+  );
+  
+  // Get today's users - filter by registration date AND timestamp
+  const todayUsersFiltered = users.filter(user => 
+    user.registrationDate === todayString || 
+    (user.timestamp && user.timestamp.startsWith(todayString))
+  );
+  
+  setTodayOrders(todayOrdersFiltered);
+  setTodayUsers(todayUsersFiltered);
+  
+  // Check if today's users (not all users) have paid
+  const todayPaidUsers = todayUsersFiltered.filter(u => 
+    u.commitmentPaid && 
+    (u.registrationDate === todayString || 
+     (u.timestamp && u.timestamp.startsWith(todayString)))
+  );
+  
+  const isActivatedToday = todayPaidUsers.length >= 3;
+  setMinOrderReached(isActivatedToday);
+  setSystemActivatedToday(isActivatedToday);
+};
+  
+  
 
   const showSuccessAnimation = (title, message, additionalInfo = null, duration = 2000, showOkButton = true, onCloseCallback = null) => {
     setSuccessConfig({ 
@@ -1870,14 +2466,20 @@ const Crave2CaveSystem = () => {
 
   // Firebase functions
   const savePrebookUser = async (user) => {
-    try {
-      const docRef = await addDoc(collection(db, 'prebookUsers'), user);
-      return docRef.id;
-    } catch (e) {
-      console.error('Error adding document: ', e);
-      throw e;
-    }
-  };
+  try {
+    const todayString = new Date().toISOString().split('T')[0];
+    const userWithDate = {
+      ...user,
+      registrationDate: todayString  // Add registration date
+    };
+    
+    const docRef = await addDoc(collection(db, 'prebookUsers'), userWithDate);
+    return docRef.id;
+  } catch (e) {
+    console.error('Error adding document: ', e);
+    throw e;
+  }
+};
 
   const uploadFileToStorage = async (file) => {
     const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
@@ -1903,7 +2505,14 @@ const Crave2CaveSystem = () => {
 
   const getPrebookUsers = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'prebookUsers'));
+      // 1. Get today's date in 'YYYY-MM-DD' format, which matches how it's stored.
+      const todayString = new Date().toISOString().split('T')[0];
+
+      // 2. Create a query that ONLY gets documents where 'registrationDate' is today.
+      const usersQuery = query(collection(db, 'prebookUsers'), where("registrationDate", "==", todayString));
+
+      // 3. Execute the new, filtered query.
+      const querySnapshot = await getDocs(usersQuery);
       const users = querySnapshot.docs.map(doc => ({ 
         id: doc.id, 
         firestoreId: doc.id, 
@@ -2069,23 +2678,96 @@ const Crave2CaveSystem = () => {
   const handleRetrieveRegistration = (name, id) => {
   setRetrieveError('');
   
+  // Get today's date in YYYY-MM-DD format
+  const today = new Date();
+  const todayString = today.toISOString().split('T')[0];
+
+  // Find user registered TODAY with matching name and ID
   const foundUser = prebookUsers.find(user => 
-    user.name && user.name.toLowerCase() === name.toLowerCase() && 
-    user.studentId === id
+    user.name && 
+    user.name.toLowerCase() === name.toLowerCase() && 
+    user.studentId === id &&
+    user.timestamp && 
+    user.timestamp.startsWith(todayString) // Check if registered today
   );
 
   if (!foundUser) {
-    setRetrieveError('No registration found with this name and student ID combination.');
-    alert('Registration not found. Please check your name and student ID or register as a new user.');
+    showSuccessAnimation(
+      "Registration Not Found",
+      `We couldn't find your registration details for today (${todayString})`,
+      <BeautifulMessage
+        type="warning"
+        title="Daily Registration Required"
+        message={
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            gap: '12px',
+            marginTop: '12px'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '8px'
+            }}>
+              <Clock size={18} color="#3b82f6" />
+              <span style={{ color: '#1e40af' }}>
+                Registrations are only valid for the current day
+              </span>
+            </div>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '8px'
+            }}>
+              <Users size={18} color="#3b82f6" />
+              <span style={{ color: '#1e40af' }}>
+                Please register again for today's delivery
+              </span>
+            </div>
+          </div>
+        }
+        icon={<Calendar />}
+      />,
+      0,
+      true
+    );
     return;
+  }
+
+  const userTodayOrder = todayOrders.find(order => 
+    order.userId === foundUser.firestoreId
+  );
+
+  if (userTodayOrder) {
+    setCurrentOrder(userTodayOrder);
   }
 
   // Check if user has already ordered today
-  if (foundUser.orderSubmitted && isToday(foundUser.timestamp)) {
-    alert('You have already submitted an order today. Please try again tomorrow.');
+  if (foundUser.orderSubmitted && isToday(foundUser.lastOrderDate)) {
+    showSuccessAnimation(
+      "Order Already Submitted",
+      `Hi ${foundUser.name}, you have already submitted your order today.`,
+      <BeautifulMessage
+        type="info"
+        title="Daily Order Limit"
+        message="You can only submit one order per day."
+        icon={<Package />}
+        onClose={() => setOrderConfirmed(true)}
+      >
+        <p style={{ margin: "8px 0 0", color: "#3b82f6", fontWeight: 500 }}>
+          Redirecting to your order status...
+        </p>
+      </BeautifulMessage>,
+      0,
+      true,
+      () => setOrderConfirmed(true)
+    );
     return;
   }
-
+  
   // Find the user's registration order
   const userOrder = registrationOrder.find(order => order.userId === foundUser.firestoreId);
   const userIndex = userOrder ? userOrder.order - 1 : prebookUsers.findIndex(u => u.firestoreId === foundUser.firestoreId);
@@ -2223,40 +2905,58 @@ const Crave2CaveSystem = () => {
       boxShadow: '0 2px 4px rgba(16, 185, 129, 0.3)'
     },
     input: {
-      width: '100%',
-      padding: '16px 20px',
-      border: '2px solid #e2e8f0',
-      borderRadius: '12px',
-      marginBottom: '16px',
-      fontSize: '16px',
-      boxSizing: 'border-box',
-      transition: 'all 0.2s',
-      backgroundColor: '#f8fafc',
-      '&:focus': {
-        borderColor: '#3b82f6',
-        outline: 'none',
-        backgroundColor: 'white',
-        boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.1)'
-      }
+    width: '100%',
+    padding: '16px 20px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '12px',
+    marginBottom: '16px',
+    fontSize: '16px',
+    boxSizing: 'border-box',
+    transition: 'all 0.2s',
+    backgroundColor: '#f8fafc',
+    '&:focus': {
+      borderColor: '#3b82f6',
+      outline: 'none',
+      backgroundColor: 'white',
+      boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.1)'
     },
-    button: {
-      width: '100%',
-      padding: '16px 32px',
-      borderRadius: '12px',
-      fontWeight: '600',
-      border: 'none',
-      cursor: 'pointer',
-      fontSize: '16px',
-      transition: 'all 0.3s ease',
-      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)',
-      '&:hover': {
-        transform: 'translateY(-2px)',
-        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15)'
-      },
-      '&:active': {
-        transform: 'translateY(0)'
-      }
+    // Add responsive styles
+    '@media (max-width: 768px)': {
+      padding: '14px 18px',
+      fontSize: '15px'
     },
+    '@media (max-width: 480px)': {
+      padding: '12px 14px',
+      fontSize: '14px'
+    }
+  },
+  button: {
+    width: '100%',
+    padding: '16px 32px',
+    borderRadius: '12px',
+    fontWeight: '600',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '16px',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15)'
+    },
+    '&:active': {
+      transform: 'translateY(0)'
+    },
+    // Add responsive styles
+    '@media (max-width: 768px)': {
+      padding: '14px 24px',
+      fontSize: '15px'
+    },
+    '@media (max-width: 480px)': {
+      padding: '12px 16px',
+      fontSize: '14px'
+    }
+  },
     inputError: {
       borderColor: '#ef4444'
     },
@@ -2414,6 +3114,7 @@ const Crave2CaveSystem = () => {
       }
     },
   };
+  
   const validateName = (name) => {
     if (!name.trim()) {
       setNameError('Name is required');
@@ -2445,15 +3146,19 @@ const Crave2CaveSystem = () => {
   };
 
   const handlePrebook = async () => {
+  const todayString = new Date().toISOString().split('T')[0];
   const isNameValid = validateName(studentName);
   const isIdValid = validateStudentId(studentId);
+  const paidCount = todayUsers.filter(u => u.commitmentPaid).length;
+  const todayPaidUsersCount = todayUsers.filter(u => u.commitmentPaid).length;
+  const isSystemActivated = todayPaidUsersCount >= 3;
 
   if (!isNameValid || !isIdValid) {
     return;
   }
 
   const existingUser = prebookUsers.find(user => 
-    isToday(user.timestamp) && (
+    user.timestamp && user.timestamp.startsWith(todayString) && (
       user.studentId === studentId || 
       user.name.toLowerCase() === studentName.toLowerCase()
     )
@@ -2472,7 +3177,17 @@ const Crave2CaveSystem = () => {
       message = `Name "${studentName}" has already been used for registration today.`;
     }
 
-    alert(`${message} Please try again tomorrow.`);
+    showSuccessAnimation(
+      'Registration Already Exists',
+      message,
+      <BeautifulMessage
+        type="error"
+        message="Please try again tomorrow."
+        icon={<AlertCircle />}
+      />,
+      1500,
+      true
+    );
     return;
   }
 
@@ -2539,6 +3254,11 @@ const Crave2CaveSystem = () => {
   const handleCommitmentPayment = async () => {
   const userOrder = registrationOrder.find(order => order.userId === selectedUserId);
   const isFourthUser = userOrder ? userOrder.order === 4 : currentUserIndex === 3;
+  // Update to check today's users for system activation
+  const currentTodayPaidUsers = todayUsers.filter(u => u.commitmentPaid).length + 1;
+  const isMinimumMet = currentTodayPaidUsers >= 3;
+  setMinOrderReached(isMinimumMet);
+  setSystemActivatedToday(isMinimumMet);
   
   if (!isFourthUser && !receiptFile) {
     alert('Please upload payment receipt');
@@ -2565,16 +3285,20 @@ const Crave2CaveSystem = () => {
     // Update local state
     setPrebookUsers(prev => prev.map(user =>
       user.firestoreId === selectedUserId
-        ? { ...user, commitmentPaid: true, receiptURL: receiptURL, wasFourthUser: isFourthUser }
+        ? { ...user, commitmentPaid: true }
         : user
     ));
+    
 
     const currentPaidUsers = prebookUsers.filter(u => u.commitmentPaid).length + 1;
     
     hideLoadingAnimation();
     
     // Check if minimum is reached (3 paid users OR we're at 4+ users)
-    const isMinimumMet = currentPaidUsers >= 3 || prebookUsers.length >= 3;
+    const paidCount = todayUsers.filter(u => u.commitmentPaid).length;
+    const isMinimumMet = paidCount >= 3;
+    setSystemActivatedToday(isMinimumMet);
+    const minOrderReached = systemActivatedToday;
     
     if (isMinimumMet) {
       showSuccessAnimation(
@@ -2628,26 +3352,27 @@ const Crave2CaveSystem = () => {
   }
   
   const deliveryFee = calculateDeliveryFee(totalAmount);
-
-  // Only require payment proof if delivery fee > 0
-  if (deliveryFee > 0 && !paymentProof) {
-    alert('Please upload payment proof for delivery fee');
-    return;
-  }
-
-  // Check if user is among first 3 or 4th+ user
+  
+  // Calculate actual delivery fee after deductions
   const userIndex = prebookUsers.findIndex(u => u.firestoreId === selectedUserId);
   const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
-  const isFourthOrLaterUser = userIndex >= 3; // Define this variable here
-  
-  // Only first 3 users who paid commitment fee get RM10 deduction
-  const commitmentFeeDeducted = (currentUserIndex < 3 && prebookUsers.find(u => u.firestoreId === selectedUserId)?.commitmentPaid) ? 10 : 0;
+  const commitmentFeeDeducted = (userIndex < 3 && user?.commitmentPaid) ? 10 : 0;
   const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
-
+  const isFourthOrLaterUser = userIndex >= 3; // Define this variable here
 
   // Only require payment proof if actual delivery fee > 0
   if (actualDeliveryFee > 0 && !paymentProof) {
-    alert('Please upload payment proof for delivery fee');
+    showSuccessAnimation(
+        'Payment Receipt Required',
+        'Please upload your payment receipt to continue.',
+        <BeautifulMessage
+          type="warning"
+          message="Upload the receipt showing your RM10 commitment fee payment."
+          icon={<Receipt />}
+        />,
+        1500,
+        true
+      );
     return;
   }
 
@@ -2826,7 +3551,10 @@ const Crave2CaveSystem = () => {
       )}
 
       {orderConfirmed && (
-        <WaitingPage onClose={handleCloseWaitingPage} />
+        <WaitingPage 
+          onClose={handleCloseWaitingPage} 
+          currentOrder={currentOrder || null}
+        />
       )}
 
       {selectedImage && (
@@ -2850,6 +3578,7 @@ const Crave2CaveSystem = () => {
                 onRetrieve={handleRetrieveRegistration}
                 isVisible={showRetrieve}
                 onToggle={() => setShowRetrieve(!showRetrieve)}
+                windowWidth={windowWidth}  // Pass windowWidth as prop
               />
 
               {/* Progress Bar */}
@@ -2878,10 +3607,10 @@ const Crave2CaveSystem = () => {
               {/* Step 1: Registration */}
               {userStep === 1 && (
                 <div>
-                  <h3 style={{ marginBottom: '20px', color: '#1e293b' }}>Step 1: Register</h3>
+                  <h3 style={{ marginBottom: '20px', color: '#1e293b' , fontSize: windowWidth <= 480 ? '16px' : '18px'}}>Step 1: Register</h3>
                   <input
                     type="text"
-                    placeholder="Enter your full name (e.g., Lim Ethan)"
+                    placeholder="Enter your full name (e.g., Bryan Ngu)"
                     value={studentName}
                     onChange={(e) => {
                       setStudentName(e.target.value);
@@ -2889,7 +3618,9 @@ const Crave2CaveSystem = () => {
                     }}
                     style={{
                       ...styles.input,
-                      ...(nameError ? styles.inputError : {})
+                      ...(nameError ? styles.inputError : {}),
+                      padding: windowWidth <= 480 ? '12px 14px' : '16px 20px',  // Responsive padding
+                      fontSize: windowWidth <= 480 ? '14px' : '16px'
                     }}
                   />
                   {nameError && <p style={styles.errorText}>{nameError}</p>}
@@ -2904,7 +3635,9 @@ const Crave2CaveSystem = () => {
                     }}
                     style={{
                       ...styles.input,
-                      ...(idError ? styles.inputError : {})
+                      ...(idError ? styles.inputError : {}),
+                      padding: windowWidth <= 480 ? '12px 14px' : '16px 20px', 
+                      fontSize: windowWidth <= 480 ? '14px' : '16px'
                     }}
                   />
                   {idError && <p style={styles.errorText}>{idError}</p>}
@@ -2994,6 +3727,8 @@ const Crave2CaveSystem = () => {
                       style={{
                         ...styles.button,
                         ...styles.buttonBlue,
+                        fontSize: windowWidth <= 480 ? '14px' : '16px',  // Responsive font size
+                        padding: windowWidth <= 480 ? '12px 16px' : '16px 32px',  // Responsive padding
                         opacity: (!(currentUserIndex === 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order === 4)) && !receiptFile) ? 0.5 : 1,
                         cursor: (!(currentUserIndex === 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order === 4)) && !receiptFile) ? 'not-allowed' : 'pointer'
                       }}
@@ -3063,35 +3798,46 @@ const Crave2CaveSystem = () => {
                         const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
 
                         return (
-                          <>
-                            {/* Payment proof section only if actual delivery fee > 0 */}
-                            {actualDeliveryFee > 0 && (
-                              <div style={{
-                                backgroundColor: '#f8fafc',
-                                padding: '24px',
-                                borderRadius: '16px',
-                                marginBottom: '24px',
-                                border: '2px solid #e2e8f0'
+                        <>
+                          {/* Payment proof section only if actual delivery fee > 0 */}
+                          {actualDeliveryFee > 0 && (
+                            <div style={{
+                              backgroundColor: '#f8fafc',
+                              padding: window.innerWidth <= 480 ? '16px' : '24px',
+                              borderRadius: '16px',
+                              marginBottom: '24px',
+                              border: '2px solid #e2e8f0'
+                            }}>
+                              <h4 style={{ 
+                                margin: '0 0 16px 0', 
+                                color: '#1e293b', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '8px',
+                                fontSize: window.innerWidth <= 480 ? '16px' : '18px'
                               }}>
-                                <h4 style={{ margin: '0 0 16px 0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <span style={{
-                                    backgroundColor: '#3b82f6',
-                                    color: 'white',
-                                    width: '28px',
-                                    height: '28px',
-                                    borderRadius: '50%',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '14px',
-                                    fontWeight: 'bold'
-                                  }}>2</span>
-                                  Payment Proof
-                                </h4>
+                                <span style={{
+                                  backgroundColor: '#3b82f6',
+                                  color: 'white',
+                                  width: window.innerWidth <= 480 ? '24px' : '28px',
+                                  height: window.innerWidth <= 480 ? '24px' : '28px',
+                                  borderRadius: '50%',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: window.innerWidth <= 480 ? '12px' : '14px',
+                                  fontWeight: 'bold'
+                                }}>2</span>
+                                Payment Proof
+                              </h4>
 
                                 <UnifiedQRCodeDisplay amount={actualDeliveryFee} />
 
-                                <p style={{ marginBottom: '12px', color: '#64748b' }}>
+                                <p style={{ 
+                                  marginBottom: '12px', 
+                                  color: '#64748b',
+                                  fontSize: window.innerWidth <= 480 ? '13px' : '15px'
+                                }}>
                                   Upload proof of payment:
                                 </p>
 
@@ -3180,6 +3926,8 @@ const Crave2CaveSystem = () => {
                         style={{
                           ...styles.button,
                           ...styles.buttonOrange,
+                          fontSize: windowWidth <= 480 ? '14px' : '16px',  // Responsive font size
+                          padding: windowWidth <= 480 ? '12px 16px' : '16px 32px',  // Responsive padding
                           opacity: (!orderImage || (actualDeliveryFee > 0 && !paymentProof)) ? 0.5 : 1,
                           cursor: (!orderImage || (actualDeliveryFee > 0 && !paymentProof)) ? 'not-allowed' : 'pointer'
                         }}
@@ -3193,91 +3941,49 @@ const Crave2CaveSystem = () => {
 
               {/* Show message if minimum order not reached */}
               {userStep === 3 && !minOrderReached && (
-                <div>
-                  <div style={{
-                    backgroundColor: '#f0fdf4',
-                    padding: '20px',
-                    borderRadius: '12px',
-                    marginBottom: '20px',
-                    border: '1px solid #86efac'
-                  }}>
-                    <CheckCircle color="#16a34a" size={24} style={{ marginRight: '8px', display: 'inline' }} />
-                    Payment confirmed! Thank you for your commitment.
-                  </div>
+              <div>
+                <BeautifulMessage
+                  type="success"
+                  title="Payment Confirmed!"
+                  message="Thank you for your commitment. Your payment has been successfully processed."
+                  icon={<CheckCircle />}
+                />
 
-                  <div style={{
-                    backgroundColor: '#fef3c7',
-                    padding: '32px',
-                    borderRadius: '20px',
-                    border: '2px solid #fbbf24',
-                    textAlign: 'center'
+                <BeautifulMessage
+                  type="warning"
+                  title="Waiting for More Orders"
+                  message={`We need at least 3 paid users before order submission opens. Current progress: ${prebookUsers.filter(u => u.commitmentPaid).length}/3 users`}
+                  icon={<Clock />}
+                >
+                  <p style={{ 
+                    margin: '0', 
+                    fontSize: '14px',
+                    color: '#92400e'
                   }}>
-                    <div style={{
-                      fontSize: '56px',
-                      marginBottom: '20px'
-                    }}>
-                      ⏳
-                    </div>
-                    <h3 style={{ 
-                      margin: '0 0 16px 0', 
-                      color: '#92400e',
-                      fontSize: '24px',
-                      fontWeight: 'bold'
-                    }}>
-                      Waiting for More Orders
-                    </h3>
-                    <p style={{ 
-                      margin: '8px 0 20px 0', 
-                      color: '#92400e',
-                      fontSize: '17px'
-                    }}>
-                      We need at least 3 paid users before order submission opens.
-                    </p>
-                    <div style={{
-                      backgroundColor: '#ffffff',
-                      padding: '16px',
-                      borderRadius: '12px',
-                      marginBottom: '20px',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-                    }}>
-                      <p style={{ 
-                        margin: '0', 
-                        fontSize: '20px',
-                        fontWeight: 'bold',
-                        color: '#1e293b'
-                      }}>
-                        Current Progress: {prebookUsers.filter(u => u.commitmentPaid).length}/3 users
-                      </p>
-                    </div>
-                    <p style={{ 
-                      margin: '0 0 24px 0', 
-                      color: '#64748b',
-                      fontSize: '15px'
-                    }}>
-                      You'll be able to submit your order once we reach the minimum requirement.
-                      Please check back later or wait for a notification.
-                    </p>
-                    <button
-                      onClick={() => {
-                        setUserStep(1);
-                        setStudentName('');
-                        setStudentId('');
-                        setSelectedUserId('');
-                        setReceiptFile(null);
-                      }}
-                      style={{
-                        ...styles.button,
-                        backgroundColor: '#64748b',
-                        color: 'white',
-                        width: 'auto',
-                        padding: '14px 32px'
-                      }}
-                    >
-                      Return to Home
-                    </button>
-                  </div>
-                </div>
-              )}
+                    You'll be able to submit your order once we reach the minimum requirement.
+                    Please check back later!
+                  </p>
+                </BeautifulMessage>
+
+                <button
+                  onClick={() => {
+                    setUserStep(1);
+                    setStudentName('');
+                    setStudentId('');
+                    setSelectedUserId('');
+                    setReceiptFile(null);
+                  }}
+                  style={{
+                    ...styles.button,
+                    backgroundColor: '#64748b',
+                    color: 'white',
+                    width: '100%'
+                  }}
+                >
+                  Return to Home
+                </button>
+              </div>
+            )}
             </div>
           </div>
         )}
@@ -3488,81 +4194,148 @@ const Crave2CaveSystem = () => {
                           </div>
                         </div>
 
-                      {/* Profit Breakdown */}
-                      <div style={styles.card}>
-                        <h3 style={{ fontSize: '22px', marginBottom: '24px' }}>Today's Profit Calculation</h3>
-                        <div style={{ 
-                          backgroundColor: '#f8fafc', 
-                          padding: '24px', 
-                          borderRadius: '16px',
-                          marginBottom: '24px'
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-                            <span style={{ fontSize: '16px' }}>Commitment Fees ({todayUsers.filter(u => u.commitmentPaid).length} × RM10):</span>
-                            <span style={{ fontWeight: 'bold', fontSize: '16px' }}>
-                              +RM{(todayUsers.filter(u => u.commitmentPaid).length * 10).toFixed(2)}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-                            <span style={{ fontSize: '16px' }}>Delivery Fees:</span>
-                            <span style={{ fontWeight: 'bold', fontSize: '16px' }}>
-                              +RM{todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0).toFixed(2)}
-                            </span>
-                          </div>
-                          <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
-                            borderTop: '2px solid #e2e8f0',
-                            paddingTop: '16px',
-                            marginTop: '16px' 
+                      {/* Profit Breakdown with responsive text */}
+                        <div style={styles.card}>
+                          <h3 style={{ 
+                            fontSize: window.innerWidth <= 480 ? '18px' : '22px', 
+                            marginBottom: '20px' 
                           }}>
-                            <span style={{ fontSize: '16px' }}>Total Revenue:</span>
-                            <span style={{ fontWeight: 'bold', fontSize: '16px' }}>
-                              RM{(todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-                                todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)).toFixed(2)}
-                            </span>
-                          </div>
+                            Today's Profit Calculation
+                          </h3>
                           <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between',
-                            marginTop: '16px'
+                            backgroundColor: '#f8fafc', 
+                            padding: window.innerWidth <= 480 ? '16px' : '24px', 
+                            borderRadius: '16px',
+                            marginBottom: '24px'
                           }}>
-                            <span style={{ fontSize: '16px' }}>Driver Cost:</span>
-                            <span style={{ fontWeight: 'bold', color: '#dc2626', fontSize: '16px' }}>
-                              -RM{todayOrders.length > 0 ? '30.00' : '0.00'}
-                            </span>
-                          </div>
-                          <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between',
-                            borderTop: '2px solid #1e293b',
-                            paddingTop: '16px',
-                            marginTop: '16px'
-                          }}>
-                            <span style={{ fontSize: '20px', fontWeight: 'bold' }}>Today's Profit:</span>
-                            <span style={{ 
-                              fontSize: '20px', 
-                              fontWeight: 'bold', 
-                              color: (todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-                                    todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
-                                    (todayOrders.length > 0 ? 30 : 0)) >= 0 
-                                    ? '#059669' : '#dc2626' 
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              marginBottom: '12px',
+                              flexWrap: 'wrap',
+                              gap: '8px'
                             }}>
-                              RM{((todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-                                  todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
-                                  (todayOrders.length > 0 ? 30 : 0)).toFixed(2))}
-                            </span>
+                              <span style={{ 
+                                fontSize: window.innerWidth <= 480 ? '13px' : '16px',
+                                lineHeight: '1.4'
+                              }}>
+                                Commitment Fees ({todayUsers.filter(u => u.commitmentPaid).length} × RM10):
+                              </span>
+                              <span style={{ 
+                                fontWeight: 'bold', 
+                                fontSize: window.innerWidth <= 480 ? '13px' : '16px' 
+                              }}>
+                                +RM{(todayUsers.filter(u => u.commitmentPaid).length * 10).toFixed(2)}
+                              </span>
+                            </div>
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              marginBottom: '12px',
+                              flexWrap: 'wrap',
+                              gap: '8px'
+                            }}>
+                              <span style={{ 
+                                fontSize: window.innerWidth <= 480 ? '13px' : '16px',
+                                lineHeight: '1.4'
+                              }}>
+                                Delivery Fees:
+                              </span>
+                              <span style={{ 
+                                fontWeight: 'bold', 
+                                fontSize: window.innerWidth <= 480 ? '13px' : '16px' 
+                              }}>
+                                +RM{todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0).toFixed(2)}
+                              </span>
+                            </div>
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              borderTop: '2px solid #e2e8f0',
+                              paddingTop: '12px',
+                              marginTop: '12px',
+                              flexWrap: 'wrap',
+                              gap: '8px'
+                            }}>
+                              <span style={{ 
+                                fontSize: window.innerWidth <= 480 ? '14px' : '16px',
+                                lineHeight: '1.4'
+                              }}>
+                                Total Revenue:
+                              </span>
+                              <span style={{ 
+                                fontWeight: 'bold', 
+                                fontSize: window.innerWidth <= 480 ? '14px' : '16px' 
+                              }}>
+                                RM{(todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                                  todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)).toFixed(2)}
+                              </span>
+                            </div>
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between',
+                              marginTop: '12px',
+                              flexWrap: 'wrap',
+                              gap: '8px'
+                            }}>
+                              <span style={{ 
+                                fontSize: window.innerWidth <= 480 ? '13px' : '16px',
+                                lineHeight: '1.4'
+                              }}>
+                                Driver Cost:
+                              </span>
+                              <span style={{ 
+                                fontWeight: 'bold', 
+                                color: '#dc2626', 
+                                fontSize: window.innerWidth <= 480 ? '13px' : '16px' 
+                              }}>
+                                -RM{todayOrders.length > 0 ? '30.00' : '0.00'}
+                              </span>
+                            </div>
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between',
+                              borderTop: '2px solid #1e293b',
+                              paddingTop: '12px',
+                              marginTop: '12px',
+                              flexWrap: 'wrap',
+                              gap: '8px'
+                            }}>
+                              <span style={{ 
+                                fontSize: window.innerWidth <= 480 ? '16px' : '20px', 
+                                fontWeight: 'bold',
+                                lineHeight: '1.4'
+                              }}>
+                                Today's Profit:
+                              </span>
+                              <span style={{ 
+                                fontSize: window.innerWidth <= 480 ? '16px' : '20px', 
+                                fontWeight: 'bold', 
+                                color: (todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                                      todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
+                                      (todayOrders.length > 0 ? 30 : 0)) >= 0 
+                                      ? '#059669' : '#dc2626' 
+                              }}>
+                                RM{((todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                                    todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
+                                    (todayOrders.length > 0 ? 30 : 0)).toFixed(2))}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
                       {/* Charts */}
                       <div style={{ 
                         display: 'grid', 
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', 
-                        gap: '24px', 
-                        marginBottom: '40px' 
+                        gridTemplateColumns: window.innerWidth <= 768 
+                          ? '1fr' 
+                          : 'repeat(auto-fit, minmax(350px, 1fr))', 
+                        gap: window.innerWidth <= 480 ? '12px' : '20px', 
+                        marginBottom: '32px',
+                        width: '100%',
+                        overflow: 'hidden' // Prevent horizontal scroll
                       }}>
+
                         <SimpleChart
                           type="bar"
                           title="Today's Order Distribution by Amount"
@@ -3583,6 +4356,15 @@ const Crave2CaveSystem = () => {
                           ]}
                         />
                       </div>
+
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: windowWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(350px, 1fr))', 
+                        gap: '24px', 
+                        marginBottom: '40px',
+                        width: '100%',
+                        overflow: 'hidden' // Prevent horizontal scroll
+                      }}></div>
 
                       {/* Today's Orders Table */}
                       <div style={styles.card}>
@@ -3643,64 +4425,132 @@ const Crave2CaveSystem = () => {
                         </button>
                       </div>
 
-                      {/* History Statistics */}
-                      <div style={{ 
-                        display: 'grid', 
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
-                        gap: '24px',
-                        marginBottom: '40px' 
-                      }}>
-                        <div style={styles.statCard}>
-                          <div style={{ ...styles.statIcon, background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)' }}>
-                            <Users size={32} color="#3b82f6" />
+                      {/* History Statistics - Responsive */}
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: window.innerWidth <= 480 
+                            ? 'repeat(2, 1fr)' 
+                            : window.innerWidth <= 768 
+                            ? 'repeat(2, 1fr)' 
+                            : 'repeat(auto-fit, minmax(200px, 1fr))', 
+                          gap: window.innerWidth <= 480 ? '8px' : window.innerWidth <= 768 ? '12px' : '20px',
+                          marginBottom: window.innerWidth <= 480 ? '24px' : '32px' 
+                        }}>
+                          <div style={{
+                            ...styles.statCard,
+                            padding: window.innerWidth <= 480 ? '12px' : window.innerWidth <= 768 ? '16px' : '24px',
+                            gap: window.innerWidth <= 480 ? '8px' : '12px'
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+                              width: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px',
+                              height: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px'
+                            }}>
+                              <Users size={window.innerWidth <= 480 ? 16 : window.innerWidth <= 768 ? 20 : 28} color="#3b82f6" />
+                            </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                fontSize: window.innerWidth <= 480 ? '10px' : '12px'
+                              }}>Total Registered</p>
+                              <p style={{
+                                ...styles.statValue,
+                                fontSize: window.innerWidth <= 480 ? '16px' : window.innerWidth <= 768 ? '20px' : '24px'
+                              }}>{getTotalHistoryStats().totalRegistered}</p>
+                            </div>
                           </div>
-                          <div style={styles.statContent}>
-                            <p style={styles.statLabel}>Total Registered</p>
-                            <p style={styles.statValue}>{getTotalHistoryStats().totalRegistered}</p>
-                          </div>
-                        </div>
 
-                        <div style={styles.statCard}>
-                          <div style={{ ...styles.statIcon, background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)' }}>
-                            <Package size={32} color="#ef4444" />
+                          <div style={{
+                            ...styles.statCard,
+                            padding: window.innerWidth <= 480 ? '12px' : window.innerWidth <= 768 ? '16px' : '24px',
+                            gap: window.innerWidth <= 480 ? '8px' : '12px'
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+                              width: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px',
+                              height: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px'
+                            }}>
+                              <Package size={window.innerWidth <= 480 ? 16 : window.innerWidth <= 768 ? 20 : 28} color="#ef4444" />
+                            </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                fontSize: window.innerWidth <= 480 ? '10px' : '12px'
+                              }}>Total Orders</p>
+                              <p style={{
+                                ...styles.statValue,
+                                fontSize: window.innerWidth <= 480 ? '16px' : window.innerWidth <= 768 ? '20px' : '24px'
+                              }}>{getTotalHistoryStats().totalOrders}</p>
+                            </div>
                           </div>
-                          <div style={styles.statContent}>
-                            <p style={styles.statLabel}>Total Orders</p>
-                            <p style={styles.statValue}>{getTotalHistoryStats().totalOrders}</p>
-                          </div>
-                        </div>
 
-                        <div style={styles.statCard}>
-                          <div style={{ ...styles.statIcon, background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' }}>
-                            <DollarSign size={32} color="#f59e0b" />
+                          <div style={{
+                            ...styles.statCard,
+                            padding: window.innerWidth <= 480 ? '12px' : window.innerWidth <= 768 ? '16px' : '24px',
+                            gap: window.innerWidth <= 480 ? '8px' : '12px'
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                              width: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px',
+                              height: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px'
+                            }}>
+                              <DollarSign size={window.innerWidth <= 480 ? 16 : window.innerWidth <= 768 ? 20 : 28} color="#f59e0b" />
+                            </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                fontSize: window.innerWidth <= 480 ? '10px' : '12px'
+                              }}>Total Revenue</p>
+                              <p style={{
+                                ...styles.statValue,
+                                fontSize: window.innerWidth <= 480 ? '16px' : window.innerWidth <= 768 ? '20px' : '24px'
+                              }}>
+                                RM{getTotalHistoryStats().totalRevenue.toFixed(2)}
+                              </p>
+                            </div>
                           </div>
-                          <div style={styles.statContent}>
-                            <p style={styles.statLabel}>Total Revenue</p>
-                            <p style={styles.statValue}>
-                              RM{getTotalHistoryStats().totalRevenue.toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
 
-                        <div style={styles.statCard}>
-                          <div style={{ ...styles.statIcon, background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' }}>
-                            <TrendingUp size={32} color="#10b981" />
-                          </div>
-                          <div style={styles.statContent}>
-                            <p style={styles.statLabel}>Total Profit</p>
-                            <p style={styles.statValue}>
-                              RM{getTotalHistoryStats().totalProfit.toFixed(2)}
-                            </p>
+                          <div style={{
+                            ...styles.statCard,
+                            padding: window.innerWidth <= 480 ? '12px' : window.innerWidth <= 768 ? '16px' : '24px',
+                            gap: window.innerWidth <= 480 ? '8px' : '12px'
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+                              width: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px',
+                              height: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px'
+                            }}>
+                              <TrendingUp size={window.innerWidth <= 480 ? 16 : window.innerWidth <= 768 ? 20 : 28} color="#10b981" />
+                            </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                fontSize: window.innerWidth <= 480 ? '10px' : '12px'
+                              }}>Total Profit</p>
+                              <p style={{
+                                ...styles.statValue,
+                                fontSize: window.innerWidth <= 480 ? '16px' : window.innerWidth <= 768 ? '20px' : '24px'
+                              }}>
+                                RM{getTotalHistoryStats().totalProfit.toFixed(2)}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
                       {/* History Charts */}
                       <div style={{ 
                         display: 'grid', 
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', 
-                        gap: '24px', 
-                        marginBottom: '40px' 
+                        gridTemplateColumns: window.innerWidth <= 768 
+                          ? '1fr' 
+                          : 'repeat(auto-fit, minmax(350px, 1fr))', 
+                        gap: window.innerWidth <= 480 ? '12px' : '20px', 
+                        marginBottom: '32px',
+                        width: '100%',
+                        overflow: 'hidden' // Prevent horizontal scroll
                       }}>
                         <SimpleChart
                           type="bar"
@@ -3725,9 +4575,13 @@ const Crave2CaveSystem = () => {
 
                       <div style={{ 
                         display: 'grid', 
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', 
-                        gap: '24px', 
-                        marginBottom: '40px' 
+                        gridTemplateColumns: window.innerWidth <= 768 
+                          ? '1fr' 
+                          : 'repeat(auto-fit, minmax(350px, 1fr))', 
+                        gap: window.innerWidth <= 480 ? '12px' : '20px', 
+                        marginBottom: '32px',
+                        width: '100%',
+                        overflow: 'hidden' // Prevent horizontal scroll
                       }}>
                         <SimpleChart
                           type="bar"
