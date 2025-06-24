@@ -2593,7 +2593,8 @@ const filterTodayData = (orders = [], users = []) => {
   formData.append('file', imageFile);
 
   try {
-    const response = await fetch('http://localhost:3001/api/scan', {
+    // The path is now relative to your site's domain.
+const response = await fetch('/api/scan', {
       method: 'POST',
       body: formData,
     });
