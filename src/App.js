@@ -228,7 +228,7 @@ const compressImage = async (file) => {
             }));
           },
           'image/jpeg',
-          0.7
+          1.0
         );
       };
       img.src = event.target.result;
@@ -491,10 +491,10 @@ const SuccessAnimation = ({ title, message, additionalInfo, duration = 2000, sho
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    if (!showOkButton && duration > 0) {
+    // This will now ALWAYS set a timer to close the modal
+    if (duration > 0) {
       const timer = setTimeout(() => {
-        setVisible(false);
-        setTimeout(onClose, 500);
+        handleClose(); // Use handleClose to ensure smooth fade-out
       }, duration);
 
       return () => clearTimeout(timer);
@@ -730,6 +730,7 @@ const ImageModal = ({ imageUrl, onClose }) => {
   const [initialDistance, setInitialDistance] = useState(0);
   const [initialScale, setInitialScale] = useState(1);
   const imageRef = useRef(null);
+  const containerRef = useRef(null);
 
   // Mouse wheel zoom
   const handleWheel = (e) => {
@@ -740,7 +741,7 @@ const ImageModal = ({ imageUrl, onClose }) => {
 
   // Mouse drag
   const handleMouseDown = (e) => {
-    if (scale > 1) {
+    if (scale > 0) {
       setIsDragging(true);
       setDragStart({
         x: e.clientX - position.x,
@@ -830,6 +831,8 @@ const ImageModal = ({ imageUrl, onClose }) => {
       borderRadius: '16px',
       overflow: 'hidden',
       boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      flexDirection: 'column',
       touchAction: 'none'
     },
     header: {
@@ -853,58 +856,49 @@ const ImageModal = ({ imageUrl, onClose }) => {
     zoomButton: {
       backgroundColor: '#f3f4f6',
       border: 'none',
-      padding: window.innerWidth <= 480 ? '6px' : '8px',
+      padding: '8px',
       borderRadius: '6px',
       cursor: 'pointer',
-      fontSize: '12px',
+      fontSize: '14px',
       fontWeight: '500',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: window.innerWidth <= 480 ? '28px' : '32px',
-      height: window.innerWidth <= 480 ? '28px' : '32px',
       transition: 'all 0.2s ease'
     },
     zoomLevel: {
-      fontSize: window.innerWidth <= 480 ? '12px' : '14px',
+      fontSize: '14px',
       fontWeight: '600',
       color: '#1f2937',
-      minWidth: window.innerWidth <= 480 ? '45px' : '60px',
+      minWidth: '60px',
       textAlign: 'center'
     },
     closeButton: {
       backgroundColor: '#ef4444',
       color: 'white',
       border: 'none',
-      padding: window.innerWidth <= 480 ? '8px' : '8px 12px',
+      padding: '8px 16px',
       borderRadius: '6px',
       cursor: 'pointer',
-      fontSize: window.innerWidth <= 480 ? '12px' : '14px',
+      fontSize: '14px',
       fontWeight: '600',
-      transition: 'all 0.2s ease',
-      display: 'flex',
-      alignItems: 'center',
-      gap: window.innerWidth <= 480 ? '0' : '4px'
+      transition: 'all 0.2s ease'
     },
     imageContainer: {
+      flex: 1,
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      paddingTop: '50px',
-      minHeight: '200px',
       overflow: 'hidden',
-      position: 'relative',
-      touchAction: 'none'
+      marginTop: '50px', // Account for header
+      position: 'relative'
     },
     image: {
       maxWidth: '100%',
-      maxHeight: 'calc(90vh - 80px)',
-      height: 'auto',
+      maxHeight: '100%',
+      objectFit: 'contain',
       transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
       transition: isDragging ? 'none' : 'transform 0.3s ease',
       userSelect: 'none',
       touchAction: 'none',
-      objectFit: 'contain'
+      pointerEvents: 'auto'
     }
   };
 
@@ -935,30 +929,23 @@ const ImageModal = ({ imageUrl, onClose }) => {
         <div style={modalStyles.header}>
           <div style={modalStyles.zoomControls}>
             <button style={modalStyles.zoomButton} onClick={handleZoomOut}>
-              <span style={{ fontSize: window.innerWidth <= 480 ? '16px' : '18px' }}>−</span>
+              <ZoomIn size={16} style={{ transform: 'rotate(180deg)' }} />
             </button>
             <span style={modalStyles.zoomLevel}>{Math.round(scale * 100)}%</span>
             <button style={modalStyles.zoomButton} onClick={handleZoomIn}>
-              <span style={{ fontSize: window.innerWidth <= 480 ? '16px' : '18px' }}>+</span>
+              <ZoomIn size={16} />
             </button>
-            <button 
-              style={{
-                ...modalStyles.zoomButton, 
-                width: 'auto', 
-                padding: window.innerWidth <= 480 ? '6px 8px' : '8px 10px',
-                fontSize: window.innerWidth <= 480 ? '10px' : '12px'
-              }} 
-              onClick={handleZoomReset}
-            >
+            <button style={modalStyles.zoomButton} onClick={handleZoomReset}>
               Reset
             </button>
           </div>
           <button style={modalStyles.closeButton} onClick={onClose}>
-            <X size={window.innerWidth <= 480 ? 14 : 16} />
-            {window.innerWidth > 480 && <span style={{ marginLeft: '4px' }}>Close</span>}
+            <X size={16} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+            Close
           </button>
         </div>
         <div 
+          ref={containerRef}
           style={modalStyles.imageContainer}
           onWheel={handleWheel}
           onMouseDown={handleMouseDown}
@@ -1830,32 +1817,64 @@ const WaitingPage = ({ onClose, currentOrder }) => {
 };
 
 // Retrieve Registration Component
-const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle }) => {
+const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle, windowWidth }) => {
   const [retrieveName, setRetrieveName] = useState('');
   const [retrieveId, setRetrieveId] = useState('');
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-
-  useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const handleRetrieve = () => {
-    if (!retrieveName.trim() || !retrieveId.trim()) {
-      alert('Please enter both name and student ID');
-      return;
-    }
-    onRetrieve(retrieveName.trim(), retrieveId.trim());
-  };
-
-  const handleReset = () => {
-    setRetrieveName('');
-    setRetrieveId('');
-  };
+  const [retrieveNameError, setRetrieveNameError] = useState('');
+  const [retrieveIdError, setRetrieveIdError] = useState('');
 
   const isSmallScreen = windowWidth <= 480;
   const isMediumScreen = windowWidth <= 768;
+
+  // Validation function for the name
+  const validateRetrieveName = (name) => {
+    if (!name.trim()) {
+      setRetrieveNameError('Name is required');
+      return false;
+    }
+    if (name.trim().split(' ').length < 2) {
+      setRetrieveNameError('Please enter your full name (first and last name)');
+      return false;
+    }
+    setRetrieveNameError('');
+    return true;
+  };
+
+  // Validation function for the student ID
+  const validateRetrieveId = (id) => {
+    if (!id.trim()) {
+      setRetrieveIdError('Student ID is required');
+      return false;
+    }
+    if (id.length < 4) {
+      setRetrieveIdError('Student ID must be at least 4 characters');
+      return false;
+    }
+    if (!/\d{4}\/\d{2}$/.test(id)) {
+      setRetrieveIdError('Student ID format should be like 0469/24');
+      return false;
+    }
+    setRetrieveIdError('');
+    return true;
+  };
+
+  // Handle the retrieve button click
+  const handleRetrieve = () => {
+    const isNameValid = validateRetrieveName(retrieveName);
+    const isIdValid = validateRetrieveId(retrieveId);
+
+    if (isNameValid && isIdValid) {
+      onRetrieve(retrieveName.trim(), retrieveId.trim());
+    }
+  };
+
+  // Handle the reset/clear button click
+  const handleReset = () => {
+    setRetrieveName('');
+    setRetrieveId('');
+    setRetrieveNameError('');
+    setRetrieveIdError('');
+  };
 
   const styles = {
     container: {
@@ -1911,6 +1930,15 @@ const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle }) => {
         boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.1)'
       }
     },
+    inputError: {
+      borderColor: '#ef4444'
+    },
+    errorText: {
+      color: '#ef4444',
+      fontSize: '13px',
+      marginTop: '-12px',
+      marginBottom: '12px'
+    },
     buttonGroup: {
       display: 'flex',
       gap: '12px',
@@ -1949,33 +1977,41 @@ const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle }) => {
         <Search size={isSmallScreen ? 16 : 18} />
         {isVisible ? 'Hide' : 'Already Registered? Retrieve Your Registration'}
       </button>
-      
+
       <div style={styles.content}>
         <h3 style={styles.title}>Retrieve Your Registration</h3>
-        <p style={{ 
+        <p style={{
           color: '#6b7280', 
           fontSize: isSmallScreen ? '13px' : '14px',
           marginBottom: '20px' 
         }}>
           Enter your name and student ID to continue where you left off.
         </p>
-        
+
         <input
           type="text"
           placeholder="Enter your full name (Bryan Ngu)"
           value={retrieveName}
-          onChange={(e) => setRetrieveName(e.target.value)}
-          style={styles.input}
+          onChange={(e) => {
+            setRetrieveName(e.target.value);
+            validateRetrieveName(e.target.value);
+          }}
+          style={{ ...styles.input, ...(retrieveNameError && styles.inputError) }}
         />
-        
+        {retrieveNameError && <p style={styles.errorText}>{retrieveNameError}</p>}
+
         <input
           type="text"
           placeholder="Enter your student ID (0469/24)"
           value={retrieveId}
-          onChange={(e) => setRetrieveId(e.target.value)}
-          style={styles.input}
+          onChange={(e) => {
+            setRetrieveId(e.target.value);
+            validateRetrieveId(e.target.value);
+          }}
+          style={{ ...styles.input, ...(retrieveIdError && styles.inputError) }}
         />
-        
+        {retrieveIdError && <p style={styles.errorText}>{retrieveIdError}</p>}
+
         <div style={styles.buttonGroup}>
           <button
             onClick={handleRetrieve}
@@ -2034,176 +2070,49 @@ const Crave2CaveSystem = () => {
   const [paymentProof, setPaymentProof] = useState(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [systemActivatedToday, setSystemActivatedToday] = useState(false);
+  const [scannedOrderNumber, setScannedOrderNumber] = useState('');
+  const [finalOrderNumber, setFinalOrderNumber] = useState(''); // This will hold the value to be submitted
+  const [scanError, setScanError] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const [isScanComplete, setIsScanComplete] = useState(false);
+  const [scanMode, setScanMode] = useState('scanning'); // 'scanning', 'confirm', 'manual'
+  const [scannedData, setScannedData] = useState({ orderNumber: '', orderTotal: '' });
+  const [showScanConfirmation, setShowScanConfirmation] = useState(false);
+  
 
   const ADMIN_PASSCODE = 'byyc';
   const isFourthUser = currentOrder ? (currentOrder.order === 4) : (currentUserIndex === 3);
 
   useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const handleResize = () => setWindowWidth(window.innerWidth);
+  window.addEventListener('resize', handleResize);
+  return () => window.removeEventListener('resize', handleResize);
+}, []);
 
-
-  // Add global styles
-  useEffect(() => {
-    const style = document.createElement('style');
-    style.textContent = `
-        * {
-          box-sizing: border-box;
-        }
-        
-        body {
-          margin: 0;
-          padding: 0;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          line-height: 1.5;
-        }
-        
-        img {
-          max-width: 100%;
-          height: auto;
-        }
-        
-        /* Responsive styles */
-        @media (max-width: 1024px) {
-          .grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-        
-        @media (max-width: 768px) {
-          html {
-            font-size: 14px;
-          }
-          
-          .card {
-            padding: 20px !important;
-          }
-          
-          .stat-card {
-            padding: 20px !important;
-          }
-          
-          h1, h2 {
-            font-size: 1.5rem !important;
-          }
-          
-          h3 {
-            font-size: 1.25rem !important;
-          }
-          
-          .chart-container {
-            height: 250px !important;
-          }
-        }
-        
-        @media (max-width: 480px) {
-          html {
-            font-size: 12px;
-          }
-          
-          .container {
-            padding: 10px !important;
-          }
-          
-          .card {
-            padding: 16px !important;
-            border-radius: 12px !important;
-          }
-          
-          .button {
-            padding: 12px 20px !important;
-            font-size: 14px !important;
-          }
-          
-          .input {
-            padding: 12px 16px !important;
-            font-size: 14px !important;
-          }
-          
-          .stat-value {
-            font-size: 1.5rem !important;
-          }
-          
-          table {
-            font-size: 12px !important;
-          }
-          
-          th, td {
-            padding: 8px !important;
-          }
-        }
-      
-      @keyframes spin {
-        to { transform: rotate(360deg); }
+// Add global styles
+useEffect(() => {
+  const style = document.createElement('style');
+  style.textContent = `
+      * {
+        box-sizing: border-box;
       }
       
-      @keyframes bounce {
-        0%, 80%, 100% {
-          transform: scale(0);
-        }
-        40% {
-          transform: scale(1);
-        }
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        line-height: 1.5;
       }
       
-      @keyframes slideUp {
-        from {
-          transform: translateY(20px);
-          opacity: 0;
-        }
-        to {
-          transform: translateY(0);
-          opacity: 1;
-        }
+      img {
+        max-width: 100%;
+        height: auto;
       }
       
-      @keyframes pulse {
-        0% {
-          box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
-        }
-        70% {
-          box-shadow: 0 0 0 20px rgba(59, 130, 246, 0);
-        }
-        100% {
-          box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
-        }
-      }
-      
-      @keyframes modalSlideIn {
-        from {
-          opacity: 0;
-          transform: scale(0.8) translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: scale(1) translateY(0);
-        }
-      }
-      
-      @keyframes successPulse {
-        0% {
-          transform: scale(0);
-          opacity: 0;
-        }
-        50% {
-          transform: scale(1.2);
-        }
-        100% {
-          transform: scale(1);
-          opacity: 1;
-        }
-      }
-      
-      @keyframes slideInUp {
-        from {
-          transform: translateY(20px);
-          opacity: 0;
-        }
-        to {
-          transform: translateY(0);
-          opacity: 1;
+      /* Responsive styles */
+      @media (max-width: 1024px) {
+        .grid {
+          grid-template-columns: 1fr !important;
         }
       }
       
@@ -2211,163 +2120,352 @@ const Crave2CaveSystem = () => {
         html {
           font-size: 14px;
         }
+        
+        .card {
+          padding: 20px !important;
+        }
+        
+        .stat-card {
+          padding: 20px !important;
+        }
+        
+        h1, h2 {
+          font-size: 1.5rem !important;
+        }
+        
+        h3 {
+          font-size: 1.25rem !important;
+        }
+        
+        .chart-container {
+          height: 250px !important;
+        }
       }
       
       @media (max-width: 480px) {
         html {
           font-size: 12px;
         }
+        
+        .container {
+          padding: 10px !important;
+        }
+        
+        .card {
+          padding: 16px !important;
+          border-radius: 12px !important;
+        }
+        
+        .button {
+          padding: 12px 20px !important;
+          font-size: 14px !important;
+        }
+        
+        .input {
+          padding: 12px 16px !important;
+          font-size: 14px !important;
+        }
+        
+        .stat-value {
+          font-size: 1.5rem !important;
+        }
+        
+        table {
+          font-size: 12px !important;
+        }
+        
+        th, td {
+          padding: 8px !important;
+        }
       }
-    `;
-    document.head.appendChild(style);
     
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    @keyframes bounce {
+      0%, 80%, 100% {
+        transform: scale(0);
+      }
+      40% {
+        transform: scale(1);
+      }
+    }
+    
+    @keyframes slideUp {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+      }
+      70% {
+        box-shadow: 0 0 0 20px rgba(59, 130, 246, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+      }
+    }
+    
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: scale(0.8) translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+    
+    @keyframes successPulse {
+      0% {
+        transform: scale(0);
+        opacity: 0;
+      }
+      50% {
+        transform: scale(1.2);
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes slideInUp {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      html {
+        font-size: 14px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      html {
+        font-size: 12px;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+  
+  return () => {
+    document.head.removeChild(style);
+  };
+}, []);
 
-  useEffect(() => {
-  // Check if it's a new day
-  const lastAccessDate = localStorage.getItem('lastAccessDate');
-  const today = new Date().toDateString();
-  
-  
-  if (lastAccessDate !== today) {
-    localStorage.setItem('lastAccessDate', today);
-  }
-  
-  // Beautiful Message Component
-const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClose }) => {
-  const getMessageStyles = () => {
-    switch (type) {
-      case 'success':
-        return {
-          background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
-          border: '2px solid #10b981',
-          iconBg: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-          iconColor: 'white',
-          textColor: '#047857'
-        };
-      case 'warning':
-        return {
-          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-          border: '2px solid #f59e0b',
-          iconBg: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-          iconColor: 'white',
-          textColor: '#92400e'
-        };
-      case 'error':
-        return {
-          background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
-          border: '2px solid #ef4444',
-          iconBg: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-          iconColor: 'white',
-          textColor: '#991b1b'
-        };
-      default:
-        return {
-          background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-          border: '2px solid #3b82f6',
-          iconBg: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-          iconColor: 'white',
-          textColor: '#1e40af'
-        };
+useEffect(() => {
+  // Function to check if it's a new day in Malaysia time
+  const checkForNewDay = () => {
+    const now = new Date();
+    const malaysiaTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"}));
+    const lastAccessDate = localStorage.getItem('lastAccessDate');
+    const todayMalaysia = malaysiaTime.toDateString();
+    
+    if (lastAccessDate !== todayMalaysia) {
+      // It's a new day in Malaysia - reset today's data
+      localStorage.setItem('lastAccessDate', todayMalaysia);
+      
+      // Clear today's data
+      setTodayOrders([]);
+      setTodayUsers([]);
+      setPrebookUsers([]);
+      setMinOrderReached(false);
+      setSystemActivatedToday(false);
+      
+      // Reset user state
+      setUserStep(1);
+      setStudentName('');
+      setStudentId('');
+      setSelectedUserId('');
+      setOrderTotal('');
+      setOrderImage(null);
+      setReceiptFile(null);
+      setPaymentProof(null);
+      setOrderConfirmed(false);
+      setCurrentOrder(null);
+      
+      // Refetch data for the new day
+      fetchAllData();
+      console.log('New day detected - data reset at', malaysiaTime);
     }
   };
 
-  const messageStyles = getMessageStyles();
+  // Calculate time until next midnight in Malaysia
+  const getTimeUntilMidnight = () => {
+    const now = new Date();
+    const malaysiaTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"}));
+    const tomorrow = new Date(malaysiaTime);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    
+    return tomorrow.getTime() - malaysiaTime.getTime();
+  };
 
-  return (
-    <div style={{
-      background: messageStyles.background,
-      border: messageStyles.border,
-      borderRadius: '20px',
-      padding: window.innerWidth <= 480 ? '20px' : '28px',
-      marginBottom: '24px',
-      boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
-      {/* Decorative pattern */}
+  // Check immediately on mount
+  checkForNewDay();
+
+  // Set timeout for next midnight
+  let midnightTimeout = setTimeout(() => {
+    checkForNewDay();
+    // After midnight, set up daily interval
+    const dailyInterval = setInterval(checkForNewDay, 24 * 60 * 60 * 1000); // Check every 24 hours
+    
+    // Store interval ID for cleanup
+    window.dailyInterval = dailyInterval;
+  }, getTimeUntilMidnight());
+
+  // Also check every minute in case user's computer time changes
+  const minuteInterval = setInterval(checkForNewDay, 60000);
+  
+  // Beautiful Message Component
+  const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClose }) => {
+    const getMessageStyles = () => {
+      switch (type) {
+        case 'success':
+          return {
+            background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+            border: '2px solid #10b981',
+            iconBg: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            iconColor: 'white',
+            textColor: '#047857'
+          };
+        case 'warning':
+          return {
+            background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+            border: '2px solid #f59e0b',
+            iconBg: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            iconColor: 'white',
+            textColor: '#92400e'
+          };
+        case 'error':
+          return {
+            background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+            border: '2px solid #ef4444',
+            iconBg: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+            iconColor: 'white',
+            textColor: '#991b1b'
+          };
+        default:
+          return {
+            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+            border: '2px solid #3b82f6',
+            iconBg: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+            iconColor: 'white',
+            textColor: '#1e40af'
+          };
+      }
+    };
+
+    const messageStyles = getMessageStyles();
+
+    return (
       <div style={{
-        position: 'absolute',
-        top: '-50px',
-        right: '-50px',
-        width: '100px',
-        height: '100px',
-        borderRadius: '50%',
-        background: 'rgba(255, 255, 255, 0.1)',
-        pointerEvents: 'none'
-      }} />
-      
-      <div style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: window.innerWidth <= 480 ? '12px' : '16px'
+        background: messageStyles.background,
+        border: messageStyles.border,
+        borderRadius: '20px',
+        padding: window.innerWidth <= 480 ? '20px' : '28px',
+        marginBottom: '24px',
+        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
-        {icon && (
-          <div style={{
-            width: window.innerWidth <= 480 ? '48px' : '56px',
-            height: window.innerWidth <= 480 ? '48px' : '56px',
-            borderRadius: '16px',
-            background: messageStyles.iconBg,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
-          }}>
-            {React.cloneElement(icon, { 
-              size: window.innerWidth <= 480 ? 24 : 28, 
-              color: messageStyles.iconColor 
-            })}
-          </div>
-        )}
+        {/* Decorative pattern */}
+        <div style={{
+          position: 'absolute',
+          top: '-50px',
+          right: '-50px',
+          width: '100px',
+          height: '100px',
+          borderRadius: '50%',
+          background: 'rgba(255, 255, 255, 0.1)',
+          pointerEvents: 'none'
+        }} />
         
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {title && (
-            <h4 style={{
-              margin: '0 0 8px 0',
-              fontSize: window.innerWidth <= 480 ? '16px' : '18px',
-              fontWeight: 'bold',
-              color: messageStyles.textColor
+        <div style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: window.innerWidth <= 480 ? '12px' : '16px'
+        }}>
+          {icon && (
+            <div style={{
+              width: window.innerWidth <= 480 ? '48px' : '56px',
+              height: window.innerWidth <= 480 ? '48px' : '56px',
+              borderRadius: '16px',
+              background: messageStyles.iconBg,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
             }}>
-              {title}
-            </h4>
+              {React.cloneElement(icon, { 
+                size: window.innerWidth <= 480 ? 24 : 28, 
+                color: messageStyles.iconColor 
+              })}
+            </div>
           )}
           
-          <p style={{
-            margin: '0 0 12px 0',
-            fontSize: window.innerWidth <= 480 ? '14px' : '15px',
-            color: messageStyles.textColor,
-            lineHeight: '1.5'
-          }}>
-            {message}
-          </p>
-          
-          {children}
-        </div>
-        
-        {onClose && (
-          <button
-            onClick={onClose}
-            style={{
-              background: 'rgba(255, 255, 255, 0.2)',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '8px',
-              cursor: 'pointer',
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {title && (
+              <h4 style={{
+                margin: '0 0 8px 0',
+                fontSize: window.innerWidth <= 480 ? '16px' : '18px',
+                fontWeight: 'bold',
+                color: messageStyles.textColor
+              }}>
+                {title}
+              </h4>
+            )}
+            
+            <p style={{
+              margin: '0 0 12px 0',
+              fontSize: window.innerWidth <= 480 ? '14px' : '15px',
               color: messageStyles.textColor,
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <X size={16} />
-          </button>
-        )}
+              lineHeight: '1.5'
+            }}>
+              {message}
+            </p>
+            
+            {children}
+          </div>
+          
+          {onClose && (
+            <button
+              onClick={onClose}
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '8px',
+                cursor: 'pointer',
+                color: messageStyles.textColor,
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   const isAuthenticatedFromStorage = localStorage.getItem('isAdminAuthenticated');
   if (isAuthenticatedFromStorage === 'true') {
@@ -2398,46 +2496,72 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
   };
 
   fetchAllData();
+
+  // Cleanup
+  return () => {
+    clearTimeout(midnightTimeout);
+    clearInterval(minuteInterval);
+    if (window.dailyInterval) {
+      clearInterval(window.dailyInterval);
+    }
+  };
 }, []);
 
-  const canRegisterToday = (user) => {
-    if (!user.lastOrderDate) return true;
-    
-    const lastOrder = new Date(user.lastOrderDate);
-    const today = new Date();
-    
-    // Allow registration if last order was on a different day
-    return lastOrder.toDateString() !== today.toDateString();
-  };
-
-  const filterTodayData = (orders = [], users = []) => {
-  const today = new Date();
-  const todayString = today.toISOString().split('T')[0];
-
-  // Filter today's orders
-  const todayOrdersFiltered = orders.filter(order => 
-    order.timestamp && order.timestamp.startsWith(todayString)
-  );
+const canRegisterToday = (user) => {
+  if (!user.lastOrderDate) return true;
   
-  // Get today's users - filter by registration date AND timestamp
-  const todayUsersFiltered = users.filter(user => 
-    user.registrationDate === todayString || 
-    (user.timestamp && user.timestamp.startsWith(todayString))
-  );
+  const lastOrder = new Date(user.lastOrderDate);
+  const today = new Date();
+  
+  // Allow registration if last order was on a different day
+  return lastOrder.toDateString() !== today.toDateString();
+};
+
+const filterTodayData = (orders = [], users = []) => {
+  // Get today's date in Malaysia timezone
+  const now = new Date();
+  const malaysiaDateStr = now.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"});
+  const malaysiaDate = new Date(malaysiaDateStr);
+  const todayString = malaysiaDate.toISOString().split('T')[0];
+
+  // Filter today's orders - check timestamp starts with today's date
+  const todayOrdersFiltered = orders.filter(order => {
+    if (!order.timestamp) return false;
+    const orderDate = new Date(order.timestamp);
+    const orderDateStr = orderDate.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"});
+    const orderMalaysiaDate = new Date(orderDateStr);
+    const orderDateString = orderMalaysiaDate.toISOString().split('T')[0];
+    return orderDateString === todayString;
+  });
+  
+  // Get today's users - filter by registration date OR timestamp
+  const todayUsersFiltered = users.filter(user => {
+    // Check if user registered today
+    if (user.registrationDate === todayString) return true;
+    
+    // Also check timestamp in case registrationDate is missing
+    if (user.timestamp) {
+      const userDate = new Date(user.timestamp);
+      const userDateStr = userDate.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"});
+      const userMalaysiaDate = new Date(userDateStr);
+      const userDateString = userMalaysiaDate.toISOString().split('T')[0];
+      return userDateString === todayString;
+    }
+    
+    return false;
+  });
   
   setTodayOrders(todayOrdersFiltered);
   setTodayUsers(todayUsersFiltered);
   
-  // Check if today's users (not all users) have paid
-  const todayPaidUsers = todayUsersFiltered.filter(u => 
-    u.commitmentPaid && 
-    (u.registrationDate === todayString || 
-     (u.timestamp && u.timestamp.startsWith(todayString)))
-  );
+  // Check if today's users have paid commitment fee today
+  const todayPaidUsers = todayUsersFiltered.filter(u => u.commitmentPaid);
   
   const isActivatedToday = todayPaidUsers.length >= 3;
   setMinOrderReached(isActivatedToday);
   setSystemActivatedToday(isActivatedToday);
+  
+  console.log(`Today (${todayString}): ${todayUsersFiltered.length} users, ${todayPaidUsers.length} paid, ${todayOrdersFiltered.length} orders`);
 };
   
   
@@ -2464,13 +2588,48 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
     setLoadingMessage('');
   };
 
+  const scanReceipt = async (imageFile) => {
+  const formData = new FormData();
+  formData.append('file', imageFile);
+
+  try {
+    const response = await fetch('http://localhost:3001/api/scan', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      console.error('API or Server Error:', data);
+      throw new Error(data.message || 'Failed to process receipt via proxy.');
+    }
+
+    // The server now does the parsing, so we just return the clean data
+    return {
+      orderNumber: data.orderNumber,
+      orderTotal: data.orderTotal,
+    };
+
+  } catch (error) {
+    console.error("Error calling backend for scanning:", error);
+    throw error;
+  }
+};
+
   // Firebase functions
   const savePrebookUser = async (user) => {
   try {
-    const todayString = new Date().toISOString().split('T')[0];
+    // Get Malaysia timezone date
+    const now = new Date();
+    const malaysiaDateStr = now.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"});
+    const malaysiaDate = new Date(malaysiaDateStr);
+    const todayString = malaysiaDate.toISOString().split('T')[0];
+    
     const userWithDate = {
       ...user,
-      registrationDate: todayString  // Add registration date
+      registrationDate: todayString,
+      timestamp: new Date().toISOString() // Keep original timestamp for reference
     };
     
     const docRef = await addDoc(collection(db, 'prebookUsers'), userWithDate);
@@ -2504,56 +2663,69 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
   };
 
   const getPrebookUsers = async () => {
-    try {
-      // 1. Get today's date in 'YYYY-MM-DD' format, which matches how it's stored.
-      const todayString = new Date().toISOString().split('T')[0];
+  try {
+    // Get today's date in Malaysia timezone
+    const now = new Date();
+    const malaysiaDateStr = now.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"});
+    const malaysiaDate = new Date(malaysiaDateStr);
+    const todayString = malaysiaDate.toISOString().split('T')[0];
 
-      // 2. Create a query that ONLY gets documents where 'registrationDate' is today.
-      const usersQuery = query(collection(db, 'prebookUsers'), where("registrationDate", "==", todayString));
+    // Query for today's users
+    const usersQuery = query(
+      collection(db, 'prebookUsers'), 
+      where("registrationDate", "==", todayString)
+    );
 
-      // 3. Execute the new, filtered query.
-      const querySnapshot = await getDocs(usersQuery);
-      const users = querySnapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        firestoreId: doc.id, 
-        ...doc.data() 
-      }));
-      
-      // Sort users by timestamp to maintain registration order
-      const sortedUsers = users.sort((a, b) => 
-        new Date(a.timestamp) - new Date(b.timestamp)
-      );
-      
-      setPrebookUsers(sortedUsers);
-      
-      // Create registration order array
-      const orderArray = sortedUsers.map((user, index) => ({
-        userId: user.firestoreId,
-        order: index + 1
-      }));
-      setRegistrationOrder(orderArray);
+    const querySnapshot = await getDocs(usersQuery);
+    const users = querySnapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      firestoreId: doc.id, 
+      ...doc.data() 
+    }));
+    
+    // Sort users by timestamp to maintain registration order
+    const sortedUsers = users.sort((a, b) => 
+      new Date(a.timestamp) - new Date(b.timestamp)
+    );
+    
+    setPrebookUsers(sortedUsers);
+    
+    // Create registration order array
+    const orderArray = sortedUsers.map((user, index) => ({
+      userId: user.firestoreId,
+      order: index + 1
+    }));
+    setRegistrationOrder(orderArray);
 
-      const paidUsers = sortedUsers.filter(u => u.commitmentPaid);
-      const newMinOrderReached = paidUsers.length >= 3;
-      setMinOrderReached(newMinOrderReached);
-      
-      return sortedUsers;
-    } catch (e) {
-      console.error('Error getting users: ', e);
-      return [];
-    }
-  };
+    // Check paid users for today only
+    const paidUsers = sortedUsers.filter(u => u.commitmentPaid);
+    const newMinOrderReached = paidUsers.length >= 3;
+    setMinOrderReached(newMinOrderReached);
+    
+    return sortedUsers;
+  } catch (e) {
+    console.error('Error getting users: ', e);
+    return [];
+  }
+};
 
   const saveOrder = async (order) => {
-    try {
-      const docRef = await addDoc(collection(db, 'orders'), order);
-      await updateDailyHistory();
-      return docRef.id;
-    } catch (e) {
-      console.error('Error saving order: ', e);
-      throw e;
-    }
-  };
+  try {
+    // Ensure order has proper timestamp
+    const orderWithTimestamp = {
+      ...order,
+      timestamp: new Date().toISOString(),
+      orderDate: new Date().toLocaleDateString("en-US", {timeZone: "Asia/Kuala_Lumpur"})
+    };
+    
+    const docRef = await addDoc(collection(db, 'orders'), orderWithTimestamp);
+    await updateDailyHistory();
+    return docRef.id;
+  } catch (e) {
+    console.error('Error saving order: ', e);
+    throw e;
+  }
+};
 
   const getOrders = async () => {
     try {
@@ -2636,17 +2808,24 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
   };
 
   const isToday = (dateString) => {
-    if (!dateString) return false;
-    
-    const date = new Date(dateString);
-    const today = new Date();
-    
-    return (
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear()
-    );
-  };
+  if (!dateString) return false;
+  
+  // Parse the date
+  const date = new Date(dateString);
+  const dateMalaysiaStr = date.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"});
+  const dateMalaysia = new Date(dateMalaysiaStr);
+  
+  // Get today in Malaysia timezone
+  const now = new Date();
+  const todayMalaysiaStr = now.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"});
+  const todayMalaysia = new Date(todayMalaysiaStr);
+  
+  return (
+    dateMalaysia.getDate() === todayMalaysia.getDate() &&
+    dateMalaysia.getMonth() === todayMalaysia.getMonth() &&
+    dateMalaysia.getFullYear() === todayMalaysia.getFullYear()
+  );
+};
 
   const getTotalHistoryStats = () => {
     const totalRegistered = historyData.reduce((sum, entry) => sum + (entry.registeredUsers || 0), 0);
@@ -2761,7 +2940,7 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
           Redirecting to your order status...
         </p>
       </BeautifulMessage>,
-      0,
+      3000,
       true,
       () => setOrderConfirmed(true)
     );
@@ -2786,8 +2965,8 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
       `Welcome back ${foundUser.name}!`,
       'Your order has already been submitted.',
       <p>Redirecting to order status page...</p>,
-      2000,
-      false
+      2500,
+      true
     );
     setTimeout(() => setOrderConfirmed(true), 1500);
   } else if (foundUser.commitmentPaid || (isSystemActivated && userIndex >= 3)) {
@@ -2799,7 +2978,7 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
         : 'Your payment has been confirmed. You can now submit your order.',
       null,
       2500,
-      false
+      true
     );
     setUserStep(3);
   } else {
@@ -2811,7 +2990,7 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
         'Please complete your commitment fee payment to continue.',
         null,
         2500,
-        false
+        true
       );
       setUserStep(2);
     } else {
@@ -2819,8 +2998,9 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
         `Welcome back ${foundUser.name}!`,
         'Please complete your commitment fee payment to continue.',
         <p>We still need {3 - paidUsersCount} more paid users before order submission opens.</p>,
-        2500,
-        false
+        5000,
+        true,
+        () => setUserStep(2)
       );
       setUserStep(2);
     }
@@ -2867,16 +3047,16 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
       color: '#1e293b'
     },
     grid: {
-    display: 'grid',
-    gap: '24px',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-    '@media (max-width: 768px)': {
-      gridTemplateColumns: '1fr'
+      display: 'grid',
+      gap: '24px',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+      '@media (max-width: 768px)': {
+        gridTemplateColumns: '1fr'
+      },
+      '@media (max-width: 480px)': {
+        gap: '16px'
+      }
     },
-    '@media (max-width: 480px)': {
-      gap: '16px'
-    }
-  },
     progressBar: {
       marginBottom: '28px'
     },
@@ -2905,58 +3085,56 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
       boxShadow: '0 2px 4px rgba(16, 185, 129, 0.3)'
     },
     input: {
-    width: '100%',
-    padding: '16px 20px',
-    border: '2px solid #e2e8f0',
-    borderRadius: '12px',
-    marginBottom: '16px',
-    fontSize: '16px',
-    boxSizing: 'border-box',
-    transition: 'all 0.2s',
-    backgroundColor: '#f8fafc',
-    '&:focus': {
-      borderColor: '#3b82f6',
-      outline: 'none',
-      backgroundColor: 'white',
-      boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.1)'
+      width: '100%',
+      padding: '16px 20px',
+      border: '2px solid #e2e8f0',
+      borderRadius: '12px',
+      marginBottom: '16px',
+      fontSize: '16px',
+      boxSizing: 'border-box',
+      transition: 'all 0.2s',
+      backgroundColor: '#f8fafc',
+      '&:focus': {
+        borderColor: '#3b82f6',
+        outline: 'none',
+        backgroundColor: 'white',
+        boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.1)'
+      },
+      '@media (max-width: 768px)': {
+        padding: '14px 18px',
+        fontSize: '15px'
+      },
+      '@media (max-width: 480px)': {
+        padding: '12px 14px',
+        fontSize: '14px'
+      }
     },
-    // Add responsive styles
-    '@media (max-width: 768px)': {
-      padding: '14px 18px',
-      fontSize: '15px'
+    button: {
+      width: '100%',
+      padding: '16px 32px',
+      borderRadius: '12px',
+      fontWeight: '600',
+      border: 'none',
+      cursor: 'pointer',
+      fontSize: '16px',
+      transition: 'all 0.3s ease',
+      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)',
+      '&:hover': {
+        transform: 'translateY(-2px)',
+        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15)'
+      },
+      '&:active': {
+        transform: 'translateY(0)'
+      },
+      '@media (max-width: 768px)': {
+        padding: '14px 24px',
+        fontSize: '15px'
+      },
+      '@media (max-width: 480px)': {
+        padding: '12px 16px',
+        fontSize: '14px'
+      }
     },
-    '@media (max-width: 480px)': {
-      padding: '12px 14px',
-      fontSize: '14px'
-    }
-  },
-  button: {
-    width: '100%',
-    padding: '16px 32px',
-    borderRadius: '12px',
-    fontWeight: '600',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '16px',
-    transition: 'all 0.3s ease',
-    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)',
-    '&:hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15)'
-    },
-    '&:active': {
-      transform: 'translateY(0)'
-    },
-    // Add responsive styles
-    '@media (max-width: 768px)': {
-      padding: '14px 24px',
-      fontSize: '15px'
-    },
-    '@media (max-width: 480px)': {
-      padding: '12px 16px',
-      fontSize: '14px'
-    }
-  },
     inputError: {
       borderColor: '#ef4444'
     },
@@ -3113,6 +3291,22 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
         lineHeight: '1.1'
       }
     },
+    formSection: {
+        backgroundColor: '#f8fafc',
+        padding: '24px',
+        borderRadius: '16px',
+        marginBottom: '24px',
+        border: '1px solid #e2e8f0'
+    },
+    formSectionTitle: {
+        margin: '0 0 16px 0',
+        color: '#1e293b',
+        fontSize: '18px',
+        fontWeight: '600',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
+    },
   };
   
   const validateName = (name) => {
@@ -3230,7 +3424,7 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
           🎉 System is active! You can proceed directly to order submission.
         </p>,
         2500,
-        false,
+        true,
         () => setUserStep(3) // Go directly to order submission
       );
     } else {
@@ -3239,7 +3433,7 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
         'Registration Successful!',
         'You have been registered for the food delivery service.',
         <p>Please proceed to pay the RM10 commitment fee.</p>,
-        1500,
+        3000,
         true,
         () => setUserStep(2)
       );
@@ -3249,6 +3443,251 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
     alert('Error registering user. Please try again.');
     console.error('Registration error:', error);
   }
+};
+
+  const handleOrderImageSelect = async (file) => {
+  if (!file) return;
+
+  // Reset state for a new scan
+  setOrderImage(file);
+  setScanError('');
+  setScannedData({ orderNumber: '', orderTotal: '' });
+  setScanMode('scanning');
+  setShowScanConfirmation(false);
+  setIsScanning(true);
+
+  try {
+    const compressedFile = await compressImage(file);
+    const scanResult = await scanReceipt(compressedFile);
+
+    // Store scanned data
+    const scannedOrderNumber = scanResult.orderNumber || '';
+    const scannedOrderTotal = scanResult.orderTotal || '';
+    
+    setScannedData({
+      orderNumber: scannedOrderNumber,
+      orderTotal: scannedOrderTotal
+    });
+
+    // Check if we got both values
+    if (scannedOrderNumber && scannedOrderTotal) {
+      setScanMode('confirm');
+      setShowScanConfirmation(true);
+    } else {
+      // Missing data - show manual entry option
+      setScanMode('manual');
+      let errorMessage = 'Some information could not be detected:\n';
+      if (!scannedOrderNumber) {
+        errorMessage += '• Order number not found\n';
+      }
+      if (!scannedOrderTotal) {
+        errorMessage += '• Order total not found\n';
+      }
+      errorMessage += '\nPlease enter the missing information manually.';
+      setScanError(errorMessage);
+      
+      // Pre-fill any successfully scanned values
+      if (scannedOrderTotal) setOrderTotal(scannedOrderTotal);
+      if (scannedOrderNumber) setFinalOrderNumber(scannedOrderNumber);
+    }
+
+  } catch (error) {
+    console.error('Receipt processing failed:', error);
+    setScanMode('manual');
+    setScanError('Unable to scan the receipt. Please enter the details manually.');
+  } finally {
+    setIsScanning(false);
+  }
+};
+
+  const handleScanConfirmation = (confirmed) => {
+  if (confirmed) {
+    // User confirmed the scanned data
+    setOrderTotal(scannedData.orderTotal);
+    setFinalOrderNumber(scannedData.orderNumber);
+    setShowScanConfirmation(false);
+    setScanMode('manual'); // Allow editing if needed
+    showSuccessAnimation(
+      'Scan Successful!',
+      'Order details have been filled automatically.',
+      null,
+      1500,
+      true
+    );
+  } else {
+    // User wants to rescan or enter manually
+    setShowScanConfirmation(false);
+    setScanMode('manual');
+    setScanError('Please upload a clearer image or enter the details manually.');
+  }
+  setIsScanComplete(true);
+};
+
+// Add this component for the scan confirmation modal
+const ScanConfirmationModal = ({ scannedData, onConfirm, onReject, orderImage }) => {
+  const modalStyles = {
+    overlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 2000,
+      padding: '20px'
+    },
+    modal: {
+      backgroundColor: 'white',
+      borderRadius: '20px',
+      padding: windowWidth <= 480 ? '24px' : '32px',
+      maxWidth: '500px',
+      width: '100%',
+      boxShadow: '0 25px 50px rgba(0, 0, 0, 0.3)'
+    },
+    header: {
+      fontSize: windowWidth <= 480 ? '20px' : '24px',
+      fontWeight: 'bold',
+      marginBottom: '20px',
+      color: '#1e293b',
+      textAlign: 'center'
+    },
+    dataSection: {
+      backgroundColor: '#f8fafc',
+      padding: windowWidth <= 480 ? '16px' : '20px',
+      borderRadius: '12px',
+      marginBottom: '20px'
+    },
+    dataRow: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: windowWidth <= 480 ? '10px 0' : '12px 0',
+      borderBottom: '1px solid #e2e8f0',
+      gap: '8px'
+    },
+    label: {
+      fontWeight: '600',
+      color: '#64748b',
+      fontSize: windowWidth <= 480 ? '12px' : windowWidth <= 768 ? '14px' : '16px',
+      flexShrink: 0,
+      minWidth: 0
+    },
+    value: {
+      fontWeight: 'bold',
+      fontSize: windowWidth <= 480 ? '12px' : windowWidth <= 768 ? '14px' : '18px',
+      color: '#1e293b',
+      textAlign: 'right',
+      wordBreak: 'break-all',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      flex: 1,
+      minWidth: 0
+    },
+    imagePreview: {
+      width: '100%',
+      maxHeight: windowWidth <= 480 ? '150px' : '200px',
+      objectFit: 'contain',
+      borderRadius: '8px',
+      marginBottom: '20px',
+      border: '1px solid #e2e8f0'
+    },
+    buttonGroup: {
+      display: 'flex',
+      gap: windowWidth <= 480 ? '8px' : '12px',
+      marginTop: windowWidth <= 480 ? '20px' : '24px',
+      flexWrap: windowWidth <= 360 ? 'wrap' : 'nowrap'
+    },
+    button: {
+      flex: windowWidth <= 360 ? '1 1 100%' : 1,
+      padding: windowWidth <= 480 ? '10px 16px' : '14px 24px',
+      borderRadius: '10px',
+      border: 'none',
+      fontSize: windowWidth <= 480 ? '13px' : windowWidth <= 768 ? '14px' : '16px',
+      fontWeight: '600',
+      cursor: 'pointer',
+      transition: 'all 0.2s',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '4px',
+      whiteSpace: 'nowrap'
+    }
+  };
+
+  return (
+    <div style={modalStyles.overlay}>
+      <div style={modalStyles.modal}>
+        <h3 style={modalStyles.header}>
+          <Scan size={windowWidth <= 480 ? 24 : 28} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+          Confirm Scanned Details
+        </h3>
+
+        {orderImage && (
+          <img 
+            src={URL.createObjectURL(orderImage)} 
+            alt="Scanned receipt" 
+            style={modalStyles.imagePreview}
+          />
+        )}
+
+        <div style={modalStyles.dataSection}>
+          <div style={modalStyles.dataRow}>
+            <span style={modalStyles.label}>
+              {windowWidth <= 360 ? 'Order #:' : 'Order Number:'}
+            </span>
+            <span style={modalStyles.value} title={scannedData.orderNumber}>
+              {scannedData.orderNumber}
+            </span>
+          </div>
+          <div style={{ ...modalStyles.dataRow, borderBottom: 'none' }}>
+            <span style={modalStyles.label}>
+              {windowWidth <= 360 ? 'Total:' : 'Order Total:'}
+            </span>
+            <span style={modalStyles.value}>
+              RM {scannedData.orderTotal}
+            </span>
+          </div>
+        </div>
+
+        <p style={{ 
+          textAlign: 'center', 
+          color: '#64748b', 
+          marginBottom: '20px',
+          fontSize: windowWidth <= 480 ? '13px' : windowWidth <= 768 ? '14px' : '15px'
+        }}>
+          Are these details correct?
+        </p>
+
+        <div style={modalStyles.buttonGroup}>
+          <button
+            onClick={() => onConfirm(true)}
+            style={{
+              ...modalStyles.button,
+              backgroundColor: '#10b981',
+              color: 'white'
+            }}
+          >
+            <CheckCircle size={windowWidth <= 480 ? 16 : 18} style={{ flexShrink: 0 }} />
+            <span>{windowWidth <= 360 ? 'Yes' : 'Yes, Correct'}</span>
+          </button>
+          <button
+            onClick={() => onConfirm(false)}
+            style={{
+              ...modalStyles.button,
+              backgroundColor: '#ef4444',
+              color: 'white'
+            }}
+          >
+            <X size={windowWidth <= 480 ? 16 : 18} style={{ flexShrink: 0 }} />
+            <span>{windowWidth <= 360 ? 'No' : 'No, Re-enter'}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
   const handleCommitmentPayment = async () => {
@@ -3335,70 +3774,72 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
 };
 
   const handleOrderSubmission = async () => {
+  // --- Validations ---
   if (!orderTotal) {
-    alert('Please enter order total');
+    alert('Please enter order total or scan a receipt.');
     return;
   }
-
+  if (!finalOrderNumber || !finalOrderNumber.trim()) {
+    alert('Please provide the order number from your receipt.');
+    return;
+  }
   const totalAmount = parseFloat(orderTotal);
   if (isNaN(totalAmount)) {
-    alert('Please enter a valid order total');
+    alert('Please enter a valid order total.');
+    return;
+  }
+  if (!orderImage) {
+    alert('Please upload an image of your order receipt.');
     return;
   }
 
-  if (!orderImage) {
-    alert('Please upload image of your order');
-    return;
-  }
-  
+  // --- Fee Calculation ---
   const deliveryFee = calculateDeliveryFee(totalAmount);
-  
-  // Calculate actual delivery fee after deductions
   const userIndex = prebookUsers.findIndex(u => u.firestoreId === selectedUserId);
   const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
   const commitmentFeeDeducted = (userIndex < 3 && user?.commitmentPaid) ? 10 : 0;
   const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
-  const isFourthOrLaterUser = userIndex >= 3; // Define this variable here
+  const isFourthOrLaterUser = userIndex >= 3;
 
-  // Only require payment proof if actual delivery fee > 0
+  // --- Delivery Fee Payment Proof Check ---
   if (actualDeliveryFee > 0 && !paymentProof) {
     showSuccessAnimation(
-        'Payment Receipt Required',
-        'Please upload your payment receipt to continue.',
-        <BeautifulMessage
-          type="warning"
-          message="Upload the receipt showing your RM10 commitment fee payment."
-          icon={<Receipt />}
-        />,
-        1500,
-        true
-      );
+      'Payment Receipt Required',
+      'Please upload your payment receipt to continue.',
+      <BeautifulMessage
+        type="warning"
+        message={`Your delivery fee is RM${actualDeliveryFee.toFixed(2)}. Please upload proof of payment.`}
+        icon={<Receipt />}
+      />,
+      3000,
+      true
+    );
     return;
   }
 
   showLoadingAnimation('Processing order...');
 
   try {
-    // Compress images in parallel
+    // --- Image Processing and Uploading ---
     const compressionPromises = [compressImage(orderImage)];
     if (paymentProof) {
       compressionPromises.push(compressImage(paymentProof));
     }
-    
     const compressedImages = await Promise.all(compressionPromises);
     const compressedOrderImage = compressedImages[0];
     const compressedPaymentProof = compressedImages[1] || null;
 
-    // Upload files in parallel
     const uploadPromises = [uploadFileToStorage(compressedOrderImage)];
     if (compressedPaymentProof) {
       uploadPromises.push(uploadFileToStorage(compressedPaymentProof));
     }
-    
     const uploadedFiles = await Promise.all(uploadPromises);
     const orderImageURL = uploadedFiles[0];
     const paymentProofURL = uploadedFiles[1] || null;
 
+    // --- Create Final Order Data Object ---
+    // This object now contains the orderTotal and finalOrderNumber from the state,
+    // which were populated by the scanning process.
     const orderData = {
       userId: selectedUserId,
       userName: studentName,
@@ -3411,16 +3852,14 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
       timestamp: new Date().toISOString(),
       orderImageURL: orderImageURL,
       paymentProofURL: paymentProofURL,
-      orderNumber: `ORD-${Date.now()}`,
+      orderNumber: finalOrderNumber.trim(),
       status: 'pending',
       userPosition: userIndex + 1,
       wasFourthUser: isFourthOrLaterUser
     };
 
-    // Save order
+    // --- Save Data to Firestore ---
     await saveOrder(orderData);
-    
-    // Update user
     await updatePrebookUser(selectedUserId, {
       orderTotal: orderData.orderTotal,
       orderSubmitted: true,
@@ -3429,11 +3868,11 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
       lastOrderDate: new Date().toISOString(),
       wasFourthUser: isFourthOrLaterUser
     });
-    
+
     setCurrentOrder(orderData);
-    
     hideLoadingAnimation();
-    
+
+    // --- Show Success Confirmation ---
     showSuccessAnimation(
       'Order Confirmed!',
       'Your order has been successfully submitted.',
@@ -3450,7 +3889,7 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
       true,
       () => setOrderConfirmed(true)
     );
-    
+
   } catch (error) {
     hideLoadingAnimation();
     alert('Error submitting order. Please try again.');
@@ -3527,6 +3966,10 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
       </div>
     </div>
   );
+
+  const usersAwaitingOrder = todayUsers.filter(
+        user => user.commitmentPaid && !user.orderSubmitted
+      );
 
   return (
     <div style={styles.container}>
@@ -3754,190 +4197,368 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
               )}
 
               {/* Step 3: Order Submission */}
-              {userStep === 3 && minOrderReached && (
-                <div>
-                  <h3 style={{ marginBottom: '20px', color: '#1e293b' }}>Step 3: Submit Your Order</h3>
+{userStep === 3 && minOrderReached && (
+  <div>
+    <h3 style={{ marginBottom: '20px', color: '#1e293b', fontSize: windowWidth <= 480 ? '18px' : '20px' }}>
+      Step 3: Submit Your Order
+    </h3>
 
-                  <div style={{
-                    backgroundColor: '#f0fdf4',
-                    padding: '20px',
-                    borderRadius: '12px',
-                    marginBottom: '20px',
-                    border: '1px solid #86efac'
-                  }}>
-                    <CheckCircle color="#16a34a" size={24} style={{ marginRight: '8px', display: 'inline' }} />
-                    Payment confirmed! You can now submit your order.
+    {/* Confirmation message that payment was successful */}
+    <div style={{
+      backgroundColor: '#f0fdf4',
+      padding: '20px',
+      borderRadius: '12px',
+      marginBottom: '24px',
+      border: '1px solid #86efac',
+      display: 'flex',
+      alignItems: 'center'
+    }}>
+      <CheckCircle color="#16a34a" size={24} style={{ marginRight: '8px' }} />
+      Payment confirmed! You can now submit your order.
+    </div>
+
+    {/* Section for Uploading Order Image */}
+<div style={{
+  backgroundColor: '#f8fafc',
+  padding: '24px',
+  borderRadius: '16px',
+  marginBottom: '24px',
+  border: '2px solid #e2e8f0'
+}}>
+  <h4 style={{ margin: '0 0 16px 0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+    <span style={{
+      backgroundColor: '#3b82f6',
+      color: 'white',
+      width: '28px',
+      height: '28px',
+      borderRadius: '50%',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '14px',
+      fontWeight: 'bold'
+    }}>1</span>
+    Upload Order Receipt
+  </h4>
+
+  <p style={{ marginBottom: '12px', color: '#64748b' }}>
+    <Camera size={16} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+    Take a clear photo of your receipt for automatic scanning, or enter details manually below.
+  </p>
+
+  {/* Toggle between scan and manual entry */}
+  <div style={{ marginBottom: '16px', display: 'flex', gap: '12px' }}>
+    <button
+      onClick={() => setScanMode('scanning')}
+      style={{
+        flex: 1,
+        padding: '12px',
+        backgroundColor: scanMode === 'scanning' ? '#3b82f6' : '#e5e7eb',
+        color: scanMode === 'scanning' ? 'white' : '#6b7280',
+        border: 'none',
+        borderRadius: '8px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px'
+      }}
+    >
+      <Scan size={18} />
+      Scan Receipt
+    </button>
+    <button
+      onClick={() => {
+        setScanMode('manual');
+        setOrderImage(null);
+        setIsScanning(false);
+      }}
+      style={{
+        flex: 1,
+        padding: '12px',
+        backgroundColor: scanMode === 'manual' ? '#3b82f6' : '#e5e7eb',
+        color: scanMode === 'manual' ? 'white' : '#6b7280',
+        border: 'none',
+        borderRadius: '8px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px'
+      }}
+    >
+      <Calculator size={18} />
+      Enter Manually
+    </button>
+  </div>
+
+  {/* Show file input only if in scanning mode */}
+  {scanMode === 'scanning' && (
+    <>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => handleOrderImageSelect(e.target.files[0])}
+        style={{
+          ...styles.input,
+          backgroundColor: '#f0f9ff',
+          border: '2px dashed #3b82f6',
+          padding: '16px',
+          cursor: 'pointer'
+        }}
+        disabled={isScanning}
+      />
+
+      {/* Scanning Status */}
+      {isScanning && (
+        <div style={{
+          marginTop: '16px',
+          padding: '20px',
+          borderRadius: '12px',
+          backgroundColor: '#e0f2fe',
+          border: '1px solid #7dd3fc',
+          textAlign: 'center'
+        }}>
+          <Loader2 size={32} color="#0369a1" style={{ animation: 'spin 1s linear infinite' }} />
+          <p style={{ margin: '12px 0 0 0', color: '#0369a1', fontWeight: '600' }}>
+            Scanning receipt...
+          </p>
+          <p style={{ margin: '4px 0 0 0', color: '#0369a1', fontSize: '14px' }}>
+            This may take up to 30 seconds. Alternatively, you can enter details manually.
+          </p>
+          <button
+            onClick={() => {
+              setIsScanning(false);
+              setScanMode('manual');
+              setScanError('Cancelled scanning. Please enter details manually.');
+            }}
+            style={{
+              marginTop: '12px',
+              padding: '8px 16px',
+              backgroundColor: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            Cancel & Enter Manually
+          </button>
+        </div>
+      )}
+    </>
+  )}
+
+  {/* Manual entry notice */}
+  {scanMode === 'manual' && !orderImage && (
+    <div style={{
+      padding: '16px',
+      backgroundColor: '#f0f9ff',
+      borderRadius: '8px',
+      border: '1px solid #bfdbfe',
+      marginTop: '16px'
+    }}>
+      <p style={{ margin: 0, color: '#1e40af', fontSize: '14px' }}>
+        <AlertCircle size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+        Please upload a photo of your receipt and enter the order details below.
+      </p>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => setOrderImage(e.target.files[0])}
+        style={{
+          ...styles.input,
+          marginTop: '12px',
+          marginBottom: 0
+        }}
+      />
+    </div>
+  )}
+
+  {/* Error/Manual Entry Message */}
+  {scanError && !isScanning && scanMode === 'manual' && (
+    <div style={{
+      marginTop: '16px',
+      padding: '16px',
+      borderRadius: '8px',
+      backgroundColor: '#fef3c7',
+      color: '#92400e',
+      border: '1px solid #fbbf24'
+    }}>
+      <AlertCircle size={20} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+      {scanError}
+    </div>
+  )}
+
+  {/* Receipt Preview */}
+  {orderImage && !isScanning && (
+    <div style={{ marginTop: '16px', textAlign: 'center' }}>
+      <img
+        src={URL.createObjectURL(orderImage)}
+        alt="Uploaded Receipt"
+        style={{
+          maxWidth: '200px',
+          maxHeight: '200px',
+          borderRadius: '8px',
+          border: '2px solid #e2e8f0',
+          cursor: 'pointer'
+        }}
+        onClick={() => setSelectedImage(URL.createObjectURL(orderImage))}
+      />
+      <p style={{ fontSize: '12px', color: '#64748b', marginTop: '8px' }}>
+        Click image to enlarge
+      </p>
+    </div>
+  )}
+</div>
+
+    {/* Scan Confirmation Modal */}
+    {showScanConfirmation && (
+      <ScanConfirmationModal
+        scannedData={scannedData}
+        onConfirm={handleScanConfirmation}
+        orderImage={orderImage}
+      />
+    )}
+
+    {/* Manual Entry / Editing Section */}
+    {(orderImage || scanMode === 'manual') && !showScanConfirmation && (
+      <div style={{
+        backgroundColor: '#f8fafc',
+        padding: '24px',
+        borderRadius: '16px',
+        marginBottom: '24px',
+        border: '2px solid #e2e8f0'
+      }}>
+        <h4 style={{ margin: '0 0 16px 0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{
+            backgroundColor: '#3b82f6',
+            color: 'white',
+            width: '28px',
+            height: '28px',
+            borderRadius: '50%',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '14px',
+            fontWeight: 'bold'
+          }}>2</span>
+          Order Details
+        </h4>
+        
+        <label style={{ display: 'block', marginBottom: '8px', color: '#374151', fontWeight: '500' }}>
+          Order Number <span style={{ color: '#ef4444' }}>*</span>
+        </label>
+        <input
+          type="text"
+          placeholder="Enter order number from receipt"
+          value={finalOrderNumber}
+          onChange={(e) => setFinalOrderNumber(e.target.value)}
+          style={{
+            ...styles.input,
+            backgroundColor: finalOrderNumber ? '#f0fdf4' : '#fff'
+          }}
+        />
+        
+        <label style={{ display: 'block', marginBottom: '8px', marginTop: '16px', color: '#374151', fontWeight: '500' }}>
+          Order Total (RM) <span style={{ color: '#ef4444' }}>*</span>
+        </label>
+        <input
+          type="number"
+          step="0.01"
+          placeholder="Enter order total amount"
+          value={orderTotal}
+          onChange={(e) => setOrderTotal(e.target.value)}
+          style={{
+            ...styles.input,
+            backgroundColor: orderTotal ? '#f0fdf4' : '#fff'
+          }}
+        />
+      </div>
+    )}
+
+    {/* Conditionally render Fee Breakdown and Delivery Payment sections ONLY if there is an order total */}
+    {orderTotal && (
+      <>
+        <FeeBreakdown
+          orderTotal={parseFloat(orderTotal) || 0}
+          userIndex={currentUserIndex}
+          isCommitmentFeePaid={prebookUsers.find(u => u.firestoreId === selectedUserId)?.commitmentPaid}
+          registrationOrder={registrationOrder}
+          selectedUserId={selectedUserId}
+        />
+
+        {/* This logic calculates the final delivery fee and shows the payment proof section if needed */}
+        {(() => {
+          const deliveryFee = calculateDeliveryFee(parseFloat(orderTotal) || 0);
+          const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
+          const commitmentFeeDeducted = (currentUserIndex < 3 && user?.commitmentPaid && deliveryFee > 0) ? 10 : 0;
+          const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
+
+          if (actualDeliveryFee > 0) {
+            return (
+              <div style={{
+                backgroundColor: '#f8fafc', padding: '24px', borderRadius: '16px',
+                marginBottom: '24px', border: '2px solid #e2e8f0'
+              }}>
+                <h4 style={{ margin: '0 0 16px 0' }}>Delivery Fee Payment</h4>
+                <UnifiedQRCodeDisplay amount={actualDeliveryFee} />
+                <p style={{ marginTop: '16px', marginBottom: '12px', color: '#64748b' }}>
+                  Please upload proof of payment for the delivery fee:
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setPaymentProof(e.target.files[0])}
+                  style={styles.input}
+                />
+                {paymentProof && (
+                  <div style={{ marginTop: '16px', textAlign: 'center' }}>
+                    <img src={URL.createObjectURL(paymentProof)} alt="Payment Proof" style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '8px' }} />
                   </div>
+                )}
+              </div>
+            );
+          }
+          return null; // Don't show anything if no delivery fee is required
+        })()}
 
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="Enter your order total (RM)"
-                    value={orderTotal}
-                    onChange={(e) => setOrderTotal(e.target.value)}
-                    style={styles.input}
-                  />
+        {/* The final "Submit Order" button */}
+        {(() => {
+          const deliveryFee = calculateDeliveryFee(parseFloat(orderTotal) || 0);
+          const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
+          const commitmentFeeDeducted = (currentUserIndex < 3 && user?.commitmentPaid && deliveryFee > 0) ? 10 : 0;
+          
+          // --- THIS IS THE LINE THAT WAS FIXED ---
+          const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted); // Corrected variable name
+          
+          const isButtonDisabled = !orderImage || !finalOrderNumber.trim() || (actualDeliveryFee > 0 && !paymentProof);
 
-                  {orderTotal && (
-                    <>
-                      <FeeBreakdown
-                        orderTotal={parseFloat(orderTotal) || 0}
-                        userIndex={currentUserIndex}
-                        isCommitmentFeePaid={prebookUsers.find(u => u.firestoreId === selectedUserId)?.commitmentPaid}
-                        registrationOrder={registrationOrder}
-                        selectedUserId={selectedUserId}
-                      />
-
-                      {/* Calculate fees here */}
-                      {(() => {
-                        const deliveryFee = calculateDeliveryFee(parseFloat(orderTotal));
-                        const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
-                        const userOrder = registrationOrder.find(order => order.userId === selectedUserId);
-                        const isFourthOrLaterUser = userOrder ? userOrder.order >= 4 : currentUserIndex >= 3;
-                        const commitmentFeeDeducted = (!isFourthOrLaterUser && currentUserIndex < 3 && user?.commitmentPaid && deliveryFee > 0) ? 10 : 0;
-                        const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
-
-                        return (
-                        <>
-                          {/* Payment proof section only if actual delivery fee > 0 */}
-                          {actualDeliveryFee > 0 && (
-                            <div style={{
-                              backgroundColor: '#f8fafc',
-                              padding: window.innerWidth <= 480 ? '16px' : '24px',
-                              borderRadius: '16px',
-                              marginBottom: '24px',
-                              border: '2px solid #e2e8f0'
-                            }}>
-                              <h4 style={{ 
-                                margin: '0 0 16px 0', 
-                                color: '#1e293b', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '8px',
-                                fontSize: window.innerWidth <= 480 ? '16px' : '18px'
-                              }}>
-                                <span style={{
-                                  backgroundColor: '#3b82f6',
-                                  color: 'white',
-                                  width: window.innerWidth <= 480 ? '24px' : '28px',
-                                  height: window.innerWidth <= 480 ? '24px' : '28px',
-                                  borderRadius: '50%',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: window.innerWidth <= 480 ? '12px' : '14px',
-                                  fontWeight: 'bold'
-                                }}>2</span>
-                                Payment Proof
-                              </h4>
-
-                                <UnifiedQRCodeDisplay amount={actualDeliveryFee} />
-
-                                <p style={{ 
-                                  marginBottom: '12px', 
-                                  color: '#64748b',
-                                  fontSize: window.innerWidth <= 480 ? '13px' : '15px'
-                                }}>
-                                  Upload proof of payment:
-                                </p>
-
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => setPaymentProof(e.target.files[0])}
-                                  style={styles.input}
-                                />
-
-                                {paymentProof && (
-                                  <div style={{ marginBottom: '20px', textAlign: 'center' }}>
-                                    <img
-                                      src={URL.createObjectURL(paymentProof)}
-                                      alt="Payment Proof"
-                                      style={{
-                                        maxWidth: '100%',
-                                        maxHeight: '200px',
-                                        borderRadius: '12px',
-                                        border: '2px solid #e2e8f0',
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                                      }}
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Show message when no payment is needed */}
-                            {actualDeliveryFee === 0 && (
-                              <UnifiedQRCodeDisplay amount={0} />
-                            )}
-                          </>
-                        );
-                      })()}
-                    </>
-                  )}
-
-                  <div style={{
-                    backgroundColor: '#f8fafc',
-                    padding: '24px',
-                    borderRadius: '16px',
-                    marginBottom: '24px',
-                    border: '2px solid #e2e8f0'
-                  }}>
-                    <h4 style={{ margin: '0 0 16px 0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{
-                        backgroundColor: '#3b82f6',
-                        color: 'white',
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '50%',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '14px',
-                        fontWeight: 'bold'
-                      }}>1</span>
-                      Upload Order Image
-                    </h4>
-                    
-                    <p style={{ marginBottom: '12px', color: '#64748b' }}>
-                      Upload image of your order:
-                    </p>
-
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setOrderImage(e.target.files[0])}
-                      style={styles.input}
-                    />
-                  </div>
-
-                  {orderTotal && (() => {
-                    const deliveryFee = calculateDeliveryFee(parseFloat(orderTotal));
-                    const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
-                    const userOrder = registrationOrder.find(order => order.userId === selectedUserId);
-                    const isFourthOrLaterUser = userOrder ? userOrder.order >= 4 : currentUserIndex >= 3;
-                    const commitmentFeeDeducted = (!isFourthOrLaterUser && currentUserIndex < 3 && user?.commitmentPaid && deliveryFee > 0) ? 10 : 0;
-                    const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
-
-                    return (
-                      <button
-                        onClick={handleOrderSubmission}
-                        disabled={!orderImage || (actualDeliveryFee > 0 && !paymentProof)}
-                        style={{
-                          ...styles.button,
-                          ...styles.buttonOrange,
-                          fontSize: windowWidth <= 480 ? '14px' : '16px',  // Responsive font size
-                          padding: windowWidth <= 480 ? '12px 16px' : '16px 32px',  // Responsive padding
-                          opacity: (!orderImage || (actualDeliveryFee > 0 && !paymentProof)) ? 0.5 : 1,
-                          cursor: (!orderImage || (actualDeliveryFee > 0 && !paymentProof)) ? 'not-allowed' : 'pointer'
-                        }}
-                      >
-                        Submit Order
-                      </button>
-                    );
-                  })()}
-                </div>
-              )}
+          return (
+            <button
+              onClick={handleOrderSubmission}
+              disabled={isButtonDisabled}
+              style={{
+                ...styles.button,
+                ...styles.buttonOrange,
+                opacity: isButtonDisabled ? 0.5 : 1,
+                cursor: isButtonDisabled ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Submit Order
+            </button>
+          );
+        })()}
+      </>
+    )}
+  </div>
+)}
 
               {/* Show message if minimum order not reached */}
               {userStep === 3 && !minOrderReached && (
@@ -4323,6 +4944,41 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
                             </div>
                           </div>
                         </div>
+                      {/* --- ADD THIS NEW CARD --- */}
+                        <div style={styles.card}>
+                          <div style={styles.cardHeader}>
+                            <UserCheck color="#f59e0b" size={28} />
+                            <h2 style={styles.cardTitle}>Awaiting Order Submission</h2>
+                          </div>
+                          
+                          {/* We now filter the 'todayUsers' array directly inside the JSX */}
+                          {todayUsers.filter(user => user.commitmentPaid && !user.orderSubmitted).length > 0 ? (
+                            <div style={{ 
+                              display: 'grid', 
+                              gap: '12px', 
+                              marginTop: '16px',
+                              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))'
+                            }}>
+                              {/* And we map over the freshly filtered array here */}
+                              {todayUsers.filter(user => user.commitmentPaid && !user.orderSubmitted).map(user => (
+                                <div key={user.id} style={{ 
+                                  padding: '12px', 
+                                  backgroundColor: '#fffbeb', 
+                                  border: '1px solid #fef3c7', 
+                                  borderRadius: '8px' 
+                                }}>
+                                  <p style={{ margin: 0, fontWeight: '600', color: '#92400e' }}>{user.name}</p>
+                                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#b45309' }}>{user.studentId}</p>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p style={{ marginTop: '20px', color: '#64748b', textAlign: 'center' }}>
+                              All paid users have submitted their orders for today.
+                            </p>
+                          )}
+                        </div>
+                        {/* --- END OF NEW CARD --- */}
 
                       {/* Charts */}
                       <div style={{ 
@@ -4380,17 +5036,21 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
                           </div>
                         ) : (
                           <ResponsiveTable
-                            headers={['Order #', 'Customer', 'Student ID', 'Order Total', 'Delivery Fee', 'Total', 'Time']}
+                            headers={['Order #', 'Photo', 'Customer', 'Student ID', 'Order Total', 
+                            'Delivery Fee', 'Total', 'Time']}
+                            onImageClick={(imageUrl) => setSelectedImage(imageUrl)} // Add this prop to handle clicks
                             data={todayOrders.map((order, index) => [
-                              order.orderNumber,
-                              order.userName,
-                              order.studentId,
-                              `RM${order.orderTotal}`,
-                              `RM${order.deliveryFee}`,
-                              `RM${order.totalWithDelivery}`,
-                              new Date(order.timestamp).toLocaleString()
+                                order.orderNumber,
+                                // Add this new object for the image cell
+                                { type: 'image', value: order.orderImageURL }, 
+                                order.userName,
+                                order.studentId,
+                                `RM${order.orderTotal}`,
+                                `RM${order.deliveryFee}`,
+                                `RM${order.totalWithDelivery}`,
+                                new Date(order.timestamp).toLocaleString()
                             ])}
-                          />
+                        />
                         )}
                       </div>
                     </>
