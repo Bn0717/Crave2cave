@@ -198,7 +198,7 @@ const compressImage = async (file) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const maxWidth = 800;
+        const maxWidth = 801;
         const maxHeight = 800;
         let width = img.width;
         let height = img.height;
