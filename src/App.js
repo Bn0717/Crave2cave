@@ -25,12 +25,12 @@ import SimpleChart from './components/SimpleChart';
 import CountdownTimer from './components/CountdownTimer';
 
 // Import icons for JSX
-import { Users, CheckCircle, Package, Clock, Calendar, AlertCircle, Camera, Truck, UserCheck, History, DollarSign, TrendingUp, Receipt } from 'lucide-react';
+import { Users, CheckCircle, Package, Clock, Calendar, AlertCircle, Camera, Truck, UserCheck, History, DollarSign, TrendingUp, Receipt, Loader2 } from 'lucide-react';
 
 function App() {
+    // All state declarations from before are here...
     const [activeTab, setActiveTab] = useState('student');
     const [prebookUsers, setPrebookUsers] = useState([]);
-    const [orders, setOrders] = useState([]);
     const [todayOrders, setTodayOrders] = useState([]);
     const [todayUsers, setTodayUsers] = useState([]);
     const [minOrderReached, setMinOrderReached] = useState(false);
@@ -68,10 +68,10 @@ function App() {
     const [scanMode, setScanMode] = useState('scanning');
     const [scannedData, setScannedData] = useState({ orderNumber: '', orderTotal: '' });
     const [showScanConfirmation, setShowScanConfirmation] = useState(false);
-
+    
     const ADMIN_PASSCODE = 'byyc';
-    const isFourthUser = currentOrder ? (currentOrder.order === 4) : (currentUserIndex === 3);
 
+    // All styles...
     const styles = {
         container: { minHeight: '100vh', paddingTop: '90px' },
         maxWidth: { maxWidth: '1200px', margin: '0 auto', padding: '0 20px', width: '100%', boxSizing: 'border-box' },
@@ -100,8 +100,9 @@ function App() {
         statValue: { fontSize: '28px', fontWeight: 'bold', color: '#1e293b', lineHeight: '1.2' },
     };
 
-    const filterTodayData = useCallback((orders = [], users = []) => {
-        const todayOrdersFiltered = orders.filter(order => isToday(order.timestamp));
+    // All functions from before are here and correct...
+    const filterTodayData = useCallback((ordersData = [], users = []) => {
+        const todayOrdersFiltered = ordersData.filter(order => isToday(order.timestamp));
         const todayUsersFiltered = users.filter(user => isToday(user.registrationDate) || isToday(user.timestamp));
         setTodayOrders(todayOrdersFiltered);
         setTodayUsers(todayUsersFiltered);
@@ -120,7 +121,6 @@ function App() {
                 firebaseService.getHistoryData()
             ]);
             setPrebookUsers(users);
-            setOrders(ordersData);
             setHistoryData(history);
             filterTodayData(ordersData, users);
             const orderArray = users.map((user, index) => ({ userId: user.firestoreId, order: index + 1 }));
@@ -152,7 +152,7 @@ function App() {
         if (!/\d{4}\/\d{2}$/.test(id)) { setIdError('Student ID format should be like 0469/24'); return false; }
         setIdError(''); return true;
     };
-
+    
     const handlePrebook = async () => {
         if (!validateName(studentName) || !validateStudentId(studentId)) return;
         const existingUser = prebookUsers.find(user => isToday(user.timestamp) && (user.studentId === studentId || user.name.toLowerCase() === studentName.toLowerCase()));
@@ -170,8 +170,9 @@ function App() {
             const registrationIndex = prebookUsers.length;
             const isFourthOrLaterUser = isSystemActivated || registrationIndex >= 3;
             const newUser = { name: studentName, studentId, timestamp: new Date().toISOString(), hasOrdered: false, commitmentPaid: isFourthOrLaterUser, orderTotal: 0, orderSubmitted: false, wasFourthUser: isFourthOrLaterUser, registrationOrder: registrationIndex + 1 };
-            await firebaseService.savePrebookUser(newUser);
-            await fetchAllData(); // Refetch all data to ensure state is perfectly synced
+            const newUserId = await firebaseService.savePrebookUser(newUser);
+            setSelectedUserId(newUserId);
+            await fetchAllData();
             hideLoadingAnimation();
             if (isFourthOrLaterUser) {
                 showSuccessAnimation('Registration Successful!', 'You have been registered for the food delivery service.', <p style={{ color: '#059669', fontWeight: '600', fontSize: '18px' }}>🎉 System is active! You can now submit your order.</p>, 2500, true, () => setUserStep(3));
@@ -228,10 +229,10 @@ function App() {
             setScanError('Please upload a clearer image or enter the details manually.');
         }
     };
-
+    
     const handleCommitmentPayment = async () => {
         const userOrder = registrationOrder.find(order => order.userId === selectedUserId);
-        const isFourthUser = userOrder ? userOrder.order === 4 : currentUserIndex === 3;
+        const isFourthUser = userOrder ? userOrder.order >= 4 : currentUserIndex >= 3;
         if (!isFourthUser && !receiptFile) {
             alert('Please upload payment receipt');
             return;
@@ -243,13 +244,15 @@ function App() {
                 receiptURL = await firebaseService.uploadFileToStorage(receiptFile);
             }
             await firebaseService.updatePrebookUser(selectedUserId, { commitmentPaid: true, paymentReceiptUploaded: !isFourthUser, receiptURL, wasFourthUser: isFourthUser });
+            const userBeingUpdated = prebookUsers.find(u => u.firestoreId === selectedUserId);
+            const currentPaidCount = prebookUsers.filter(u => u.commitmentPaid).length;
+            const newPaidCount = userBeingUpdated && !userBeingUpdated.commitmentPaid ? currentPaidCount + 1 : currentPaidCount;
             await fetchAllData();
             hideLoadingAnimation();
-            const paidCount = prebookUsers.filter(u => u.commitmentPaid).length;
-            if (paidCount >= 3 || isFourthUser) {
-                showSuccessAnimation(isFourthUser ? 'Processing Complete!' : 'Payment Confirmed!', isFourthUser ? 'As the 4th registrant, you can proceed without payment!' : 'Your RM10 commitment fee has been received.', <p>You can now submit your order!</p>, 2500, true, () => setUserStep(3));
+            if (newPaidCount >= 3 || isFourthUser) {
+                showSuccessAnimation(isFourthUser ? 'Processing Complete!' : 'Payment Confirmed!', isFourthUser ? 'As a 4th+ registrant, you can proceed without payment!' : 'Your RM10 commitment fee has been received.', <p>You can now submit your order!</p>, 2500, true, () => setUserStep(3));
             } else {
-                const remaining = 3 - paidCount;
+                const remaining = 3 - newPaidCount;
                 showSuccessAnimation('Payment Confirmed!', 'Your RM10 commitment fee has been received.', <p>We need {remaining} more paid user{remaining > 1 ? 's' : ''} before order submission opens. Please check back later!</p>, 0, true, () => {
                     setUserStep(1); setStudentName(''); setStudentId(''); setSelectedUserId(''); setReceiptFile(null);
                 });
@@ -393,7 +396,7 @@ function App() {
     useEffect(() => {
         fetchAllData();
     }, [fetchAllData]);
-    
+
     return (
         <div style={styles.container}>
             <Navigation activeTab={activeTab} setActiveTab={setActiveTab} setIsAuthenticated={resetAuth} />
@@ -407,6 +410,7 @@ function App() {
             <div style={styles.maxWidth}>
                 {activeTab === 'student' && (
                     <div style={styles.card}>
+                        {/* The entire student flow JSX is here... */}
                         <div style={styles.cardHeader}>
                             <Users color="#3b82f6" size={28} />
                             <h2 style={styles.cardTitle}>Food Delivery Registration</h2>
@@ -438,9 +442,9 @@ function App() {
                                 <div style={{ backgroundColor: '#f0f9ff', padding: '20px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #bfdbfe' }}>
                                     <p style={{ margin: '0 0 8px 0' }}><strong>Name:</strong> {studentName}</p>
                                     <p style={{ margin: '0 0 8px 0' }}><strong>Student ID:</strong> {studentId}</p>
-                                    <p style={{ margin: 0 }}><strong>Commitment Fee:</strong> {currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order === 4) ? 'FREE (4th user!)' : 'RM10'}</p>
+                                    <p style={{ margin: 0 }}><strong>Commitment Fee:</strong> {currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order >= 4) ? 'FREE (4th+ user!)' : 'RM10'}</p>
                                 </div>
-                                {!(currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order === 4)) && (
+                                {!(currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order >= 4)) && (
                                     <>
                                         <p style={{ marginBottom: '16px', color: '#64748b' }}>Upload proof of payment (RM10 commitment fee):</p>
                                         <input type="file" accept="image/*" onChange={(e) => setReceiptFile(e.target.files[0])} style={styles.input} />
@@ -448,8 +452,8 @@ function App() {
                                     </>
                                 )}
                                 <div style={{ display: 'flex', gap: '12px' }}>
-                                    <button onClick={handleCommitmentPayment} disabled={!(currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order === 4)) && !receiptFile} style={{ ...styles.button, ...styles.buttonBlue, opacity: (!(currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order === 4)) && !receiptFile) ? 0.5 : 1, cursor: (!(currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order === 4)) && !receiptFile) ? 'not-allowed' : 'pointer' }}>
-                                        {(currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order === 4)) ? 'Continue (Free)' : 'Submit Payment'}
+                                    <button onClick={handleCommitmentPayment} disabled={!(currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order >= 4)) && !receiptFile} style={{ ...styles.button, ...styles.buttonBlue, opacity: (!(currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order >= 4)) && !receiptFile) ? 0.5 : 1, cursor: (!(currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order >= 4)) && !receiptFile) ? 'not-allowed' : 'pointer' }}>
+                                        {(currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order >= 4)) ? 'Continue (Free)' : 'Submit Payment'}
                                     </button>
                                     <button onClick={() => { setUserStep(1); setSelectedUserId(''); setReceiptFile(null); }} style={{ ...styles.button, backgroundColor: '#64748b', color: 'white' }}>Back</button>
                                 </div>
@@ -513,7 +517,7 @@ function App() {
                             </div>
                         )}
                         {userStep === 3 && !minOrderReached && (
-                             <div>
+                            <div>
                                 <BeautifulMessage type="success" title="Payment Confirmed!" message="Thank you for your commitment. Your payment has been successfully processed." icon={<CheckCircle />} />
                                 <BeautifulMessage type="warning" title="Waiting for More Orders" message={`We need at least 3 paid users before order submission opens. Current progress: ${prebookUsers.filter(u => u.commitmentPaid).length}/3 users`} icon={<Clock />}>
                                     <p style={{ margin: '0', fontSize: '14px', color: '#92400e' }}>You'll be able to submit your order once we reach the minimum requirement. Please check back later!</p>
@@ -526,34 +530,1038 @@ function App() {
                 
                 {activeTab === 'admin' && (
                     <>
-                        {!isAuthenticated ? <AuthScreen title="Admin Dashboard" onAuth={handleAuthentication} styles={styles} /> : (
-                            <div>
-                                {(loadingUsers || loadingOrders || loadingHistory) ? <div style={{ textAlign: 'center', padding: '60px' }}><LoadingAnimation message="Loading dashboard data..." /></div> : (
-                                    <div>
-                                        {/* Paste the entire JSX for the Admin Portal here */}
-                                    </div>
-                                )}
+                    {!isAuthenticated ? (
+                        <AuthScreen title="Admin Dashboard" onAuth={handleAuthentication} styles={styles} />
+                    ) : (
+                        <div>
+                        {(loadingUsers || loadingOrders || loadingHistory) ? (
+                            <div style={{ textAlign: 'center', padding: '60px', backgroundColor: 'white', borderRadius: '20px', marginBottom: '32px' }}>
+                                <Loader2 size={56} color="#3b82f6" style={{ animation: 'spin 1s linear infinite' }} />
+                                <p style={{ marginTop: '24px', color: '#64748b', fontSize: '18px' }}>Loading dashboard data...</p>
                             </div>
-                        )}
-                    </>
-                )}
+                        ) : (
+                            // --- THIS IS THE FULLY RESTORED ADMIN UI ---
+                            <div>
+                            {!showHistory ? (
+                                <>
+                                {/* Today's View */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
+                                    <div>
+                                    <h2 style={{ margin: 0, fontSize: '32px', color: '#1e293b' }}>Admin Dashboard</h2>
+                                    <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '16px' }}>Today's Data - {new Date().toLocaleDateString()}</p>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '12px' }}>
+                                    <button onClick={() => setShowHistory(true)} style={{ ...styles.button, width: 'auto', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: 'white', padding: '14px 28px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <History size={20} /> View History
+                                    </button>
+                                    <button onClick={resetAuth} style={{ ...styles.button, width: 'auto', backgroundColor: '#64748b', color: 'white', padding: '14px 28px' }}>
+                                        Logout
+                                    </button>
+                                    </div>
+                                </div>
 
-                {activeTab === 'driver' && (
-                     <>
-                        {!isAuthenticated ? <AuthScreen title="Driver Portal" onAuth={handleAuthentication} styles={styles} /> : (
-                            <div>
-                                {(loadingUsers || loadingOrders) ? <div style={{ textAlign: 'center', padding: '60px' }}><LoadingAnimation message="Loading driver data..." /></div> : (
-                                    <div>
-                                       {/* Paste the entire JSX for the Driver Portal here */}
-                                    </div>
-                                )}
+                                {/* Statistics Cards */}
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: window.innerWidth <= 480 
+                            ? 'repeat(2, 1fr)' 
+                            : window.innerWidth <= 768 
+                            ? 'repeat(2, 1fr)' 
+                            : 'repeat(auto-fit, minmax(240px, 1fr))', 
+                          gap: window.innerWidth <= 480 ? '10px' : window.innerWidth <= 768 ? '16px' : '24px',
+                          marginBottom: window.innerWidth <= 480 ? '24px' : '40px' 
+                        }}>
+                          <div style={{
+                            ...styles.statCard,
+                            ...(window.innerWidth <= 768 ? {
+                              padding: window.innerWidth <= 480 ? '12px' : '16px',
+                              gap: window.innerWidth <= 480 ? '10px' : '12px',
+                            } : {})
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+                              ...(window.innerWidth <= 768 ? {
+                                width: window.innerWidth <= 480 ? '40px' : '48px',
+                                height: window.innerWidth <= 480 ? '40px' : '48px',
+                              } : {})
+                            }}>
+                              <Users size={window.innerWidth <= 480 ? 20 : window.innerWidth <= 768 ? 24 : 32} color="#3b82f6" />
                             </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                ...(window.innerWidth <= 480 ? { fontSize: '11px' } : {})
+                              }}>Today's Registered / Paid</p>
+                              <p style={{
+                                ...styles.statValue,
+                                ...(window.innerWidth <= 480 ? { fontSize: '18px' } : {})
+                              }}>
+                                {todayUsers.filter(u => isToday(u.timestamp)).length}/{todayUsers.filter(u => u.commitmentPaid).length}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div style={{
+                            ...styles.statCard,
+                            ...(window.innerWidth <= 768 ? {
+                              padding: window.innerWidth <= 480 ? '12px' : '16px',
+                              gap: window.innerWidth <= 480 ? '10px' : '12px',
+                            } : {})
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+                              ...(window.innerWidth <= 768 ? {
+                                width: window.innerWidth <= 480 ? '40px' : '48px',
+                                height: window.innerWidth <= 480 ? '40px' : '48px',
+                              } : {})
+                            }}>
+                              <Package size={window.innerWidth <= 480 ? 20 : window.innerWidth <= 768 ? 24 : 32} color="#ef4444" />
+                            </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                ...(window.innerWidth <= 480 ? { fontSize: '11px' } : {})
+                              }}>Today's Orders</p>
+                              <p style={{
+                                ...styles.statValue,
+                                ...(window.innerWidth <= 480 ? { fontSize: '18px' } : {})
+                              }}>{todayOrders.length}</p>
+                            </div>
+                          </div>
+
+                          <div style={{
+                            ...styles.statCard,
+                            ...(window.innerWidth <= 768 ? {
+                              padding: window.innerWidth <= 480 ? '12px' : '16px',
+                              gap: window.innerWidth <= 480 ? '10px' : '12px',
+                            } : {})
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                              ...(window.innerWidth <= 768 ? {
+                                width: window.innerWidth <= 480 ? '40px' : '48px',
+                                height: window.innerWidth <= 480 ? '40px' : '48px',
+                              } : {})
+                            }}>
+                              <DollarSign size={window.innerWidth <= 480 ? 20 : window.innerWidth <= 768 ? 24 : 32} color="#f59e0b" />
+                            </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                ...(window.innerWidth <= 480 ? { fontSize: '11px' } : {})
+                              }}>Today's Revenue</p>
+                              <p style={{
+                                ...styles.statValue,
+                                ...(window.innerWidth <= 480 ? { fontSize: '18px' } : {})
+                              }}>
+                                RM{(todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                                  todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)).toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div style={{
+                            ...styles.statCard,
+                            ...(window.innerWidth <= 768 ? {
+                              padding: window.innerWidth <= 480 ? '12px' : '16px',
+                              gap: window.innerWidth <= 480 ? '10px' : '12px',
+                            } : {})
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+                              ...(window.innerWidth <= 768 ? {
+                                width: window.innerWidth <= 480 ? '40px' : '48px',
+                                height: window.innerWidth <= 480 ? '40px' : '48px',
+                              } : {})
+                            }}>
+                              <TrendingUp size={window.innerWidth <= 480 ? 20 : window.innerWidth <= 768 ? 24 : 32} color="#10b981" />
+                            </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                ...(window.innerWidth <= 480 ? { fontSize: '11px' } : {})
+                              }}>Today's Profit</p>
+                              <p style={{
+                                ...styles.statValue,
+                                ...(window.innerWidth <= 480 ? { fontSize: '18px' } : {})
+                              }}>
+                                RM{((todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                                  todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
+                                  (todayOrders.length > 0 ? 30 : 0))).toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                                {/* Profit Breakdown with responsive text */}
+                        <div style={styles.card}>
+                          <h3 style={{ 
+                            fontSize: window.innerWidth <= 480 ? '18px' : '22px', 
+                            marginBottom: '20px' 
+                          }}>
+                            Today's Profit Calculation
+                          </h3>
+                          <div style={{ 
+                            backgroundColor: '#f8fafc', 
+                            padding: window.innerWidth <= 480 ? '16px' : '24px', 
+                            borderRadius: '16px',
+                            marginBottom: '24px'
+                          }}>
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              marginBottom: '12px',
+                              flexWrap: 'wrap',
+                              gap: '8px'
+                            }}>
+                              <span style={{ 
+                                fontSize: window.innerWidth <= 480 ? '13px' : '16px',
+                                lineHeight: '1.4'
+                              }}>
+                                Commitment Fees ({todayUsers.filter(u => u.commitmentPaid).length} × RM10):
+                              </span>
+                              <span style={{ 
+                                fontWeight: 'bold', 
+                                fontSize: window.innerWidth <= 480 ? '13px' : '16px' 
+                              }}>
+                                +RM{(todayUsers.filter(u => u.commitmentPaid).length * 10).toFixed(2)}
+                              </span>
+                            </div>
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              marginBottom: '12px',
+                              flexWrap: 'wrap',
+                              gap: '8px'
+                            }}>
+                              <span style={{ 
+                                fontSize: window.innerWidth <= 480 ? '13px' : '16px',
+                                lineHeight: '1.4'
+                              }}>
+                                Delivery Fees:
+                              </span>
+                              <span style={{ 
+                                fontWeight: 'bold', 
+                                fontSize: window.innerWidth <= 480 ? '13px' : '16px' 
+                              }}>
+                                +RM{todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0).toFixed(2)}
+                              </span>
+                            </div>
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              borderTop: '2px solid #e2e8f0',
+                              paddingTop: '12px',
+                              marginTop: '12px',
+                              flexWrap: 'wrap',
+                              gap: '8px'
+                            }}>
+                              <span style={{ 
+                                fontSize: window.innerWidth <= 480 ? '14px' : '16px',
+                                lineHeight: '1.4'
+                              }}>
+                                Total Revenue:
+                              </span>
+                              <span style={{ 
+                                fontWeight: 'bold', 
+                                fontSize: window.innerWidth <= 480 ? '14px' : '16px' 
+                              }}>
+                                RM{(todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                                  todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)).toFixed(2)}
+                              </span>
+                            </div>
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between',
+                              marginTop: '12px',
+                              flexWrap: 'wrap',
+                              gap: '8px'
+                            }}>
+                              <span style={{ 
+                                fontSize: window.innerWidth <= 480 ? '13px' : '16px',
+                                lineHeight: '1.4'
+                              }}>
+                                Driver Cost:
+                              </span>
+                              <span style={{ 
+                                fontWeight: 'bold', 
+                                color: '#dc2626', 
+                                fontSize: window.innerWidth <= 480 ? '13px' : '16px' 
+                              }}>
+                                -RM{todayOrders.length > 0 ? '30.00' : '0.00'}
+                              </span>
+                            </div>
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between',
+                              borderTop: '2px solid #1e293b',
+                              paddingTop: '12px',
+                              marginTop: '12px',
+                              flexWrap: 'wrap',
+                              gap: '8px'
+                            }}>
+                              <span style={{ 
+                                fontSize: window.innerWidth <= 480 ? '16px' : '20px', 
+                                fontWeight: 'bold',
+                                lineHeight: '1.4'
+                              }}>
+                                Today's Profit:
+                              </span>
+                              <span style={{ 
+                                fontSize: window.innerWidth <= 480 ? '16px' : '20px', 
+                                fontWeight: 'bold', 
+                                color: (todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                                      todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
+                                      (todayOrders.length > 0 ? 30 : 0)) >= 0 
+                                      ? '#059669' : '#dc2626' 
+                              }}>
+                                RM{((todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+                                    todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
+                                    (todayOrders.length > 0 ? 30 : 0)).toFixed(2))}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      {/* --- ADD THIS NEW CARD --- */}
+                        <div style={styles.card}>
+                          <div style={styles.cardHeader}>
+                            <UserCheck color="#f59e0b" size={28} />
+                            <h2 style={styles.cardTitle}>Awaiting Order Submission</h2>
+                          </div>
+                          
+                          {/* We now filter the 'todayUsers' array directly inside the JSX */}
+                          {todayUsers.filter(user => user.commitmentPaid && !user.orderSubmitted).length > 0 ? (
+                            <div style={{ 
+                              display: 'grid', 
+                              gap: '12px', 
+                              marginTop: '16px',
+                              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))'
+                            }}>
+                              {/* And we map over the freshly filtered array here */}
+                              {todayUsers.filter(user => user.commitmentPaid && !user.orderSubmitted).map(user => (
+                                <div key={user.id} style={{ 
+                                  padding: '12px', 
+                                  backgroundColor: '#fffbeb', 
+                                  border: '1px solid #fef3c7', 
+                                  borderRadius: '8px' 
+                                }}>
+                                  <p style={{ margin: 0, fontWeight: '600', color: '#92400e' }}>{user.name}</p>
+                                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#b45309' }}>{user.studentId}</p>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p style={{ marginTop: '20px', color: '#64748b', textAlign: 'center' }}>
+                              All paid users have submitted their orders for today.
+                            </p>
+                          )}
+                        </div>
+                        {/* --- END OF NEW CARD --- */}
+
+                                {/* Charts */}
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: window.innerWidth <= 768 
+                          ? '1fr' 
+                          : 'repeat(auto-fit, minmax(350px, 1fr))', 
+                        gap: window.innerWidth <= 480 ? '12px' : '20px', 
+                        marginBottom: '32px',
+                        width: '100%',
+                        overflow: 'hidden' // Prevent horizontal scroll
+                      }}>
+
+                        <SimpleChart
+                          type="bar"
+                          title="Today's Order Distribution by Amount"
+                          data={[
+                            { label: '<RM50', value: todayOrders.filter(o => o.orderTotal < 50).length, color: '#3b82f6' },
+                            { label: 'RM50-100', value: todayOrders.filter(o => o.orderTotal >= 50 && o.orderTotal < 100).length, color: '#10b981' },
+                            { label: 'RM100-150', value: todayOrders.filter(o => o.orderTotal >= 100 && o.orderTotal < 150).length, color: '#f59e0b' },
+                            { label: '>RM150', value: todayOrders.filter(o => o.orderTotal >= 150).length, color: '#ef4444' }
+                          ]}
+                        />
+
+                        <SimpleChart
+                          type="pie"
+                          title="Today's Revenue Breakdown"
+                          data={[
+                            { label: 'Commitment Fees', value: todayUsers.filter(u => u.commitmentPaid).length * 10 },
+                            { label: 'Delivery Fees', value: todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) }
+                          ]}
+                        />
+                      </div>
+
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: windowWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(350px, 1fr))', 
+                        gap: '24px', 
+                        marginBottom: '40px',
+                        width: '100%',
+                        overflow: 'hidden' // Prevent horizontal scroll
+                      }}></div>
+
+                      {/* Today's Orders Table */}
+                      <div style={styles.card}>
+                        <h3 style={{ fontSize: '22px', marginBottom: '24px' }}>Today's Orders</h3>
+                        {todayOrders.length === 0 ? (
+                          <div style={{ 
+                            textAlign: 'center', 
+                            padding: '60px',
+                            color: '#64748b'
+                          }}>
+                            <AlertCircle size={56} style={{ marginBottom: '20px' }} />
+                            <p style={{ fontSize: '18px' }}>No orders for today yet.</p>
+                          </div>
+                        ) : (
+                          <ResponsiveTable
+                            headers={['Order #', 'Photo', 'Customer', 'Student ID', 'Order Total', 
+                            'Delivery Fee', 'Total', 'Time']}
+                            onImageClick={(imageUrl) => setSelectedImage(imageUrl)} // Add this prop to handle clicks
+                            data={todayOrders.map((order, index) => [
+                                order.orderNumber,
+                                // Add this new object for the image cell
+                                { type: 'image', value: order.orderImageURL }, 
+                                order.userName,
+                                order.studentId,
+                                `RM${order.orderTotal}`,
+                                `RM${order.deliveryFee}`,
+                                `RM${order.totalWithDelivery}`,
+                                new Date(order.timestamp).toLocaleString()
+                            ])}
+                        />
                         )}
+                      </div>
                     </>
-                )}
+                  ) : (
+                    <>
+                      {/* History View */}
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        marginBottom: '32px',
+                        flexWrap: 'wrap',
+                        gap: '16px'
+                      }}>
+                        <div>
+                          <h2 style={{ margin: 0, fontSize: '32px', color: '#1e293b' }}>History Overview</h2>
+                          <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '16px' }}>
+                            All-time data and analytics
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setShowHistory(false)}
+                          style={{
+                            ...styles.button,
+                            width: 'auto',
+                            backgroundColor: '#64748b',
+                            color: 'white',
+                            padding: '14px 28px'
+                          }}
+                        >
+                          Back to Today
+                        </button>
+                      </div>
+
+                      {/* History Statistics - Responsive */}
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: window.innerWidth <= 480 
+                            ? 'repeat(2, 1fr)' 
+                            : window.innerWidth <= 768 
+                            ? 'repeat(2, 1fr)' 
+                            : 'repeat(auto-fit, minmax(200px, 1fr))', 
+                          gap: window.innerWidth <= 480 ? '8px' : window.innerWidth <= 768 ? '12px' : '20px',
+                          marginBottom: window.innerWidth <= 480 ? '24px' : '32px' 
+                        }}>
+                          <div style={{
+                            ...styles.statCard,
+                            padding: window.innerWidth <= 480 ? '12px' : window.innerWidth <= 768 ? '16px' : '24px',
+                            gap: window.innerWidth <= 480 ? '8px' : '12px'
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+                              width: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px',
+                              height: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px'
+                            }}>
+                              <Users size={window.innerWidth <= 480 ? 16 : window.innerWidth <= 768 ? 20 : 28} color="#3b82f6" />
+                            </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                fontSize: window.innerWidth <= 480 ? '10px' : '12px'
+                              }}>Total Registered</p>
+                              <p style={{
+                                ...styles.statValue,
+                                fontSize: window.innerWidth <= 480 ? '16px' : window.innerWidth <= 768 ? '20px' : '24px'
+                              }}>{getTotalHistoryStats().totalRegistered}</p>
+                            </div>
+                          </div>
+
+                          <div style={{
+                            ...styles.statCard,
+                            padding: window.innerWidth <= 480 ? '12px' : window.innerWidth <= 768 ? '16px' : '24px',
+                            gap: window.innerWidth <= 480 ? '8px' : '12px'
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+                              width: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px',
+                              height: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px'
+                            }}>
+                              <Package size={window.innerWidth <= 480 ? 16 : window.innerWidth <= 768 ? 20 : 28} color="#ef4444" />
+                            </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                fontSize: window.innerWidth <= 480 ? '10px' : '12px'
+                              }}>Total Orders</p>
+                              <p style={{
+                                ...styles.statValue,
+                                fontSize: window.innerWidth <= 480 ? '16px' : window.innerWidth <= 768 ? '20px' : '24px'
+                              }}>{getTotalHistoryStats().totalOrders}</p>
+                            </div>
+                          </div>
+
+                          <div style={{
+                            ...styles.statCard,
+                            padding: window.innerWidth <= 480 ? '12px' : window.innerWidth <= 768 ? '16px' : '24px',
+                            gap: window.innerWidth <= 480 ? '8px' : '12px'
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                              width: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px',
+                              height: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px'
+                            }}>
+                              <DollarSign size={window.innerWidth <= 480 ? 16 : window.innerWidth <= 768 ? 20 : 28} color="#f59e0b" />
+                            </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                fontSize: window.innerWidth <= 480 ? '10px' : '12px'
+                              }}>Total Revenue</p>
+                              <p style={{
+                                ...styles.statValue,
+                                fontSize: window.innerWidth <= 480 ? '16px' : window.innerWidth <= 768 ? '20px' : '24px'
+                              }}>
+                                RM{getTotalHistoryStats().totalRevenue.toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div style={{
+                            ...styles.statCard,
+                            padding: window.innerWidth <= 480 ? '12px' : window.innerWidth <= 768 ? '16px' : '24px',
+                            gap: window.innerWidth <= 480 ? '8px' : '12px'
+                          }}>
+                            <div style={{ 
+                              ...styles.statIcon, 
+                              background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+                              width: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px',
+                              height: window.innerWidth <= 480 ? '32px' : window.innerWidth <= 768 ? '40px' : '56px'
+                            }}>
+                              <TrendingUp size={window.innerWidth <= 480 ? 16 : window.innerWidth <= 768 ? 20 : 28} color="#10b981" />
+                            </div>
+                            <div style={styles.statContent}>
+                              <p style={{
+                                ...styles.statLabel,
+                                fontSize: window.innerWidth <= 480 ? '10px' : '12px'
+                              }}>Total Profit</p>
+                              <p style={{
+                                ...styles.statValue,
+                                fontSize: window.innerWidth <= 480 ? '16px' : window.innerWidth <= 768 ? '20px' : '24px'
+                              }}>
+                                RM{getTotalHistoryStats().totalProfit.toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                      {/* History Charts */}
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: window.innerWidth <= 768 
+                          ? '1fr' 
+                          : 'repeat(auto-fit, minmax(350px, 1fr))', 
+                        gap: window.innerWidth <= 480 ? '12px' : '20px', 
+                        marginBottom: '32px',
+                        width: '100%',
+                        overflow: 'hidden' // Prevent horizontal scroll
+                      }}>
+                        <SimpleChart
+                          type="bar"
+                          title="Daily Orders Trend (Last 7 Days)"
+                          data={historyData.slice(0, 7).reverse().map(entry => ({
+                            label: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                            value: entry.totalOrders || 0,
+                            color: '#3b82f6'
+                          }))}
+                        />
+
+                        <SimpleChart
+                          type="bar"
+                          title="Daily Profit Trend (Last 7 Days)"
+                          data={historyData.slice(0, 7).reverse().map(entry => ({
+                            label: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                            value: entry.profit || 0,
+                            color: entry.profit >= 0 ? '#10b981' : '#ef4444'
+                          }))}
+                        />
+                      </div>
+
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: window.innerWidth <= 768 
+                          ? '1fr' 
+                          : 'repeat(auto-fit, minmax(350px, 1fr))', 
+                        gap: window.innerWidth <= 480 ? '12px' : '20px', 
+                        marginBottom: '32px',
+                        width: '100%',
+                        overflow: 'hidden' // Prevent horizontal scroll
+                      }}>
+                        <SimpleChart
+                          type="bar"
+                          title="Monthly Order Trends"
+                          data={(() => {
+                            const monthlyData = {};
+                            historyData.forEach(entry => {
+                              const month = new Date(entry.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                              if (!monthlyData[month]) {
+                                monthlyData[month] = 0;
+                              }
+                              monthlyData[month] += entry.totalOrders || 0;
+                            });
+                            
+                            return Object.entries(monthlyData)
+                              .slice(-6) // Last 6 months
+                              .map(([month, orders]) => ({
+                                label: month,
+                                value: orders,
+                                color: '#3b82f6'
+                              }));
+                          })()}
+                        />
+
+                        <SimpleChart
+                          type="bar"
+                          title="Monthly Profit Trends"
+                          data={(() => {
+                            const monthlyData = {};
+                            historyData.forEach(entry => {
+                              const month = new Date(entry.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                              if (!monthlyData[month]) {
+                                monthlyData[month] = 0;
+                              }
+                              monthlyData[month] += entry.profit || 0;
+                            });
+                            
+                            return Object.entries(monthlyData)
+                              .slice(-6) // Last 6 months
+                              .map(([month, profit]) => ({
+                                label: month,
+                                value: profit,
+                                color: profit >= 0 ? '#10b981' : '#ef4444'
+                              }));
+                          })()}
+                        />
+                      </div>
+
+                      {/* History Table */}
+                      <div style={styles.card}>
+                        <h3 style={{ fontSize: '22px', marginBottom: '24px' }}>Daily History</h3>
+                        {historyData.length === 0 ? (
+                          <div style={{ 
+                            textAlign: 'center', 
+                            padding: '60px',
+                            color: '#64748b'
+                          }}>
+                            <History size={56} style={{ marginBottom: '20px' }} />
+                            <p style={{ fontSize: '18px' }}>No history data available yet.</p>
+                          </div>
+                        ) : (
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                            gap: '20px'
+                          }}>
+                            {historyData.map((entry, index) => (
+                              <div key={index} style={{
+                                backgroundColor: '#f8fafc',
+                                border: '2px solid #e2e8f0',
+                                borderRadius: '16px',
+                                padding: '24px',
+                                transition: 'all 0.3s ease',
+                                cursor: 'pointer',
+                                ':hover': {
+                                  boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
+                                  transform: 'translateY(-4px)'
+                                }
+                              }}>
+                                <div style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  marginBottom: '20px'
+                                }}>
+                                  <h4 style={{ 
+                                    margin: 0, 
+                                    fontSize: '18px', 
+                                    color: '#1e293b',
+                                    fontWeight: '600'
+                                  }}>
+                                    {new Date(entry.date).toLocaleDateString('en-US', { 
+                                      weekday: 'short', 
+                                      month: 'short', 
+                                      day: 'numeric' 
+                                    })}
+                                  </h4>
+                                  <span style={{
+                                    backgroundColor: entry.profit >= 0 ? '#d1fae5' : '#fee2e2',
+                                    color: entry.profit >= 0 ? '#065f46' : '#991b1b',
+                                    padding: '4px 12px',
+                                    borderRadius: '6px',
+                                    fontSize: '13px',
+                                    fontWeight: '600'
+                                  }}>
+                                    {entry.profit >= 0 ? 'Profit' : 'Loss'}
+                                  </span>
+                                </div>
+                                
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                  <div style={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between',
+                                    padding: '12px',
+                                    backgroundColor: 'white',
+                                    borderRadius: '8px'
+                                  }}>
+                                    <span style={{ color: '#64748b', fontSize: '14px' }}>Orders</span>
+                                    <span style={{ fontWeight: '600', color: '#1e293b' }}>{entry.totalOrders || 0}</span>
+                                  </div>
+                                  
+                                  <div style={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between',
+                                    padding: '12px',
+                                    backgroundColor: 'white',
+                                    borderRadius: '8px'
+                                  }}>
+                                    <span style={{ color: '#64748b', fontSize: '14px' }}>Revenue</span>
+                                    <span style={{ fontWeight: '600', color: '#059669' }}>
+                                      RM{(entry.totalRevenue || 0).toFixed(2)}
+                                    </span>
+                                  </div>
+                                  
+                                  <div style={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between',
+                                    padding: '12px',
+                                    backgroundColor: entry.profit >= 0 ? '#f0fdf4' : '#fef2f2',
+                                    borderRadius: '8px',
+                                    border: `2px solid ${entry.profit >= 0 ? '#86efac' : '#fecaca'}`
+                                  }}>
+                                    <span style={{ 
+                                      color: entry.profit >= 0 ? '#047857' : '#991b1b', 
+                                      fontSize: '14px',
+                                      fontWeight: '600'
+                                    }}>
+                                      Profit
+                                    </span>
+                                    <span style={{ 
+                                      fontWeight: 'bold', 
+                                      color: entry.profit >= 0 ? '#047857' : '#991b1b'
+                                    }}>
+                                      RM{(entry.profit || 0).toFixed(2)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
-        </div>
-    );
-}
+          )}
+        </>
+      )}
+
+                {/* Driver Portal */}
+        {activeTab === 'driver' && (
+          <>
+            {!isAuthenticated ? (
+              <AuthScreen title="Driver Portal" onAuth={handleAuthentication} styles={styles} />
+            ) : (
+              <div>
+                {(loadingUsers || loadingOrders) ? (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '60px',
+                    backgroundColor: 'white',
+                    borderRadius: '20px',
+                    marginBottom: '32px'
+                  }}>
+                    <Loader2 size={56} color="#3b82f6" style={{ animation: 'spin 1s linear infinite' }} />
+                    <p style={{ marginTop: '24px', color: '#64748b', fontSize: '18px' }}>Loading driver data...</p>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      marginBottom: '32px',
+                      flexWrap: 'wrap',
+                      gap: '16px'
+                    }}>
+                      <div>
+                        <h2 style={{ margin: 0, fontSize: '32px', color: '#1e293b' }}>Driver Portal</h2>
+                        <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '16px' }}>
+                          Pickup Date: {new Date().toLocaleDateString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={resetAuth}
+                        style={{
+                          ...styles.button,
+                          width: 'auto',
+                          backgroundColor: '#64748b',
+                          color: 'white',
+                          padding: '14px 28px'
+                        }}
+                      >
+                        Logout
+                      </button>
+                    </div>
+
+                    {/* Summary Cards */}
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: window.innerWidth <= 480 
+                          ? '1fr' 
+                          : window.innerWidth <= 768 
+                          ? 'repeat(2, 1fr)' 
+                          : 'repeat(auto-fit, minmax(280px, 1fr))', 
+                        gap: window.innerWidth <= 480 ? '10px' : window.innerWidth <= 768 ? '16px' : '24px',
+                        marginBottom: window.innerWidth <= 480 ? '24px' : '40px' 
+                      }}>
+                        <div style={{
+                          ...styles.statCard,
+                          ...(window.innerWidth <= 768 ? {
+                            padding: window.innerWidth <= 480 ? '12px' : '16px',
+                            gap: window.innerWidth <= 480 ? '10px' : '12px',
+                          } : {})
+                        }}>
+                          <div style={{ 
+                            ...styles.statIcon, 
+                            background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+                            ...(window.innerWidth <= 768 ? {
+                              width: window.innerWidth <= 480 ? '40px' : '48px',
+                              height: window.innerWidth <= 480 ? '40px' : '48px',
+                            } : {})
+                          }}>
+                            <Package size={window.innerWidth <= 480 ? 20 : window.innerWidth <= 768 ? 24 : 32} color="#ef4444" />
+                          </div>
+                          <div style={styles.statContent}>
+                            <p style={{
+                              ...styles.statLabel,
+                              ...(window.innerWidth <= 480 ? { fontSize: '11px' } : {})
+                            }}>Total Orders</p>
+                            <p style={{
+                              ...styles.statValue,
+                              ...(window.innerWidth <= 480 ? { fontSize: '18px' } : {})
+                            }}>{todayOrders.length}</p>
+                          </div>
+                        </div>
+
+                        <div style={{
+                          ...styles.statCard,
+                          ...(window.innerWidth <= 768 ? {
+                            padding: window.innerWidth <= 480 ? '12px' : '16px',
+                            gap: window.innerWidth <= 480 ? '10px' : '12px',
+                          } : {})
+                        }}>
+                          <div style={{ 
+                            ...styles.statIcon, 
+                            background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+                            ...(window.innerWidth <= 768 ? {
+                              width: window.innerWidth <= 480 ? '40px' : '48px',
+                              height: window.innerWidth <= 480 ? '40px' : '48px',
+                            } : {})
+                          }}>
+                            <Clock size={window.innerWidth <= 480 ? 20 : window.innerWidth <= 768 ? 24 : 32} color="#3b82f6" />
+                          </div>
+                          <div style={styles.statContent}>
+                            <p style={{
+                              ...styles.statLabel,
+                              ...(window.innerWidth <= 480 ? { fontSize: '11px' } : {})
+                            }}>Pickup Time</p>
+                            <p style={{
+                              ...styles.statValue,
+                              ...(window.innerWidth <= 480 ? { fontSize: '18px' } : {})
+                            }}>7:00 PM</p>
+                          </div>
+                        </div>
+
+                        <div style={{
+                          ...styles.statCard,
+                          ...(window.innerWidth <= 768 ? {
+                            padding: window.innerWidth <= 480 ? '12px' : '16px',
+                            gap: window.innerWidth <= 480 ? '10px' : '12px',
+                          } : {})
+                        }}>
+                          <div style={{ 
+                            ...styles.statIcon, 
+                            background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+                            ...(window.innerWidth <= 768 ? {
+                              width: window.innerWidth <= 480 ? '40px' : '48px',
+                              height: window.innerWidth <= 480 ? '40px' : '48px',
+                            } : {})
+                          }}>
+                            <Calendar size={window.innerWidth <= 480 ? 20 : window.innerWidth <= 768 ? 24 : 32} color="#10b981" />
+                          </div>
+                          <div style={styles.statContent}>
+                            <p style={{
+                              ...styles.statLabel,
+                              ...(window.innerWidth <= 480 ? { fontSize: '11px' } : {})
+                            }}>Date</p>
+                            <p style={{
+                              ...styles.statValue,
+                              ...(window.innerWidth <= 480 ? { fontSize: '18px' } : {})
+                            }}>{new Date().toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                    {/* Updated Order Boxes Grid */}
+                    <div style={styles.card}>
+                      <div style={styles.cardHeader}>
+                        <Truck color="#ea580c" size={28} />
+                        <h2 style={styles.cardTitle}>Today's Orders</h2>
+                      </div>
+
+                      {todayOrders.length === 0 ? (
+                        <div style={{ 
+                          textAlign: 'center', 
+                          padding: '60px',
+                          color: '#64748b'
+                        }}>
+                          <Clock size={56} style={{ marginBottom: '20px' }} />
+                          <p style={{ fontSize: '18px' }}>No orders for today yet.</p>
+                        </div>
+                      ) : (
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+                          gap: '16px',
+                          '@media (max-width: 768px)': {
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))'
+                          },
+                          '@media (max-width: 480px)': {
+                            gridTemplateColumns: '1fr'
+                          }
+                        }}>
+                          {todayOrders.map((order, index) => (
+                            <div key={order.id || index} style={{
+                              padding: '16px',
+                              border: '2px solid #e2e8f0',
+                              borderRadius: '12px',
+                              backgroundColor: '#f8fafc',
+                              transition: 'all 0.2s',
+                              ':hover': {
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                              }
+                            }}>
+                              <div style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '16px',
+                                flexWrap: 'wrap',
+                                gap: '8px'
+                              }}>
+                                <h4 style={{ margin: 0, fontSize: '18px', color: '#1e293b' }}>
+                                  Order #{index + 1} - {order.userName}
+                                </h4>
+                                <span style={{
+                                  backgroundColor: '#fef3c7',
+                                  color: '#92400e',
+                                  padding: '6px 16px',
+                                  borderRadius: '8px',
+                                  fontSize: '13px',
+                                  fontWeight: '600'
+                                }}>
+                                  {order.orderNumber}
+                                </span>
+                              </div>
+                              
+                              <div style={{ 
+                                display: 'grid', 
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                                gap: '12px',
+                                marginBottom: '16px'
+                              }}>
+                                <div>
+                                  <p style={{ margin: '0', color: '#64748b', fontSize: '13px' }}>Order Total</p>
+                                  <p style={{ margin: '0', fontWeight: '600', fontSize: '16px', color: '#059669' }}>
+                                    RM{order.orderTotal}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p style={{ margin: '0', color: '#64748b', fontSize: '13px' }}>Student ID</p>
+                                  <p style={{ margin: '0', fontWeight: '600', fontSize: '16px' }}>{order.studentId}</p>
+                                </div>
+                              </div>
+                              
+                              {order.orderImageURL && (
+                                <button
+                                  onClick={() => setSelectedImage(order.orderImageURL)}
+                                  style={{
+                                    padding: '10px 20px',
+                                    backgroundColor: '#3b82f6',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    fontWeight: '500',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.2s',
+                                    ':hover': {
+                                      backgroundColor: '#2563eb'
+                                    }
+                                  }}
+                                >
+                                  <Camera size={18} />
+                                  View Order Photo
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default App;
