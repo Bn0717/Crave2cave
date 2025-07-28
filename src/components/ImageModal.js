@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ZoomIn, X } from 'lucide-react';
 
 const ImageModal = ({ imageUrl, onClose }) => {
@@ -10,6 +10,24 @@ const ImageModal = ({ imageUrl, onClose }) => {
     const [initialScale, setInitialScale] = useState(1);
     const imageRef = useRef(null);
     const containerRef = useRef(null);
+    const [imageSource, setImageSource] = useState(null);
+
+    // REPLACE WITH THIS
+useEffect(() => {
+    // This `if` block checks if the passed `imageUrl` is a real URL string or a File object.
+    if (typeof imageUrl === 'string') {
+      // It's a real URL from Firebase. Use it directly.
+      setImageSource(imageUrl);
+    } else if (imageUrl instanceof File) {
+      // It's a File object from an upload. Create a temporary local URL for it.
+      const localUrl = URL.createObjectURL(imageUrl);
+      setImageSource(localUrl);
+
+      // This is important: When the modal closes, we must release the memory
+      // used by the temporary URL to prevent memory leaks.
+      return () => URL.revokeObjectURL(localUrl);
+    }
+}, [imageUrl]); // This code runs whenever the `imageUrl` prop changes.
 
     const handleWheel = (e) => {
         e.preventDefault();
@@ -18,7 +36,7 @@ const ImageModal = ({ imageUrl, onClose }) => {
     };
 
     const handleMouseDown = (e) => {
-        if (scale > 1) {
+        if (scale > 0.5) {
             e.preventDefault();
             setIsDragging(true);
             setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
@@ -204,7 +222,7 @@ const ImageModal = ({ imageUrl, onClose }) => {
                 >
                     <img
                         ref={imageRef}
-                        src={imageUrl}
+                        src={imageSource}
                         alt="Order"
                         style={modalStyles.image}
                         draggable={false}

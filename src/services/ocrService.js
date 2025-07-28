@@ -2,7 +2,7 @@ export const scanReceipt = async (imageFile) => {
     const formData = new FormData();
     formData.append('file', imageFile);
     try {
-        const response = await fetch('/api/scan', {
+        const response = await fetch('/api/google-vision-scan', {
             method: 'POST',
             body: formData,
         });
