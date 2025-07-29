@@ -1,7 +1,7 @@
 [
   {
     "origin": [
-      "https://crave2cave.vercel.app",
+      "https://crave2cave.vercel.app/",
       "http://localhost:3000"
     ],
     "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
