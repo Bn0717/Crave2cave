@@ -1,11 +1,11 @@
 [
   {
-    "origin": ["http://localhost:3000", "https://crave2cave-project.vercel.app/"],
-    "method": ["GET", "PUT", "POST", "DELETE"],
-    "responseHeader": [
-      "Content-Type",
-      "Access-Control-Allow-Origin"
+    "origin": [
+      "https://crave2cave.vercel.app",
+      "http://localhost:3000"
     ],
+    "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "responseHeader": ["Content-Type", "Authorization"],
     "maxAgeSeconds": 3600
   }
 ]
