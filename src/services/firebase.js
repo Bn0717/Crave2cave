@@ -6,9 +6,9 @@ import { isToday } from '../utils/isToday';
 // This is the NEW, CORRECT configuration for your new project "crave2cave-20c81"
 const firebaseConfig = {
   apiKey: "AIzaSyAutoUXgR5v9QSjEsDPkaEBxNzhrVd5r1c",
-  authDomain: "crave2cave-20c81.firebaseapp.com",
-  projectId: "crave2cave-20c81",
-  storageBucket: "crave2cave-20c81.appspot.com", // Use the .appspot.com version for consistency
+  authDomain: "crave-2-cave.firebaseapp.com",
+  projectId: "crave-2-cave",
+  storageBucket: "crave-2-cave.appspot.com",
   messagingSenderId: "291986862315",
   appId: "1:291986862315:web:5d4c3ee036c175ffa10eae",
   measurementId: "G-JGR0HQV7SQ"
