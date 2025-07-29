@@ -272,17 +272,30 @@ function App() {
 
 
     const handleEmailSubmit = async (userId, email) => {
-    showLoadingAnimation('Saving your email...');
+    showLoadingAnimation('Saving your information...');
     try {
-      await firebaseService.updateUserEmail(userId, email);
-      setShowEmailModal(false); // Close the modal
-      setOrderConfirmed(true); // Now show the waiting page
+        await firebaseService.updateUserEmail(userId, email);
+        setShowEmailModal(false); // Close the email modal
+
+        // This is the key change: Show a confirmation message on-screen
+        showSuccessAnimation(
+            'Order Confirmed!',
+            'Thank you for your order. We will send you an email notification as soon as your delivery is on its way.',
+            null, // No additional info
+            4000, // Show for 4 seconds
+            true, // Show the OK button
+            () => { // This function runs after the success message is closed
+                setOrderConfirmed(true); // Now show the waiting page
+            }
+        );
+
     } catch (error) {
-      alert('Failed to save email. Please try again.');
+        console.error("Failed to save email:", error);
+        alert('Failed to save your information. Please try again.');
     } finally {
-      hideLoadingAnimation();
+        hideLoadingAnimation();
     }
-  };
+};
   
   // NEW STYLES for the "Gate" Animation
   const gateAnimationStyles = `

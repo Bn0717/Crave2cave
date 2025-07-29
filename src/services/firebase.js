@@ -3,17 +3,18 @@ import { getFirestore, collection, getDocs, addDoc, query, where, Timestamp, wri
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { isToday } from '../utils/isToday';
 
-// This is the ORIGINAL firebaseConfig for your friend's project
+// This is the NEW, CORRECT configuration for your new project "crave2cave-20c81"
 const firebaseConfig = {
-    apiKey: "AIzaSyBg56oKPkkQBHZYlqDe86gNKuM6CU9o0no",
-    authDomain: "crave-2-cave.firebaseapp.com",
-    projectId: "crave-2-cave",
-    storageBucket: "crave-2-cave.appspot.com", // The original .appspot.com URL
-    messagingSenderId: "328846262825",
-    appId: "1:328846262825:web:149f44152723bdc62d9238"
+  apiKey: "AIzaSyAutoUXgR5v9QSjEsDPkaEBxNzhrVd5r1c",
+  authDomain: "crave2cave-20c81.firebaseapp.com",
+  projectId: "crave2cave-20c81",
+  storageBucket: "crave2cave-20c81.appspot.com", // Use the .appspot.com version for consistency
+  messagingSenderId: "291986862315",
+  appId: "1:291986862315:web:5d4c3ee036c175ffa10eae",
+  measurementId: "G-JGR0HQV7SQ"
 };
 
-// Initialize Firebase with the original config
+// Initialize Firebase with the new config
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
@@ -29,7 +30,7 @@ export const savePrebookUser = async (user) => {
         
         const userWithDate = {
             ...user,
-            email: "",
+            email: "", // Initialize the email field
             registrationDate: todayString,
             timestamp: new Date().toISOString()
         };
