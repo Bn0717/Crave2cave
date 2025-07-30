@@ -1,14 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, CheckCircle, AlertCircle, Camera, Loader2 } from 'lucide-react';
-
-// Import services and utils
+import { Users, CheckCircle, AlertCircle } from 'lucide-react';
 import * as firebaseService from '../services/firebase';
-import { scanReceipt } from '../services/ocrService';
-import { compressImage } from '../utils/compressImage';
 import { calculateDeliveryFee } from '../utils/calculateDeliveryFee';
 import { isToday } from '../utils/isToday';
-
-// Import components
 import RetrieveRegistration from './RetrieveRegistration';
 import BeautifulMessage from './BeautifulMessage';
 import FeeBreakdown from './FeeBreakdown';
@@ -28,8 +22,6 @@ const StudentTab = ({
   hideLoadingAnimation,
   fetchAllData,
   setSelectedImage,
-  setShowScanConfirmation,
-  setScannedData,
   setOrderConfirmed,
   setCurrentOrder,
   setResetStudentForm,
@@ -37,28 +29,20 @@ const StudentTab = ({
   setUserForEmail,
   selectedVendor
 }) => {
-
-  // Student-specific state
   const [userStep, setUserStep] = useState(1);
   const [studentName, setStudentName] = useState('');
   const [studentId, setStudentId] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [receiptFile, setReceiptFile] = useState(null);
+  const [receiptFile, setReceiptFile] = useState(null); // Commitment fee receipt
+  const [orderNumber, setOrderNumber] = useState('');
   const [orderTotal, setOrderTotal] = useState('');
-  const [orderImage, setOrderImage] = useState(null);
-  const [paymentProof, setPaymentProof] = useState(null);
-  const [finalOrderNumber, setFinalOrderNumber] = useState('');
+  const [paymentProof, setPaymentProof] = useState(null); // Delivery fee proof
+  const [orderReceiptFile, setOrderReceiptFile] = useState(null); // Order receipt
   const [currentUserIndex, setCurrentUserIndex] = useState(0);
   const [showRetrieve, setShowRetrieve] = useState(false);
-  
-  // Form validation state
   const [nameError, setNameError] = useState('');
   const [idError, setIdError] = useState('');
-  
-  // Scanning state
-  const [scanError, setScanError] = useState('');
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanMode, setScanMode] = useState('scanning');
+  const [orderError, setOrderError] = useState('');
 
   const styles = {
     card: { 
@@ -194,36 +178,8 @@ const StudentTab = ({
       marginBottom: '20px',
       border: '1px solid #bfdbfe'
     },
-    scanningIndicator: {
-      marginTop: '16px',
-      padding: '20px',
-      borderRadius: '12px',
-      backgroundColor: '#e0f2fe',
-      border: '1px solid #7dd3fc',
-      textAlign: 'center'
-    },
-    errorCard: {
-      marginTop: '16px',
-      padding: '16px',
-      borderRadius: '8px',
-      backgroundColor: '#fef3c7',
-      color: '#92400e',
-      border: '1px solid #fbbf24'
-    },
-    imagePreview: {
-      marginTop: '16px',
-      textAlign: 'center'
-    },
-    previewImage: {
-      maxWidth: windowWidth <= 480 ? '150px' : '200px',
-      maxHeight: windowWidth <= 480 ? '150px' : '200px',
-      borderRadius: '8px',
-      border: '2px solid #e2e8f0',
-      cursor: 'pointer'
-    }
   };
 
-  // Validation functions
   const validateName = (name) => {
     if (!name.trim()) { 
       setNameError('Name is required'); 
@@ -254,7 +210,19 @@ const StudentTab = ({
     return true;
   };
 
-  // Registration handler
+  const validateOrderDetails = () => {
+    if (!orderNumber.trim()) {
+      setOrderError('Order number is required');
+      return false;
+    }
+    if (!orderTotal || isNaN(orderTotal) || Number(orderTotal) <= 0) {
+      setOrderError('Order total must be a valid number greater than 0');
+      return false;
+    }
+    setOrderError('');
+    return true;
+  };
+
   const handlePrebook = async () => {
     if (!validateName(studentName) || !validateStudentId(studentId)) return;
     
@@ -338,80 +306,46 @@ const StudentTab = ({
     }
   };
 
-  // Order image handler
-  const handleOrderImageSelect = async (file) => {
-    if (!file) return;
-    
-    setOrderImage(file);
-    setScanError('');
-    setScannedData({ orderNumber: '', orderTotal: '' });
-    setScanMode('scanning');
-    setIsScanning(true);
-    
-    try {
-      const compressedFile = await compressImage(file);
-      const scanResult = await scanReceipt(compressedFile);
-      const { orderNumber, orderTotal: scannedTotal } = scanResult;
-      
-      setScannedData({ orderNumber, orderTotal: scannedTotal });
-      
-      if (orderNumber && scannedTotal) {
-        setScanMode('confirm');
-        setShowScanConfirmation(true);
-        setFinalOrderNumber(orderNumber);
-        setOrderTotal(scannedTotal);
-      } else {
-        setScanMode('manual');
-        let errorMessage = 'Some information could not be detected:\n';
-        if (!orderNumber) errorMessage += '• Order number not found\n';
-        if (!scannedTotal) errorMessage += '• Order total not found\n';
-        errorMessage += '\nPlease enter the missing information manually.';
-        setScanError(errorMessage);
-        
-        if (scannedTotal) setOrderTotal(scannedTotal);
-        if (orderNumber) setFinalOrderNumber(orderNumber);
-      }
-    } catch (error) {
-      console.error('Receipt processing failed:', error);
-      setScanMode('manual');
-      setScanError('Unable to scan the receipt. Please enter the details manually.');
-    } finally {
-      setIsScanning(false);
-    }
-  };
-
-  // Commitment payment handler
   const handleCommitmentPayment = async () => {
     const userOrder = registrationOrder.find(order => order.userId === selectedUserId);
     const isFourthUser = userOrder ? userOrder.order >= 4 : currentUserIndex >= 3;
-    
+
     if (!isFourthUser && !receiptFile) {
-      alert('Please upload payment receipt');
+      showSuccessAnimation(
+        'Missing Receipt',
+        'Please upload a payment receipt for the commitment fee.',
+        null,
+        3000,
+        true
+      );
       return;
     }
 
     showLoadingAnimation(isFourthUser ? 'Processing...' : 'Uploading receipt...');
-    
+
     try {
       let receiptURL = null;
       if (!isFourthUser) {
+        if (!(receiptFile instanceof File)) {
+          throw new Error('Invalid receipt file: Please select a valid image');
+        }
         receiptURL = await firebaseService.uploadFileToStorage(receiptFile);
       }
-      
+
       await firebaseService.updatePrebookUser(selectedUserId, {
         commitmentPaid: true,
         paymentReceiptUploaded: !isFourthUser,
         receiptURL,
-        wasFourthUser: isFourthUser
+        wasFourthUser: isFourthUser,
       });
-      
+
       const userBeingUpdated = prebookUsers.find(u => u.firestoreId === selectedUserId);
       const currentPaidCount = prebookUsers.filter(u => u.commitmentPaid).length;
       const newPaidCount = userBeingUpdated && !userBeingUpdated.commitmentPaid ? currentPaidCount + 1 : currentPaidCount;
-      
+
       await fetchAllData();
       hideLoadingAnimation();
-      
+
       if (newPaidCount >= 3 || isFourthUser) {
         showSuccessAnimation(
           isFourthUser ? 'Processing Complete!' : 'Payment Confirmed!',
@@ -440,203 +374,261 @@ const StudentTab = ({
       }
     } catch (error) {
       hideLoadingAnimation();
-      alert('Error submitting payment. Please try again.');
+      showSuccessAnimation(
+        'Upload Failed',
+        `Failed to upload payment receipt: ${error.message}`,
+        null,
+        3000,
+        true
+      );
       console.error('Payment error:', error);
     }
   };
 
-  // Order submission handler
-    // This is the complete, updated function for StudentTab.js
   const handleOrderSubmission = async () => {
-    // --- Step 1: Basic validation (this part is unchanged) ---
-    if (!orderTotal || !finalOrderNumber.trim() || !orderImage) {
-      alert('Please complete all required fields: Order Total, Order Number, and upload a receipt image.');
-      return;
-    }
-    
-    const totalAmount = parseFloat(orderTotal);
-    if (isNaN(totalAmount)) {
-      alert('Please enter a valid order total.');
-      return;
-    }
-    
-    const deliveryFee = calculateDeliveryFee(totalAmount);
-    const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
-    const commitmentFeeDeducted = (currentUserIndex < 3 && user?.commitmentPaid && deliveryFee > 0) ? 10 : 0;
-    const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
-    
-    if (actualDeliveryFee > 0 && !paymentProof) {
-      showSuccessAnimation(
-        'Payment Receipt Required',
-        'Please upload your payment receipt to continue.',
-        // ... (BeautifulMessage component)
-      );
-      return;
-    }
+  if (!orderReceiptFile) {
+    setOrderError('missingFile');
+    return;
+  }
 
-    // --- Step 2: Show loading and process the order (this part is mostly unchanged) ---
-    showLoadingAnimation('Processing order...');
-    
-    try {
-      const compressedOrderImage = await compressImage(orderImage);
-      const orderImageURL = await firebaseService.uploadFileToStorage(compressedOrderImage);
-      
-      let paymentProofURL = null;
-      if (paymentProof) {
-        const compressedPaymentProof = await compressImage(paymentProof);
-        paymentProofURL = await firebaseService.uploadFileToStorage(compressedPaymentProof);
-      }
-      
-      const orderData = {
-        userId: selectedUserId,
-        userName: studentName,
-        studentId,
-        orderTotal: totalAmount,
-        originalDeliveryFee: deliveryFee,
-        deliveryFee: actualDeliveryFee,
-        commitmentFeeDeducted,
-        totalWithDelivery: totalAmount + actualDeliveryFee,
-        orderImageURL,
-        paymentProofURL,
-        orderNumber: finalOrderNumber.trim(),
-        status: 'pending',
-        userPosition: currentUserIndex + 1,
-        wasFourthUser: currentUserIndex >= 3,
-        timestamp: new Date().toISOString(),
-        vendor: selectedVendor
-      };
-      
-      await firebaseService.saveOrder(orderData);
-      await firebaseService.updatePrebookUser(selectedUserId, {
-        orderTotal: orderData.orderTotal,
-        orderSubmitted: true,
-        hasOrdered: true,
-        orderImageURL: orderData.orderImageURL,
-        lastOrderDate: new Date().toISOString()
-      });
-      
-      hideLoadingAnimation();
-      
-      // --- Step 3: Trigger the Email Modal (This is the new part) ---
-      // Instead of showing a success animation and the waiting page,
-      // we now find the current user's data and tell App.js to open the email prompt.
-      
-      const currentUserForModal = prebookUsers.find(u => u.firestoreId === selectedUserId);
-      
-      if (currentUserForModal) {
-        // Pass the user's data up to App.js so the modal knows who to update
-        setUserForEmail(currentUserForModal);
-      }
-      
-      // Tell App.js to open the email modal
-      setShowEmailModal(true);
-      
-      // Keep the order data ready for when the waiting page is shown later
-      setCurrentOrder(orderData);
-
-    } catch (error) {
-      hideLoadingAnimation();
-      alert('Error submitting order. Please try again.');
-      console.error('Order submission error:', error);
-    }
-  };
-  
-  // Retrieve registration handler
-  const handleRetrieveRegistration = (name, id) => {
-    const foundUser = prebookUsers.find(user => 
-      user.name?.toLowerCase() === name.toLowerCase() && 
-      user.studentId === id && 
-      isToday(user.timestamp)
+  if (!validateOrderDetails()) {
+    showSuccessAnimation(
+      'Missing Fields',
+      orderError,
+      null,
+      3000,
+      true
     );
-    
-    if (!foundUser) {
-      showSuccessAnimation(
-        "Registration Not Found",
-        `We couldn't find your registration details for today.`,
-        <BeautifulMessage 
-          type="warning" 
-          title="Daily Registration Required" 
-          message="Registrations are only valid for the current day. Please register again for today's delivery." 
-          icon={<AlertCircle />} 
-        />,
-        0,
-        true
-      );
-      return;
+    return;
+  }
+
+  const totalAmount = parseFloat(orderTotal);
+  const deliveryFee = calculateDeliveryFee(totalAmount);
+  const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
+  const commitmentFeeDeducted = currentUserIndex < 3 && user?.commitmentPaid && deliveryFee > 0 ? 10 : 0;
+  const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
+
+  if (actualDeliveryFee > 0 && !paymentProof) {
+    showSuccessAnimation(
+      'Payment Receipt Required',
+      'Please upload your payment receipt for the delivery fee.',
+      null,
+      3000,
+      true
+    );
+    return;
+  }
+
+  showLoadingAnimation('Processing order...');
+
+  try {
+    let paymentProofURL = null;
+    if (paymentProof) {
+      if (!(paymentProof instanceof File)) {
+        throw new Error('Invalid payment proof file: Please select a valid image');
+      }
+      paymentProofURL = await firebaseService.uploadFileToStorage(paymentProof);
     }
 
-    if (foundUser.orderSubmitted && isToday(foundUser.lastOrderDate)) {
-      showSuccessAnimation(
-        "Order Already Submitted",
-        `Hi ${foundUser.name}, you have already submitted your order today.`,
-        <BeautifulMessage 
-          type="info" 
-          title="Daily Order Limit" 
-          message="You can only submit one order per day." 
-          icon={<CheckCircle />} 
-          onClose={() => setOrderConfirmed(true)} 
-        />,
-        3000,
-        true,
-        () => setOrderConfirmed(true)
-      );
-      return;
+    let orderImageURL = null;
+    if (orderReceiptFile) {
+      if (!(orderReceiptFile instanceof File)) {
+        throw new Error('Invalid order receipt file: Please select a valid image');
+      }
+      orderImageURL = await firebaseService.uploadFileToStorage(orderReceiptFile);
     }
 
-    const userOrder = registrationOrder.find(order => order.userId === foundUser.firestoreId);
-    const userIndex = userOrder ? userOrder.order - 1 : prebookUsers.findIndex(u => u.firestoreId === foundUser.firestoreId);
-    
-    setCurrentUserIndex(userIndex);
-    setStudentName(foundUser.name);
-    setStudentId(foundUser.studentId);
-    setSelectedUserId(foundUser.firestoreId);
-    
-    if (foundUser.commitmentPaid || (systemActivatedToday && userIndex >= 3)) {
-      setUserStep(3);
+    const orderData = {
+      userId: selectedUserId,
+      userName: studentName,
+      studentId,
+      orderTotal: totalAmount,
+      originalDeliveryFee: deliveryFee,
+      deliveryFee: actualDeliveryFee,
+      commitmentFeeDeducted,
+      totalWithDelivery: totalAmount + actualDeliveryFee,
+      orderImageURL,
+      paymentProofURL,
+      orderNumber: orderNumber.trim(),
+      status: 'pending',
+      userPosition: currentUserIndex + 1,
+      wasFourthUser: currentUserIndex >= 3,
+      timestamp: new Date().toISOString(),
+      vendor: selectedVendor,
+    };
+
+    const orderId = await firebaseService.saveOrder(orderData);
+
+    await firebaseService.updatePrebookUser(selectedUserId, {
+      orderTotal: orderData.orderTotal,
+      orderSubmitted: true,
+      hasOrdered: true,
+      lastOrderDate: new Date().toISOString(),
+    });
+
+    hideLoadingAnimation();
+
+    showSuccessAnimation(
+      'Order Submitted!',
+      'Please provide your email to receive order updates.',
+      null,
+      3000,
+      true,
+      () => {
+        if (!selectedUserId) {
+          console.error('selectedUserId is undefined');
+          showSuccessAnimation(
+            'Error',
+            'Unable to proceed: User ID is missing. Please try again.',
+            null,
+            3000,
+            true
+          );
+          return;
+        }
+
+        setUserForEmail({ firestoreId: selectedUserId, name: studentName });
+        setShowEmailModal(true);
+        setCurrentOrder({ ...orderData, orderId });
+
+        // 🚫 DO NOT call setOrderConfirmed(true) here anymore!
+        // ✅ Call it inside the email modal after email is submitted
+      }
+    );
+  } catch (error) {
+    hideLoadingAnimation();
+    showSuccessAnimation(
+      'Order Submission Failed',
+      `Failed to submit order: ${error.message}`,
+      null,
+      3000,
+      true
+    );
+    console.error('Order submission error:', error);
+  }
+};
+
+
+  const handleRetrieveRegistration = async (name, id) => {
+  const foundUser = prebookUsers.find(user =>
+    user.name?.toLowerCase() === name.toLowerCase() &&
+    user.studentId === id &&
+    isToday(user.timestamp)
+  );
+ 
+  if (!foundUser) {
+    showSuccessAnimation(
+      "Registration Not Found",
+      `We couldn't find your registration details for today.`,
+      <BeautifulMessage
+        type="warning"
+        title="Daily Registration Required"
+        message="Registrations are only valid for the current day. Please register again for today's delivery."
+        icon={<AlertCircle />}
+      />,
+      0,
+      true
+    );
+    return;
+  }
+
+  if (foundUser.orderSubmitted && isToday(foundUser.lastOrderDate)) {
+    showLoadingAnimation('Retrieving your order...');
+    try {
+      // Fetch the existing order for the user
+      const order = await firebaseService.getOrderByUserId(foundUser.firestoreId);
+      if (order) {
+        // Close the retrieve form
+        setShowRetrieve(false);
+        // Set the current order with retrieved data
+        setCurrentOrder({
+    ...order,
+    orderReceiptURL: order.orderReceiptURL || null
+  });
+        // Navigate to WaitingPage
+        setOrderConfirmed(true);
+        hideLoadingAnimation();
+        return;
+      } else {
+        hideLoadingAnimation();
+        showSuccessAnimation(
+          "Order Not Found",
+          `No order details found for ${foundUser.name}.`,
+          <BeautifulMessage
+            type="info"
+            title="Order Issue"
+            message="Please contact support if you believe this is an error."
+            icon={<AlertCircle />}
+          />,
+          3000,
+          true
+        );
+        return;
+      }
+    } catch (error) {
+      console.error('Error retrieving order:', error);
+      hideLoadingAnimation();
       showSuccessAnimation(
-        `Welcome back ${foundUser.name}!`,
-        systemActivatedToday && userIndex >= 3 
-          ? 'System is active! You can proceed directly to order submission.' 
-          : 'Your payment has been confirmed. You can now submit your order.',
+        "Error",
+        `Failed to retrieve order: ${error.message}`,
         null,
-        2500,
+        3000,
         true
       );
-    } else {
-      setUserStep(2);
-      const paidUsersCount = prebookUsers.filter(u => u.commitmentPaid).length;
-      showSuccessAnimation(
-        `Welcome back ${foundUser.name}!`,
-        'Please complete your commitment fee payment to continue.',
-        <p>We still need {3 - paidUsersCount} more paid users before order submission opens.</p>,
-        5000,
-        true
-      );
+      return;
     }
-    setShowRetrieve(false);
-  };
+  }
 
-    // Reset form handler
+  // User hasn't submitted order yet, continue with normal registration flow
+  const userOrder = registrationOrder.find(order => order.userId === foundUser.firestoreId);
+  const userIndex = userOrder ? userOrder.order - 1 : prebookUsers.findIndex(u => u.firestoreId === foundUser.firestoreId);
+ 
+  setCurrentUserIndex(userIndex);
+  setStudentName(foundUser.name);
+  setStudentId(foundUser.studentId);
+  setSelectedUserId(foundUser.firestoreId);
+ 
+  if (foundUser.commitmentPaid || (systemActivatedToday && userIndex >= 3)) {
+    setUserStep(3);
+    showSuccessAnimation(
+      `Welcome back ${foundUser.name}!`,
+      systemActivatedToday && userIndex >= 3
+        ? 'System is active! You can proceed directly to order submission.'
+        : 'Your payment has been confirmed. You can now submit your order.',
+      null,
+      2500,
+      true
+    );
+  } else {
+    setUserStep(2);
+    const paidUsersCount = prebookUsers.filter(u => u.commitmentPaid).length;
+    showSuccessAnimation(
+      `Welcome back ${foundUser.name}!`,
+      'Please complete your commitment fee payment to continue.',
+      <p>We still need {3 - paidUsersCount} more paid users before order submission opens.</p>,
+      5000,
+      true
+    );
+  }
+  setShowRetrieve(false);
+};
+
   const resetForm = useCallback(() => {
     setUserStep(1);
     setStudentName('');
     setStudentId('');
     setSelectedUserId('');
     setReceiptFile(null);
+    setOrderNumber('');
     setOrderTotal('');
-    setOrderImage(null);
     setPaymentProof(null);
-    setFinalOrderNumber('');
+    setOrderReceiptFile(null);
     setCurrentUserIndex(0);
     setNameError('');
     setIdError('');
-    setScanError('');
-    setIsScanning(false);
-    setScanMode('scanning');
-  }, []); // The empty array is important!
+    setOrderError('');
+  }, []);
 
-  // Add this hook right after the resetForm function.
-  // It sends the resetForm function up to the App.js parent.
   useEffect(() => {
     if (setResetStudentForm) {
       setResetStudentForm(() => resetForm);
@@ -670,7 +662,6 @@ const StudentTab = ({
         </div>
       </div>
 
-      {/* Step 1: Registration */}
       {userStep === 1 && (
         <div>
           <h3 style={{ 
@@ -723,7 +714,6 @@ const StudentTab = ({
         </div>
       )}
 
-      {/* Step 2: Payment */}
       {userStep === 2 && (
         <div>
           <h3 style={{ 
@@ -780,7 +770,7 @@ const StudentTab = ({
             </>
           )}
           
-                    <div style={styles.buttonRow}>
+          <div style={styles.buttonRow}>
             <button 
               onClick={handleCommitmentPayment} 
               disabled={!(currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order >= 4)) && !receiptFile}
@@ -813,7 +803,6 @@ const StudentTab = ({
         </div>
       )}
 
-       {/* Step 3: Order Submission */}
       {userStep === 3 && minOrderReached && (
         <div>
           <h3 style={{ 
@@ -841,44 +830,65 @@ const StudentTab = ({
           <div style={styles.sectionCard}>
             <h4 style={styles.sectionHeader}>
               <span style={styles.stepNumber}>1</span>
-              Upload Order Receipt
+              Order Details
             </h4>
-            <p style={{ marginBottom: '12px', color: '#64748b' }}>
-              <Camera size={16} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-              Take a clear photo of your receipt. We'll try to scan the details.
-            </p>
+            <label style={{ display: 'block', marginBottom: '8px', color: '#374151', fontWeight: '500' }}>
+              Order Number <span style={{ color: '#ef4444' }}>*</span>
+            </label>
             <input 
-              type="file" 
-              accept="image/*" 
-              onChange={(e) => handleOrderImageSelect(e.target.files[0])} 
+              type="text" 
+              placeholder="Enter order number" 
+              value={orderNumber} 
+              onChange={(e) => { 
+                setOrderNumber(e.target.value); 
+                setOrderError(''); 
+              }} 
               style={{ 
                 ...styles.input, 
-                backgroundColor: '#f0f9ff', 
-                border: '2px dashed #3b82f6', 
-                padding: '16px', 
-                cursor: 'pointer' 
+                ...(orderError && !orderNumber && styles.inputError),
+                backgroundColor: orderNumber ? '#f0fdf4' : '#fff' 
               }} 
-              disabled={isScanning} 
             />
-            {isScanning && (
-              <div style={styles.scanningIndicator}>
-                <Loader2 size={24} style={{ animation: 'spin 1s linear infinite', marginRight: '12px' }} />
-                Scanning receipt...
-              </div>
-            )}
-            {scanError && !isScanning && (
-              <div style={styles.errorCard}>
-                <AlertCircle size={20} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                {scanError.split('\n').map((line, i) => <div key={i}>{line}</div>)}
-              </div>
-            )}
-            {orderImage && !isScanning && (
+            <label style={{ display: 'block', marginBottom: '8px', marginTop: '16px', color: '#374151', fontWeight: '500' }}>
+              Order Total (RM) <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <input 
+              type="number" 
+              step="0.01" 
+              placeholder="Enter order total amount (e.g., 15.50)" 
+              value={orderTotal} 
+              onChange={(e) => { 
+                setOrderTotal(e.target.value); 
+                setOrderError(''); 
+              }} 
+              style={{ 
+                ...styles.input, 
+                ...(orderError && !orderTotal && styles.inputError),
+                backgroundColor: orderTotal ? '#f0fdf4' : '#fff' 
+              }} 
+            />
+            {orderError && <p style={styles.errorText}>{orderError}</p>}
+            <label style={{ display: 'block', marginBottom: '8px', marginTop: '16px', color: '#374151', fontWeight: '500' }}>
+  Upload Order Receipt <span style={{ color: '#ef4444' }}>*</span>
+</label>
+
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setOrderReceiptFile(e.target.files[0])}
+              style={styles.input}
+            />
+            {!orderReceiptFile && orderError === 'missingFile' && (
+  <p style={styles.errorText}>Please upload your order receipt.</p>
+)}
+
+            {orderReceiptFile && (
               <div style={styles.imagePreview}>
-                <img 
-                  src={URL.createObjectURL(orderImage)} 
-                  alt="Uploaded Receipt" 
+                <img
+                  src={URL.createObjectURL(orderReceiptFile)}
+                  alt="Order Receipt"
                   style={styles.previewImage}
-                  onClick={() => setSelectedImage(orderImage)}
+                  onClick={() => setSelectedImage(orderReceiptFile)}
                 />
                 <p style={{ fontSize: '12px', color: '#64748b', marginTop: '8px' }}>
                   Click image to enlarge
@@ -886,111 +896,88 @@ const StudentTab = ({
               </div>
             )}
           </div>
-          
-          {(orderImage || scanMode === 'manual') && (
-            <div style={styles.sectionCard}>
-              <h4 style={styles.sectionHeader}>
-                <span style={styles.stepNumber}>2</span>
-                Order Details
-              </h4>
-              <label style={{ display: 'block', marginBottom: '8px', color: '#374151', fontWeight: '500' }}>
-                Order Number <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <input 
-                type="text" 
-                placeholder="Enter order number from receipt" 
-                value={finalOrderNumber} 
-                onChange={(e) => setFinalOrderNumber(e.target.value)} 
-                style={{ ...styles.input, backgroundColor: finalOrderNumber ? '#f0fdf4' : '#fff' }} 
-              />
-              <label style={{ display: 'block', marginBottom: '8px', marginTop: '16px', color: '#374151', fontWeight: '500' }}>
-                Order Total (RM) <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <input 
-                type="number" 
-                step="0.01" 
-                placeholder="Enter order total amount" 
-                value={orderTotal} 
-                onChange={(e) => setOrderTotal(e.target.value)} 
-                style={{ ...styles.input, backgroundColor: orderTotal ? '#f0fdf4' : '#fff' }} 
-              />
-            </div>
-          )}
 
-          {orderTotal && (
-            <>
-              <FeeBreakdown 
-                orderTotal={parseFloat(orderTotal) || 0} 
-                userIndex={currentUserIndex} 
-                isCommitmentFeePaid={prebookUsers.find(u => u.firestoreId === selectedUserId)?.commitmentPaid} 
-                registrationOrder={registrationOrder} 
-                selectedUserId={selectedUserId} 
-              />
-              
-              {(() => {
-                const deliveryFee = calculateDeliveryFee(parseFloat(orderTotal) || 0);
-                const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
-                const commitmentFeeDeducted = (currentUserIndex < 3 && user?.commitmentPaid && deliveryFee > 0) ? 10 : 0;
-                const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
-                
-                if (actualDeliveryFee > 0) {
-                  return (
-                    <div style={styles.sectionCard}>
-                      <h4 style={styles.sectionHeader}>Delivery Fee Payment</h4>
-                      <UnifiedQRCodeDisplay amount={actualDeliveryFee} />
-                      <p style={{ marginTop: '16px', marginBottom: '12px', color: '#64748b' }}>
-                        Please upload proof of payment for the delivery fee:
-                      </p>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={(e) => setPaymentProof(e.target.files[0])} 
-                        style={styles.input} 
+          <FeeBreakdown 
+            orderTotal={parseFloat(orderTotal) || 0} 
+            userIndex={currentUserIndex} 
+            isCommitmentFeePaid={prebookUsers.find(u => u.firestoreId === selectedUserId)?.commitmentPaid} 
+            registrationOrder={registrationOrder} 
+            selectedUserId={selectedUserId} 
+          />
+          
+          {(() => {
+            const deliveryFee = calculateDeliveryFee(parseFloat(orderTotal) || 0);
+            const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
+            const commitmentFeeDeducted = (currentUserIndex < 3 && user?.commitmentPaid && deliveryFee > 0) ? 10 : 0;
+            const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
+            
+            if (actualDeliveryFee > 0) {
+              return (
+                <div style={styles.sectionCard}>
+                  <h4 style={styles.sectionHeader}>Delivery Fee Payment</h4>
+                  <UnifiedQRCodeDisplay amount={actualDeliveryFee} />
+                  <p style={{ marginTop: '16px', marginBottom: '12px', color: '#64748b' }}>
+                    Please upload proof of payment for the delivery fee:
+                  </p>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={(e) => setPaymentProof(e.target.files[0])} 
+                    style={styles.input} 
+                  />
+                  {paymentProof && (
+                    <div style={styles.imagePreview}>
+                      <img 
+                        src={URL.createObjectURL(paymentProof)} 
+                        alt="Payment Proof" 
+                        style={styles.previewImage}
+                        onClick={() => setSelectedImage(paymentProof)}
                       />
-                      {paymentProof && (
-                        <div style={styles.imagePreview}>
-                          <img 
-                            src={URL.createObjectURL(paymentProof)} 
-                            alt="Payment Proof" 
-                            style={styles.previewImage}
-                            onClick={() => setSelectedImage(paymentProof)}
-                          />
-                        </div>
-                      )}
                     </div>
-                  );
-                }
-                return null;
-              })()}
-              
-              {(() => {
-                const deliveryFee = calculateDeliveryFee(parseFloat(orderTotal) || 0);
-                const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
-                const commitmentFeeDeducted = (currentUserIndex < 3 && user?.commitmentPaid && deliveryFee > 0) ? 10 : 0;
-                const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
-                const isButtonDisabled = !orderImage || !finalOrderNumber.trim() || (actualDeliveryFee > 0 && !paymentProof);
-                
-                return (
-                  <button 
-                    onClick={handleOrderSubmission} 
-                    disabled={isButtonDisabled} 
-                    style={{ 
-                      ...styles.button, 
-                      ...styles.buttonOrange, 
-                      opacity: isButtonDisabled ? 0.5 : 1, 
-                      cursor: isButtonDisabled ? 'not-allowed' : 'pointer' 
-                    }}
-                  >
-                    Submit Order
-                  </button>
-                );
-              })()}
-            </>
-          )}
+                  )}
+                </div>
+              );
+            }
+            return null;
+          })()}
+          
+          <button 
+  onClick={handleOrderSubmission} 
+  disabled={
+    !orderNumber.trim() ||
+    !orderTotal ||
+    isNaN(orderTotal) ||
+    Number(orderTotal) <= 0 ||
+    !orderReceiptFile || 
+    (calculateDeliveryFee(parseFloat(orderTotal) || 0) > 0 && !paymentProof)
+  } 
+  style={{ 
+    ...styles.button, 
+    ...styles.buttonOrange, 
+    opacity: (
+      !orderNumber.trim() ||
+      !orderTotal ||
+      isNaN(orderTotal) ||
+      Number(orderTotal) <= 0 ||
+      !orderReceiptFile || 
+      (calculateDeliveryFee(parseFloat(orderTotal) || 0) > 0 && !paymentProof)
+    ) ? 0.5 : 1, 
+    cursor: (
+      !orderNumber.trim() ||
+      !orderTotal ||
+      isNaN(orderTotal) ||
+      Number(orderTotal) <= 0 ||
+      !orderReceiptFile || 
+      (calculateDeliveryFee(parseFloat(orderTotal) || 0) > 0 && !paymentProof)
+    ) ? 'not-allowed' : 'pointer' 
+  }}
+>
+  Submit Order
+</button>
+
         </div>
       )}
 
-      {/* Waiting state if user paid but system not yet active */}
       {userStep === 3 && !minOrderReached && (
         <div>
           <BeautifulMessage 
