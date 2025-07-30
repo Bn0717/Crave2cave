@@ -560,9 +560,9 @@ const AdminTab = ({
                     { type: 'image', value: order.orderImageURL }, 
                     order.userName,
                     order.studentId,
-                    `RM${order.orderTotal}`,
-                    `RM${order.deliveryFee}`,
-                    `RM${order.totalWithDelivery}`,
+                    `RM${order.orderTotal.toFixed(2)}`,
+                    `RM${order.deliveryFee.toFixed(2)}`,
+                    `RM${order.totalWithDelivery.toFixed(2)}`,
                     new Date(order.timestamp).toLocaleString()
                 ])}
             />

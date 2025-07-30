@@ -34,13 +34,19 @@ const EmailPromptModal = ({ user, onSubmit, onCancel }) => {
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    if (email.includes('@') && email.includes('.')) {
-      onSubmit(user.firestoreId, email);
-    } else {
-      alert('Please enter a valid email address.');
-    }
-  };
+  e.preventDefault();
+  if (!user || !user.firestoreId) {
+    console.error('Invalid user data in EmailPromptModal', { user });
+    alert('Error: User data is missing. Please try again.');
+    return;
+  }
+  if (!email.includes('@') || !email.includes('.')) {
+    alert('Please enter a valid email address.');
+    return;
+  }
+  console.log('Submitting email:', { userId: user.firestoreId, email });
+  onSubmit(user.firestoreId, email);
+};
 
   return (
     <div style={styles.overlay} onClick={onCancel}>

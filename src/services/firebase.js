@@ -2,154 +2,261 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, addDoc, query, where, Timestamp, writeBatch, doc, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { isToday } from '../utils/isToday';
+import { getFunctions, httpsCallable } from 'firebase/functions'; // Add this import
 
-// This is the NEW, CORRECT configuration for your new project "crave2cave-20c81"
+// Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyAutoUXgR5v9QSjEsDPkaEBxNzhrVd5r1c",
   authDomain: "crave-2-cave.firebaseapp.com",
   projectId: "crave-2-cave",
-  storageBucket: "crave-2-cave.appspot.com",
+  storageBucket: "crave-2-cave.firebasestorage.app",
   messagingSenderId: "291986862315",
   appId: "1:291986862315:web:5d4c3ee036c175ffa10eae",
   measurementId: "G-JGR0HQV7SQ"
 };
 
-// Initialize Firebase with the new config
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
+const functions = getFunctions(app); // Initialize Functions
 
-// --- All your other functions are correct and remain below ---
-
+// Existing functions (unchanged)
 export const savePrebookUser = async (user) => {
-    try {
-        const now = new Date();
-        const malaysiaDateStr = now.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" });
-        const malaysiaDate = new Date(malaysiaDateStr);
-        const todayString = malaysiaDate.toISOString().split('T')[0];
-        
-        const userWithDate = {
-            ...user,
-            email: "", // Initialize the email field
-            registrationDate: todayString,
-            timestamp: new Date().toISOString()
-        };
+  try {
+    const now = new Date();
+    const malaysiaDateStr = now.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" });
+    const malaysiaDate = new Date(malaysiaDateStr);
+    const todayString = malaysiaDate.toISOString().split('T')[0];
 
-        const docRef = await addDoc(collection(db, 'prebookUsers'), userWithDate);
-        return docRef.id;
-    } catch (e) { console.error('Error adding document: ', e); throw e; }
+    const userWithDate = {
+      ...user,
+      email: user.email || "no-email@crave2cave.com",
+      registrationDate: todayString,
+      timestamp: new Date().toISOString(),
+    };
+
+    const docRef = await addDoc(collection(db, 'prebookUsers'), userWithDate);
+    return docRef.id;
+  } catch (e) {
+    console.error("Error adding document: ", e);
+    throw e;
+  }
 };
 
 export const uploadFileToStorage = async (file) => {
-    const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
-    try {
-        await uploadBytes(storageRef, file);
-        return await getDownloadURL(storageRef);
-    } catch (e) { console.error("Error uploading file:", e); throw e; }
+  if (!file || !(file instanceof File)) {
+    console.error('Invalid file: File object is required');
+    throw new Error('Invalid file: Please select a valid file');
+  }
+  const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const storageRef = ref(storage, `uploads/${Date.now()}_${sanitizedFileName}`);
+  console.log('Uploading to:', storageRef.fullPath);
+  try {
+    await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(storageRef);
+    console.log('File uploaded successfully:', downloadURL);
+    return downloadURL;
+  } catch (e) {
+    console.error('Upload error:', e);
+    throw e;
+  }
 };
 
 export const updatePrebookUser = async (userId, updates) => {
-    try {
-        const userRef = doc(db, 'prebookUsers', userId);
-        await updateDoc(userRef, updates);
-    } catch (e) { console.error('Error updating user: ', e); throw e; }
+  try {
+    const userRef = doc(db, 'prebookUsers', userId);
+    await updateDoc(userRef, updates);
+  } catch (e) {
+    console.error('Error updating user: ', e);
+    throw e;
+  }
 };
 
 export const updateUserEmail = async (userId, email) => {
-    try {
-        const userRef = doc(db, 'prebookUsers', userId);
-        await updateDoc(userRef, { email: email });
-        console.log("User email updated successfully");
-    } catch (e) { console.error('Error updating user email: ', e); throw e; }
+  try {
+    if (!userId || typeof userId !== 'string') {
+      throw new Error('Invalid userId provided');
+    }
+    const userRef = doc(db, 'prebookUsers', userId);
+    await updateDoc(userRef, { email: email });
+    console.log("User email updated successfully");
+  } catch (e) {
+    console.error('Error updating user email: ', e);
+    throw e;
+  }
 };
 
 export const getPrebookUsers = async () => {
-    try {
-        const now = new Date();
-        const malaysiaDateStr = now.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" });
-        const malaysiaDate = new Date(malaysiaDateStr);
-        const todayString = malaysiaDate.toISOString().split('T')[0];
-        const usersQuery = query(collection(db, 'prebookUsers'), where("registrationDate", "==", todayString));
-        const querySnapshot = await getDocs(usersQuery);
-        const users = querySnapshot.docs.map(doc => ({ id: doc.id, firestoreId: doc.id, ...doc.data() }));
-        return users.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    } catch (e) { console.error('Error getting users: ', e); return []; }
+  try {
+    const now = new Date();
+    const malaysiaDateStr = now.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" });
+    const malaysiaDate = new Date(malaysiaDateStr);
+    const todayString = malaysiaDate.toISOString().split('T')[0];
+    const usersQuery = query(collection(db, 'prebookUsers'), where("registrationDate", "==", todayString));
+    const querySnapshot = await getDocs(usersQuery);
+    const users = querySnapshot.docs.map(doc => ({ id: doc.id, firestoreId: doc.id, ...doc.data() }));
+    return users.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  } catch (e) {
+    console.error('Error getting users: ', e);
+    return [];
+  }
 };
 
 export const saveOrder = async (order) => {
-    try {
-        const orderWithTimestamp = {
-            ...order,
-            timestamp: new Date().toISOString(),
-            status: 'pending',
-            orderDate: new Date().toLocaleDateString("en-US", { timeZone: "Asia/Kuala_Lumpur" })
-        };
-        const docRef = await addDoc(collection(db, 'orders'), orderWithTimestamp);
-        await updateDailyHistory();
-        return docRef.id;
-    } catch (e) { console.error('Error saving order: ', e); throw e; }
+  try {
+    const orderWithTimestamp = {
+      ...order,
+      timestamp: new Date().toISOString(),
+      status: 'pending',
+      orderDate: new Date().toLocaleDateString("en-US", { timeZone: "Asia/Kuala_Lumpur" })
+    };
+    const docRef = await addDoc(collection(db, 'orders'), orderWithTimestamp);
+    await updateDailyHistory();
+    return docRef.id;
+  } catch (e) {
+    console.error('Error saving order: ', e);
+    throw e;
+  }
 };
 
 export const getOrders = async () => {
-    try {
-        const querySnapshot = await getDocs(collection(db, 'orders'));
-        return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    } catch (e) { console.error('Error getting orders: ', e); return []; }
+  try {
+    const querySnapshot = await getDocs(collection(db, 'orders'));
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (e) {
+    console.error('Error getting orders: ', e);
+    return [];
+  }
 };
 
 export const getHistoryData = async () => {
-    try {
-        const querySnapshot = await getDocs(collection(db, 'history'));
-        const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        return history.sort((a, b) => new Date(b.date) - new Date(a.date));
-    } catch (e) { console.error('Error getting history: ', e); return []; }
+  try {
+    const querySnapshot = await getDocs(collection(db, 'history'));
+    const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return history.sort((a, b) => new Date(b.date) - new Date(a.date));
+  } catch (e) {
+    console.error('Error getting history: ', e);
+    return [];
+  }
 };
 
-export const updateOrdersStatus = async (orderIds, newStatus) => {
-  const batch = writeBatch(db);
-  orderIds.forEach(orderId => {
-    const orderRef = doc(db, "orders", orderId);
-    batch.update(orderRef, { status: newStatus, statusLastUpdatedAt: Timestamp.now() });
-  });
-  await batch.commit();
+// In firebase.js (add this function)
+export const getOrderByUserId = async (userId) => {
+  try {
+    const ordersQuery = query(collection(db, 'orders'), where('userId', '==', userId));
+    const querySnapshot = await getDocs(ordersQuery);
+    if (!querySnapshot.empty) {
+      const orders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Return the most recent order based on timestamp
+      return orders.reduce((latest, current) =>
+        latest.timestamp > current.timestamp ? latest : current
+      );
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching order by user ID:', error);
+    throw error;
+  }
+};
+
+export const updateOrdersStatus = async (orderIds, status) => {
+  try {
+    const batch = writeBatch(db);
+    orderIds.forEach(orderId => {
+      const orderRef = doc(db, 'orders', orderId);
+      batch.update(orderRef, { status, lastUpdated: new Date().toISOString() });
+    });
+    await batch.commit();
+    console.log(`Updated status to ${status} for orders:`, orderIds);
+  } catch (e) {
+    console.error('Error updating orders status:', e);
+    throw e;
+  }
 };
 
 export const updateDailyHistory = async () => {
-    try {
-        const today = new Date().toISOString().split('T')[0];
-        const usersSnapshot = await getDocs(collection(db, 'prebookUsers'));
-        const ordersSnapshot = await getDocs(collection(db, 'orders'));
-        const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, firestoreId: doc.id, ...doc.data() }));
-        const allOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const todayOrdersTemp = allOrders.filter(order => isToday(order.timestamp));
-        const todayUserIds = new Set(todayOrdersTemp.map(order => order.userId));
-        const todayUsersTemp = allUsers.filter(user => isToday(user.timestamp) || todayUserIds.has(user.firestoreId));
-        const todayRevenue = todayUsersTemp.filter(u => u.commitmentPaid).length * 10 +
-            todayOrdersTemp.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
-        const driverCost = todayOrdersTemp.length > 0 ? 30 : 0;
-        const todayProfit = todayRevenue - driverCost;
-        const historyQuery = query(collection(db, 'history'), where('date', '==', today));
-        const historySnapshot = await getDocs(historyQuery);
-        const historyDataPayload = {
-            date: today,
-            timestamp: new Date().toISOString(),
-            orders: todayOrdersTemp,
-            users: todayUsersTemp,
-            totalOrders: todayOrdersTemp.length,
-            totalUsers: todayUsersTemp.length,
-            registeredUsers: todayUsersTemp.filter(u => isToday(u.timestamp)).length,
-            paidUsers: todayUsersTemp.filter(u => u.commitmentPaid).length,
-            totalRevenue: todayRevenue,
-            driverCost: driverCost,
-            profit: todayProfit,
-            commitmentFees: todayUsersTemp.filter(u => u.commitmentPaid).length * 10,
-            deliveryFees: todayOrdersTemp.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)
-        };
-        if (historySnapshot.empty) {
-            await addDoc(collection(db, 'history'), historyDataPayload);
-        } else {
-            const docId = historySnapshot.docs[0].id;
-            await updateDoc(doc(db, 'history', docId), historyDataPayload);
-        }
-    } catch (error) { console.error('Error updating daily history:', error); }
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const usersSnapshot = await getDocs(collection(db, 'prebookUsers'));
+    const ordersSnapshot = await getDocs(collection(db, 'orders'));
+    const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, firestoreId: doc.id, ...doc.data() }));
+    const allOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const todayOrdersTemp = allOrders.filter(order => isToday(order.timestamp));
+    const todayUserIds = new Set(todayOrdersTemp.map(order => order.userId));
+    const todayUsersTemp = allUsers.filter(user => isToday(user.timestamp) || todayUserIds.has(user.firestoreId));
+    const todayRevenue = todayUsersTemp.filter(u => u.commitmentPaid).length * 10 +
+      todayOrdersTemp.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
+    const driverCost = todayOrdersTemp.length > 0 ? 30 : 0;
+    const todayProfit = todayRevenue - driverCost;
+    const historyQuery = query(collection(db, 'history'), where('date', '==', today));
+    const historySnapshot = await getDocs(historyQuery);
+    const historyDataPayload = {
+      date: today,
+      timestamp: new Date().toISOString(),
+      orders: todayOrdersTemp,
+      users: todayUsersTemp,
+      totalOrders: todayOrdersTemp.length,
+      totalUsers: todayUsersTemp.length,
+      registeredUsers: todayUsersTemp.filter(u => isToday(u.timestamp)).length,
+      paidUsers: todayUsersTemp.filter(u => u.commitmentPaid).length,
+      totalRevenue: todayRevenue,
+      driverCost: driverCost,
+      profit: todayProfit,
+      commitmentFees: todayUsersTemp.filter(u => u.commitmentPaid).length * 10,
+      deliveryFees: todayOrdersTemp.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)
+    };
+    if (historySnapshot.empty) {
+      await addDoc(collection(db, 'history'), historyDataPayload);
+    } else {
+      const docId = historySnapshot.docs[0].id;
+      await updateDoc(doc(db, 'history', docId), historyDataPayload);
+    }
+  } catch (error) {
+    console.error('Error updating daily history:', error);
+  }
+};
+
+// New functions for App.js
+export const uploadOrderImage = async (orderId, file) => {
+  if (!file || !(file instanceof File)) {
+    console.error('Invalid file: File object is required');
+    throw new Error('Invalid file: Please select a valid file');
+  }
+  const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const storageRef = ref(storage, `orders/${orderId}/${Date.now()}_${sanitizedFileName}`);
+  try {
+    await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(storageRef);
+    console.log('Order image uploaded successfully:', downloadURL);
+    return downloadURL;
+  } catch (e) {
+    console.error('Order image upload error:', e);
+    throw e;
+  }
+};
+
+export const updateOrderDetails = async (orderId, updates) => {
+  try {
+    const orderRef = doc(db, 'orders', orderId);
+    await updateDoc(orderRef, {
+      ...updates,
+      lastUpdated: new Date().toISOString()
+    });
+    console.log(`Order ${orderId} updated successfully`);
+  } catch (e) {
+    console.error('Error updating order details:', e);
+    throw e;
+  }
+};
+
+export const sendDeliveryEmail = async (userId, orderNumber, userEmail) => {
+  const sendEmail = httpsCallable(functions, 'sendDeliveryEmail');
+  try {
+    const result = await sendEmail({ userId, orderNumber, userEmail });
+    console.log(result.data.message);
+  } catch (error) {
+    console.error('Error calling sendDeliveryEmail:', error);
+    throw error;
+  }
 };
