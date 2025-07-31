@@ -78,15 +78,15 @@ const DriverTab = ({
   const [selectedOrders, setSelectedOrders] = useState([]);
 
   useEffect(() => {
-  const inProgressExists = todayOrders.some(order => order.status === 'in-progress');
+  const pendingExists = todayOrders.some(order => order.status === 'pending');
   const allDelivered = todayOrders.length > 0 && todayOrders.every(order => order.status === 'delivered');
   
   if (allDelivered) {
     setDeliveryStatus('completed');
-  } else if (inProgressExists) {
-    setDeliveryStatus('in-progress');
+  } else if (pendingExists) {
+    setDeliveryStatus('pending'); // Keep showing start button as long as there are pending orders
   } else {
-    setDeliveryStatus('pending');
+    setDeliveryStatus('in-progress'); // Only when no pending orders left
   }
 }, [todayOrders]);
 
@@ -184,35 +184,89 @@ statValue: {
     return { totalOrders, completedOrders, pendingOrders, totalRevenue };
   };
 
-  const handleStartDelivery = async () => {
-    if (selectedOrders.length === 0) {
-      showSuccessAnimation('No Orders Selected', 'Please select at least one order to start delivery.');
+  // Replace your handleStartDelivery function in DriverTab.jsx with this updated version:
+
+const handleStartDelivery = async () => {
+  if (selectedOrders.length === 0) {
+    showSuccessAnimation('No Orders Selected', 'Please select at least one order to start delivery.');
+    return;
+  }
+
+  showLoadingAnimation(`Starting delivery for ${selectedOrders.length} orders...`);
+  
+  try {
+    // Only process orders that are actually pending
+    const ordersToUpdate = todayOrders.filter(order => 
+      selectedOrders.includes(order.id) && order.status === 'pending'
+    );
+    
+    if (ordersToUpdate.length === 0) {
+      hideLoadingAnimation();
+      showSuccessAnimation('No Valid Orders', 'Selected orders are already in progress or delivered.');
       return;
     }
+    
+    // First, update the order status
+    await firebaseService.updateOrdersStatus(ordersToUpdate.map(o => o.id), 'in-progress');
+    
+    // Then try to send emails (but don't fail if this doesn't work)
+    const emailResults = await Promise.allSettled(
+      ordersToUpdate.map(async (order) => {
+        if (order.userEmail && order.userEmail !== "no-email@crave2cave.com") {
+          return await firebaseService.sendDeliveryEmail(
+            order.userId, 
+            order.orderNumber, 
+            order.userEmail
+          );
+        } else {
+          console.log(`Skipping email for order ${order.orderNumber} - no valid email`);
+          return { success: false, message: 'No email provided' };
+        }
+      })
+    );
 
-    showLoadingAnimation(`Starting delivery for ${selectedOrders.length} orders...`);
-    try {
-      const ordersToUpdate = todayOrders.filter(order => selectedOrders.includes(order.id));
-      await firebaseService.updateOrdersStatus(ordersToUpdate.map(o => o.id), 'in-progress');
-      await Promise.all(ordersToUpdate.map(order => 
-        firebaseService.sendDeliveryEmail(order.userId, order.orderNumber, order.userEmail)
-      ));
+    // Count successful emails
+    const successfulEmails = emailResults.filter(
+      result => result.status === 'fulfilled' && result.value.success
+    ).length;
+    
+    const failedEmails = emailResults.length - successfulEmails;
 
-      hideLoadingAnimation();
-      setDeliveryStatus('in-progress');
-      await fetchAllData();
-      showSuccessAnimation(
-        'Delivery Started!',
-        `${ordersToUpdate.length} order(s) are now in progress. Customers have been notified via email.`,
-        null,
-        3500
-      );
-    } catch (error) {
-      hideLoadingAnimation();
-      console.error('Error starting delivery:', error);
-      showSuccessAnimation('Error', `Could not start delivery: ${error.message}`, null, 3000);
+    hideLoadingAnimation();
+    
+    // Clear selection of orders that were just started
+    setSelectedOrders(prev => prev.filter(id => !ordersToUpdate.map(o => o.id).includes(id)));
+    
+    await fetchAllData();
+    
+    // Show success message with email status
+    let emailStatusMessage = '';
+    if (successfulEmails > 0 && failedEmails === 0) {
+      emailStatusMessage = ` All customers have been notified via email.`;
+    } else if (successfulEmails > 0 && failedEmails > 0) {
+      emailStatusMessage = ` ${successfulEmails} customers notified via email, ${failedEmails} email(s) failed.`;
+    } else if (failedEmails > 0) {
+      emailStatusMessage = ` Note: Email notifications could not be sent.`;
     }
-  };
+
+    showSuccessAnimation(
+      'Delivery Started!',
+      `${ordersToUpdate.length} order(s) are now in progress.${emailStatusMessage}`,
+      null,
+      4000
+    );
+    
+  } catch (error) {
+    hideLoadingAnimation();
+    console.error('Error starting delivery:', error);
+    showSuccessAnimation(
+      'Error', 
+      `Could not start delivery: ${error.message}`, 
+      null, 
+      3000
+    );
+  }
+};
 
   const handleCompleteDelivery = async () => {
     if (selectedOrders.length === 0) return;
@@ -243,10 +297,18 @@ statValue: {
   };
 
   const toggleOrderSelection = (orderId) => {
-    setSelectedOrders(prev => 
-      prev.includes(orderId) ? prev.filter(id => id !== orderId) : [...prev, orderId]
-    );
-  };
+  // Find the order to check its status
+  const order = todayOrders.find(o => o.id === orderId);
+  
+  // Don't allow selection if order is in-progress or delivered
+  if (order && (order.status === 'in-progress' || order.status === 'delivered')) {
+    return;
+  }
+  
+  setSelectedOrders(prev => 
+    prev.includes(orderId) ? prev.filter(id => id !== orderId) : [...prev, orderId]
+  );
+};
 
   const getUniqueVendors = () => {
   const vendors = [...new Set(todayOrders.map(order => order.vendor?.toLowerCase()).filter(Boolean))];
@@ -257,8 +319,12 @@ statValue: {
 };
 
 const handleSelectByVendor = (vendorKey) => {
+  // Only include orders that are 'pending' (not in-progress or delivered)
   const vendorOrders = todayOrders
-    .filter(order => order.vendor?.toLowerCase() === vendorKey)
+    .filter(order => 
+      order.vendor?.toLowerCase() === vendorKey && 
+      order.status === 'pending'
+    )
     .map(order => order.id);
   
   const allVendorOrdersSelected = vendorOrders.every(id => selectedOrders.includes(id));
@@ -283,9 +349,13 @@ const getOrdersByVendor = () => {
 };
 
   const handleSelectAll = () => {
-    const allOrderIds = todayOrders.map(order => order.id);
-    setSelectedOrders(prev => prev.length === allOrderIds.length ? [] : allOrderIds);
-  };
+  // Only include pending orders
+  const pendingOrderIds = todayOrders
+    .filter(order => order.status === 'pending')
+    .map(order => order.id);
+  
+  setSelectedOrders(prev => prev.length === pendingOrderIds.length ? [] : pendingOrderIds);
+};
 
   if (!isAuthenticated) {
     return (
@@ -582,28 +652,6 @@ const getOrdersByVendor = () => {
               {windowWidth <= 480 ? 'Start' : 'Start Delivery'}
             </button>
           )}
-
-          {deliveryStatus === 'in-progress' && (
-            <button
-              onClick={handleCompleteDelivery}
-              disabled={selectedOrders.length === 0}
-              style={{
-                ...styles.button,
-                background: selectedOrders.length === 0 
-                  ? 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)'
-                  : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: 'white',
-                cursor: selectedOrders.length === 0 ? 'not-allowed' : 'pointer',
-                fontSize: windowWidth <= 480 ? '14px' : '13px',
-                padding: windowWidth <= 480 ? '12px 16px' : '8px 16px',
-                flex: windowWidth <= 480 ? '1' : 'none',
-                justifyContent: 'center'
-              }}
-            >
-              <CheckCircle2 size={windowWidth <= 480 ? 18 : 16} />
-              {windowWidth <= 480 ? 'Complete' : 'Complete Delivery'}
-            </button>
-          )}
         </div>
       </div>
 
@@ -690,13 +738,13 @@ const getOrdersByVendor = () => {
               style={{
                 ...styles.orderCard,
                 ...(selectedOrders.includes(order.id) ? styles.orderCardSelected : {}),
-                cursor: order.status === 'delivered' ? 'not-allowed' : 'pointer',
-                opacity: order.status === 'delivered' ? 0.6 : 1,
-                ...(order.status === 'delivered' ? { backgroundColor: '#f1f5f9', borderColor: '#cbd5e1' } : {}),
+                cursor: order.status === 'pending' ? 'pointer' : 'not-allowed',
+opacity: order.status === 'pending' ? 1 : 0.6,
+...(order.status !== 'pending' ? { backgroundColor: '#f1f5f9', borderColor: '#cbd5e1' } : {}),
                 padding: windowWidth <= 480 ? '12px' : '16px',
                 gap: windowWidth <= 480 ? '12px' : '16px'
               }}
-              onClick={() => order.status !== 'delivered' && toggleOrderSelection(order.id)}
+              onClick={() => order.status === 'pending' && toggleOrderSelection(order.id)}
             >
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: windowWidth <= 480 ? '8px' : '12px', minWidth: 0 }}>
                 <VendorTag vendor={order.vendor} />

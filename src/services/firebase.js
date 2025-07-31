@@ -250,13 +250,45 @@ export const updateOrderDetails = async (orderId, updates) => {
   }
 };
 
+// Add this updated function to your firebase.js file
 export const sendDeliveryEmail = async (userId, orderNumber, userEmail) => {
-  const sendEmail = httpsCallable(functions, 'sendDeliveryEmail');
   try {
-    const result = await sendEmail({ userId, orderNumber, userEmail });
-    console.log(result.data.message);
+    // Check if functions is available
+    if (!functions) {
+      console.warn('Firebase Functions not available, skipping email send');
+      return { success: false, message: 'Email service not available' };
+    }
+
+    const sendEmail = httpsCallable(functions, 'sendDeliveryEmail');
+    
+    console.log('Attempting to send email:', { userId, orderNumber, userEmail });
+    
+    const result = await sendEmail({ 
+      userId, 
+      orderNumber, 
+      userEmail 
+    });
+    
+    console.log('Email sent successfully:', result.data.message);
+    return { success: true, message: result.data.message };
+    
   } catch (error) {
     console.error('Error calling sendDeliveryEmail:', error);
-    throw error;
+    
+    // Handle specific error types
+    if (error.code === 'functions/not-found') {
+      console.error('Cloud function not found - make sure it\'s deployed');
+      return { success: false, message: 'Email service not deployed' };
+    } else if (error.code === 'functions/unauthenticated') {
+      console.error('Authentication required for cloud function');
+      return { success: false, message: 'Authentication required' };
+    } else if (error.code === 'functions/invalid-argument') {
+      console.error('Invalid arguments provided to cloud function');
+      return { success: false, message: 'Invalid email parameters' };
+    }
+    
+    // For other errors, still try to continue the delivery process
+    return { success: false, message: `Email failed: ${error.message}` };
   }
 };
+

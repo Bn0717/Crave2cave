@@ -50,7 +50,7 @@ const CountdownTimer = ({ targetTime = "19:00" }) => {
                 gap: '8px'
             }}>
                 {timeLeft.isReady ? (
-                    <><CheckCircle size={20} color="#059669" /> Ready for pickup!</>
+                    <><CheckCircle size={20} color="#059669" /> Estimated time for pickup!</>
                 ) : (
                     <><Clock size={20} color="#dc2626" /> Time until pickup:</>
                 )}

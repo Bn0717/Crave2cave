@@ -293,8 +293,8 @@ const StudentTab = ({
         showSuccessAnimation(
           'Registration Successful!', 
           'You have been registered for the food delivery service.',
-          <p>Please proceed to pay the RM10 commitment fee.</p>,
-          3000,
+          <p>Please proceed to pay the RM10 base delivery fee.</p>,
+          5000,
           true,
           () => setUserStep(2)
         );
@@ -359,8 +359,8 @@ const StudentTab = ({
         const remaining = 3 - newPaidCount;
         showSuccessAnimation(
           'Payment Confirmed!',
-          'Your RM10 commitment fee has been received.',
-          <p>We need {remaining} more paid user{remaining > 1 ? 's' : ''} before order submission opens. Please check back later!</p>,
+          'Your RM10 base delivery fee has been received.',
+          <p>We need {remaining} more paid user{remaining > 1 ? 's' : ''} before order submission opens. Please check back later by retrieving your registration!</p>,
           0,
           true,
           () => {
@@ -635,6 +635,22 @@ const StudentTab = ({
     }
   }, [resetForm, setResetStudentForm]);
 
+  const parsedOrderTotal = parseFloat(orderTotal) || 0;
+const deliveryFee = calculateDeliveryFee(parsedOrderTotal);
+const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
+const commitmentFeeDeducted = (currentUserIndex < 3 && user?.commitmentPaid && deliveryFee > 0) ? 10 : 0;
+const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
+
+const isSubmitDisabled =
+  !orderNumber.trim() ||
+  !orderTotal ||
+  isNaN(orderTotal) ||
+  Number(orderTotal) <= 0 ||
+  !orderReceiptFile ||
+  (actualDeliveryFee > 0 && !paymentProof); // ✅ ONLY require paymentProof if actual fee > 0
+
+
+
   return (
     <div style={styles.card}>
       <div style={styles.cardHeader}>
@@ -717,13 +733,13 @@ const StudentTab = ({
       {userStep === 2 && (
         <div>
           <h3 style={{ 
-            marginBottom: '20px', 
+            marginBottom: '1px', 
             color: '#1e293b',
             fontSize: windowWidth <= 480 ? '16px' : '18px'
           }}>
-            Step 2: Pay Commitment Fee
-          </h3>
-          
+            Step 2: Pay Base Delivery Fee 
+          </h3><p>RM10 base delivery fee applies to the first 3 users but will be waived automatically during order submission.</p>
+
           <UnifiedQRCodeDisplay 
             isCommitmentFee={true} 
             userIndex={currentUserIndex} 
@@ -735,7 +751,7 @@ const StudentTab = ({
             <p style={{ margin: '0 0 8px 0' }}><strong>Name:</strong> {studentName}</p>
             <p style={{ margin: '0 0 8px 0' }}><strong>Student ID:</strong> {studentId}</p>
             <p style={{ margin: 0 }}>
-              <strong>Commitment Fee:</strong> {
+              <strong>Base Delivery Fee:</strong> {
                 currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order >= 4) 
                   ? 'FREE (4th+ user!)' 
                   : 'RM10'
@@ -746,7 +762,7 @@ const StudentTab = ({
           {!(currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order >= 4)) && (
             <>
               <p style={{ marginBottom: '16px', color: '#64748b' }}>
-                Upload proof of payment (RM10 commitment fee):
+                Upload proof of payment (RM10 base delivery fee):
               </p>
               <input 
                 type="file" 
@@ -833,7 +849,7 @@ const StudentTab = ({
               Order Details
             </h4>
             <label style={{ display: 'block', marginBottom: '8px', color: '#374151', fontWeight: '500' }}>
-              Order Number <span style={{ color: '#ef4444' }}>*</span>
+              Order Number (Enter exact order number — for driver’s convenience) <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <input 
               type="text" 
@@ -869,7 +885,7 @@ const StudentTab = ({
             />
             {orderError && <p style={styles.errorText}>{orderError}</p>}
             <label style={{ display: 'block', marginBottom: '8px', marginTop: '16px', color: '#374151', fontWeight: '500' }}>
-  Upload Order Receipt <span style={{ color: '#ef4444' }}>*</span>
+  Upload Order Receipt (Must be clear and complete!)<span style={{ color: '#ef4444' }}>*</span>
 </label>
 
             <input
@@ -906,10 +922,7 @@ const StudentTab = ({
           />
           
           {(() => {
-            const deliveryFee = calculateDeliveryFee(parseFloat(orderTotal) || 0);
-            const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
-            const commitmentFeeDeducted = (currentUserIndex < 3 && user?.commitmentPaid && deliveryFee > 0) ? 10 : 0;
-            const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
+            
             
             if (actualDeliveryFee > 0) {
               return (
@@ -917,7 +930,7 @@ const StudentTab = ({
                   <h4 style={styles.sectionHeader}>Delivery Fee Payment</h4>
                   <UnifiedQRCodeDisplay amount={actualDeliveryFee} />
                   <p style={{ marginTop: '16px', marginBottom: '12px', color: '#64748b' }}>
-                    Please upload proof of payment for the delivery fee:
+                    Please upload proof of payment for the delivery fee: <span style={{ color: '#ef4444' }}>*</span>
                   </p>
                   <input 
                     type="file" 
@@ -943,37 +956,17 @@ const StudentTab = ({
           
           <button 
   onClick={handleOrderSubmission} 
-  disabled={
-    !orderNumber.trim() ||
-    !orderTotal ||
-    isNaN(orderTotal) ||
-    Number(orderTotal) <= 0 ||
-    !orderReceiptFile || 
-    (calculateDeliveryFee(parseFloat(orderTotal) || 0) > 0 && !paymentProof)
-  } 
+  disabled={isSubmitDisabled}
   style={{ 
     ...styles.button, 
     ...styles.buttonOrange, 
-    opacity: (
-      !orderNumber.trim() ||
-      !orderTotal ||
-      isNaN(orderTotal) ||
-      Number(orderTotal) <= 0 ||
-      !orderReceiptFile || 
-      (calculateDeliveryFee(parseFloat(orderTotal) || 0) > 0 && !paymentProof)
-    ) ? 0.5 : 1, 
-    cursor: (
-      !orderNumber.trim() ||
-      !orderTotal ||
-      isNaN(orderTotal) ||
-      Number(orderTotal) <= 0 ||
-      !orderReceiptFile || 
-      (calculateDeliveryFee(parseFloat(orderTotal) || 0) > 0 && !paymentProof)
-    ) ? 'not-allowed' : 'pointer' 
+    opacity: isSubmitDisabled ? 0.5 : 1, 
+    cursor: isSubmitDisabled ? 'not-allowed' : 'pointer' 
   }}
 >
   Submit Order
 </button>
+
 
         </div>
       )}
