@@ -155,24 +155,6 @@ const {getStorage} = require('firebase-admin/storage');
       
       console.log('✅ Email sent successfully!');
 
-      // Log success to Firestore (non-blocking)
-      setImmediate(async () => {
-        try {
-          await admin.firestore().collection('emailLogs').add({
-            userId,
-            userEmail,
-            orderNumber,
-            studentName,
-            orderTotal: orderTotal || 0,
-            status: 'success',
-            sentAt: admin.firestore.Timestamp.now()
-          });
-          console.log('✅ Success logged to Firestore');
-        } catch (logError) {
-          console.error('Failed to log success to Firestore:', logError);
-        }
-      });
-
       return {
         success: true,
         message: `Email sent successfully to ${userEmail} for order #${orderNumber}`,
@@ -182,23 +164,6 @@ const {getStorage} = require('firebase-admin/storage');
     } catch (error) {
       console.error('❌ Function error:', error);
 
-      // Log error to Firestore (non-blocking)
-      setImmediate(async () => {
-        try {
-          await admin.firestore().collection('emailErrorLogs').add({
-            error: error.message || 'Unknown error',
-            code: error.code || 'unknown',
-            userId: request.data?.userId || 'unknown',
-            userEmail: request.data?.userEmail || 'unknown',
-            orderNumber: request.data?.orderNumber || 'unknown',
-            timestamp: admin.firestore.Timestamp.now(),
-            stack: error.stack
-          });
-          console.log('✅ Error logged to Firestore');
-        } catch (logError) {
-          console.error('Failed to log error to Firestore:', logError);
-        }
-      });
 
       // Re-throw appropriate errors
       if (error instanceof HttpsError) {
