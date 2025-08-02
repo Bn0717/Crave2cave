@@ -14,14 +14,13 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
 
         // Add this helper function inside your Navigation component
     const getVendorDetails = (vendorId) => {
-        const vendors = {
-            'mixue': { name: 'Mixue', icon: '🧋' },
-            'dominos': { name: 'Dominos', icon: '🍕' },
-            'mcdonalds': { name: "McDonald's", icon: '🍟' },
-            // Add any other vendors here
-        };
-        return vendors[vendorId]; // Return the details object
+    const vendors = {
+        'mixue': { name: 'Mixue', icon: '🧋', shortName: 'Mixue' },
+        'dominos': { name: 'Dominos', icon: '🍕', shortName: 'Dominos' },
+        'mcdonalds': { name: "McDonald's", icon: '🍟', shortName: "McD's" }, // ✅ Shorter name for mobile
     };
+    return vendors[vendorId];
+};
 
     const vendorDetails = getVendorDetails(selectedVendor);
 
@@ -55,10 +54,11 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
         },
             //... inside navStyles
     leftSection: {
-      display: 'flex',
-      alignItems: 'center',
-      // Use a smaller gap on mobile
-      gap: windowWidth <= 768 ? '10px' : '20px' 
+        display: 'flex',
+        alignItems: 'center',
+        gap: windowWidth <= 768 ? '8px' : '20px', // ✅ Reduce gap on small screens
+        flex: 1, // ✅ Allow this section to grow
+        minWidth: 0 // ✅ Allow items to shrink if needed
     },
     logoContainer: {
       display: 'flex',
@@ -75,13 +75,15 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
       objectFit: 'contain'
     },
     logoText: {
-      fontSize: windowWidth <= 768 ? '18px' : '20px', // Adjust font size
-      fontWeight: 'bold',
-      background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
-      WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-      // Hide the text on very narrow screens if needed, otherwise it should fit
-      display: windowWidth <= 370 ? 'none' : 'block',
-    },
+    fontSize: windowWidth <= 768 ? '18px' : '20px',
+    fontWeight: 'bold',
+    background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+    WebkitBackgroundClip: 'text', 
+    WebkitTextFillColor: 'transparent', 
+    backgroundClip: 'text',
+    // Remove this line: display: windowWidth <= 370 ? 'none' : 'block',
+    whiteSpace: 'nowrap' // Keep logo text on one line
+},
     vendorName: {
         display: 'flex',
         alignItems: 'center',
@@ -163,11 +165,18 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
                     </div>
 
                     {selectedVendor && (
-                        <div className="vendor-name-display" style={navStyles.vendorName}>
-                             <span style={{ marginRight: '8px', fontSize: '18px', lineHeight: 1 }}>{getVendorDetails(selectedVendor).icon}</span>
-                             <span>{getVendorDetails(selectedVendor).name}</span>
-                        </div>
-                    )}
+    <div className="vendor-name-display" style={navStyles.vendorName}>
+        <span style={{ marginRight: '8px', fontSize: '18px', lineHeight: 1 }}>
+            {getVendorDetails(selectedVendor).icon}
+        </span>
+        <span>
+            {windowWidth <= 480 
+                ? getVendorDetails(selectedVendor).shortName || getVendorDetails(selectedVendor).name
+                : getVendorDetails(selectedVendor).name
+            }
+        </span>
+    </div>
+)}
                     </div>
 
                     <div className="desktop-menu" style={navStyles.desktopMenu}>
