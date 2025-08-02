@@ -27,7 +27,9 @@ const StudentTab = ({
   setResetStudentForm,
   setShowEmailModal,
   setUserForEmail,
-  selectedVendor
+  selectedVendor,
+  rememberedStudent,
+  setRememberedStudent,
 }) => {
   const [userStep, setUserStep] = useState(1);
   const [studentName, setStudentName] = useState('');
@@ -275,6 +277,11 @@ const StudentTab = ({
       const newUserId = await firebaseService.savePrebookUser(newUser);
       setSelectedUserId(newUserId);
       setCurrentUserIndex(registrationIndex);
+      saveStudentSession({
+  name: studentName,
+  studentId,
+  firestoreId: newUserId
+});
       await fetchAllData();
       hideLoadingAnimation();
       
@@ -587,6 +594,11 @@ const StudentTab = ({
   setStudentName(foundUser.name);
   setStudentId(foundUser.studentId);
   setSelectedUserId(foundUser.firestoreId);
+  saveStudentSession({
+  name: foundUser.name,
+  studentId: foundUser.studentId,
+  firestoreId: foundUser.firestoreId
+});
  
   if (foundUser.commitmentPaid || (systemActivatedToday && userIndex >= 3)) {
     setUserStep(3);
@@ -613,27 +625,107 @@ const StudentTab = ({
   setShowRetrieve(false);
 };
 
-  const resetForm = useCallback(() => {
-    setUserStep(1);
-    setStudentName('');
-    setStudentId('');
-    setSelectedUserId('');
-    setReceiptFile(null);
-    setOrderNumber('');
-    setOrderTotal('');
-    setPaymentProof(null);
-    setOrderReceiptFile(null);
-    setCurrentUserIndex(0);
-    setNameError('');
-    setIdError('');
-    setOrderError('');
-  }, []);
+// Save student session to localStorage
+const saveStudentSession = (studentData) => {
+  const sessionData = {
+    name: studentData.name,
+    studentId: studentData.studentId,
+    firestoreId: studentData.firestoreId,
+    savedAt: new Date().toISOString()
+  };
+  localStorage.setItem('rememberedStudent', JSON.stringify(sessionData));
+  setRememberedStudent(sessionData);
+};
 
-  useEffect(() => {
-    if (setResetStudentForm) {
-      setResetStudentForm(() => resetForm);
+// Clear student session
+const clearStudentSession = () => {
+  localStorage.removeItem('rememberedStudent');
+  setRememberedStudent(null);
+};
+
+const loadFromSession = async () => {
+  if (rememberedStudent) {
+    setStudentName(rememberedStudent.name);
+    setStudentId(rememberedStudent.studentId);
+    setSelectedUserId(rememberedStudent.firestoreId);
+    
+    // Find user in today's data
+    const foundUser = prebookUsers.find(u => u.firestoreId === rememberedStudent.firestoreId);
+    if (foundUser) {
+      const userOrder = registrationOrder.find(order => order.userId === foundUser.firestoreId);
+      const userIndex = userOrder ? userOrder.order - 1 : prebookUsers.findIndex(u => u.firestoreId === foundUser.firestoreId);
+      setCurrentUserIndex(userIndex);
+      
+      // Check if user already has an order today
+      if (foundUser.orderSubmitted && isToday(foundUser.lastOrderDate)) {
+        try {
+          showLoadingAnimation('Loading your order...');
+          const order = await firebaseService.getOrderByUserId(foundUser.firestoreId);
+          if (order) {
+            setCurrentOrder(order);
+            setOrderConfirmed(true);
+            hideLoadingAnimation();
+            return;
+          }
+        } catch (error) {
+          console.error('Error loading order:', error);
+          hideLoadingAnimation();
+        }
+      }
+      
+      // Determine which step to show
+      if (foundUser.commitmentPaid || (systemActivatedToday && userIndex >= 3)) {
+        setUserStep(3);
+        showSuccessAnimation(
+          `Welcome back ${foundUser.name}!`,
+          'You can continue with your order submission.',
+          null, 2000, true
+        );
+      } else {
+        setUserStep(2);
+        showSuccessAnimation(
+          `Welcome back ${foundUser.name}!`,
+          'Please complete your payment to continue.',
+          null, 2000, true
+        );
+      }
     }
-  }, [resetForm, setResetStudentForm]);
+  }
+};
+
+  const resetForm = useCallback((clearSession = false) => {
+  setUserStep(1);
+  setStudentName('');
+  setStudentId('');
+  setSelectedUserId('');
+  setReceiptFile(null);
+  setOrderNumber('');
+  setOrderTotal('');
+  setPaymentProof(null);
+  setOrderReceiptFile(null);
+  setCurrentUserIndex(0);
+  setNameError('');
+  setIdError('');
+  setOrderError('');
+  
+  // ADD THIS: Clear session if requested
+  if (clearSession) {
+    clearStudentSession();
+  }
+}, []);
+
+  // Auto-load student session on component mount
+useEffect(() => {
+  if (rememberedStudent && userStep === 1 && !selectedUserId && prebookUsers.length > 0) {
+    const foundUser = prebookUsers.find(u => u.firestoreId === rememberedStudent.firestoreId);
+    if (foundUser && isToday(foundUser.timestamp)) {
+      loadFromSession();
+    }
+  }
+}, [rememberedStudent, prebookUsers, userStep, selectedUserId]);
+useEffect(() => {
+  setResetStudentForm(() => resetForm);
+}, [resetForm, setResetStudentForm]);
 
   const parsedOrderTotal = parseFloat(orderTotal) || 0;
 const deliveryFee = calculateDeliveryFee(parsedOrderTotal);
@@ -718,6 +810,40 @@ const isSubmitDisabled =
           />
           {idError && <p style={styles.errorText}>{idError}</p>}
           
+          {rememberedStudent && (
+  <div style={{
+    backgroundColor: '#f0f9ff',
+    padding: '16px',
+    borderRadius: '12px',
+    marginBottom: '16px',
+    border: '1px solid #bfdbfe'
+  }}>
+    <p style={{ margin: '0 0 12px 0', color: '#1e40af', fontWeight: '600' }}>
+      Welcome back {rememberedStudent.name}!
+    </p>
+    <div style={styles.buttonRow}>
+      <button 
+        onClick={loadFromSession}
+        style={{ 
+          ...styles.button, 
+          ...styles.buttonBlue 
+        }}
+      >
+        Continue Previous Session
+      </button>
+      <button 
+        onClick={() => resetForm(true)}
+        style={{ 
+          ...styles.button, 
+          ...styles.buttonGray 
+        }}
+      >
+        Start Fresh
+      </button>
+    </div>
+  </div>
+)}
+
           <button 
             onClick={handlePrebook} 
             style={{ 
@@ -849,7 +975,7 @@ const isSubmitDisabled =
               Order Details
             </h4>
             <label style={{ display: 'block', marginBottom: '8px', color: '#374151', fontWeight: '500' }}>
-              Order Number (Enter exact order number — for driver’s convenience) <span style={{ color: '#ef4444' }}>*</span>
+              Order Number (Enter the first five letters of order number — for driver’s convenience) <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <input 
               type="text" 
@@ -868,21 +994,54 @@ const isSubmitDisabled =
             <label style={{ display: 'block', marginBottom: '8px', marginTop: '16px', color: '#374151', fontWeight: '500' }}>
               Order Total (RM) <span style={{ color: '#ef4444' }}>*</span>
             </label>
-            <input 
-              type="number" 
-              step="0.01" 
-              placeholder="Enter order total amount (e.g., 15.50)" 
-              value={orderTotal} 
-              onChange={(e) => { 
-                setOrderTotal(e.target.value); 
-                setOrderError(''); 
-              }} 
-              style={{ 
-                ...styles.input, 
-                ...(orderError && !orderTotal && styles.inputError),
-                backgroundColor: orderTotal ? '#f0fdf4' : '#fff' 
-              }} 
-            />
+            <input
+  type="number"
+  step="0.01"
+  min="0.01"
+  placeholder="Enter order total amount (e.g., 15.50)"
+  value={orderTotal}
+  onChange={(e) => {
+    const value = e.target.value;
+    // Only allow positive numbers
+    if (value === '' || (parseFloat(value) > 0 && !isNaN(parseFloat(value)))) {
+      setOrderTotal(value);
+      setOrderError('');
+    }
+  }}
+  onKeyDown={(e) => {
+    // Allow: backspace, delete, tab, escape, enter, decimal point
+    if ([46, 8, 9, 27, 13, 110, 190].indexOf(e.keyCode) !== -1 ||
+        // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+        (e.keyCode === 65 && e.ctrlKey === true) ||
+        (e.keyCode === 67 && e.ctrlKey === true) ||
+        (e.keyCode === 86 && e.ctrlKey === true) ||
+        (e.keyCode === 88 && e.ctrlKey === true)) {
+      return;
+    }
+    // Ensure that it is a number and stop the keypress
+    if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+      e.preventDefault();
+    }
+    // Prevent negative sign, e, E, +
+    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+      e.preventDefault();
+    }
+  }}
+  onPaste={(e) => {
+    // Handle paste event to only allow numbers
+    e.preventDefault();
+    const paste = (e.clipboardData || window.clipboardData).getData('text');
+    if (/^\d*\.?\d*$/.test(paste) && parseFloat(paste) > 0) {
+      setOrderTotal(paste);
+      setOrderError('');
+    }
+  }}
+  style={{
+    ...styles.input,
+    ...(orderError && (!orderTotal || parseFloat(orderTotal) <= 0) && styles.inputError),
+    backgroundColor: (orderTotal && parseFloat(orderTotal) > 0) ? '#f0fdf4' : '#fff'
+  }}
+/>
             {orderError && <p style={styles.errorText}>{orderError}</p>}
             <label style={{ display: 'block', marginBottom: '8px', marginTop: '16px', color: '#374151', fontWeight: '500' }}>
   Upload Order Receipt (Must be clear and complete!)<span style={{ color: '#ef4444' }}>*</span>

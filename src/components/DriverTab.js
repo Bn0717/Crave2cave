@@ -76,6 +76,15 @@ const DriverTab = ({
 }) => {
   const [deliveryStatus, setDeliveryStatus] = useState('pending');
   const [selectedOrders, setSelectedOrders] = useState([]);
+  const [collapsedVendors, setCollapsedVendors] = useState([]);
+
+  const toggleVendorCollapse = (vendorKey) => {
+  setCollapsedVendors(prev =>
+    prev.includes(vendorKey)
+      ? prev.filter(v => v !== vendorKey)
+      : [...prev, vendorKey]
+  );
+};
 
   useEffect(() => {
   const pendingExists = todayOrders.some(order => order.status === 'pending');
@@ -212,12 +221,34 @@ const handleStartDelivery = async () => {
     // Then try to send emails (but don't fail if this doesn't work)
     const emailResults = await Promise.allSettled(
       ordersToUpdate.map(async (order) => {
-        if (order.userEmail && order.userEmail !== "no-email@crave2cave.com") {
-          return await firebaseService.sendDeliveryEmail(
-            order.userId, 
-            order.orderNumber, 
-            order.userEmail
-          );
+        // Find the corresponding user data from prebookUsers
+        const userData = prebookUsers.find(user => user.firestoreId === order.userId);
+        const userEmail = userData?.email || order.userEmail;
+        
+        console.log(`Processing order ${order.orderNumber}:`, {
+          userId: order.userId,
+          userEmail: userEmail,
+          orderNumber: order.orderNumber,
+          orderTotal: order.orderTotal,
+          studentName: order.userName || userData?.name
+        });
+        
+        if (userEmail && userEmail !== "no-email@crave2cave.com") {
+          console.log('🔍 About to call sendDeliveryEmail with:', {
+  userId: order.userId,
+  userEmail: userEmail,
+  orderNumber: order.orderNumber,
+  orderTotal: order.orderTotal,
+  studentName: order.userName || userData?.name || 'Student'
+});
+
+          return await firebaseService.sendDeliveryEmail({
+            userId: order.userId,
+            userEmail: userEmail,
+            orderNumber: order.orderNumber,
+            orderTotal: order.orderTotal,
+            studentName: order.userName || userData?.name || 'Student'
+          });
         } else {
           console.log(`Skipping email for order ${order.orderNumber} - no valid email`);
           return { success: false, message: 'No email provided' };

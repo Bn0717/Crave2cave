@@ -1,0 +1,72 @@
+[debug] [2025-08-02T03:05:25.066Z] ----------------------------------------------------------------------
+[debug] [2025-08-02T03:05:25.068Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Bryan Ngu\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js functions:secrets:set GMAIL_USER
+[debug] [2025-08-02T03:05:25.068Z] CLI Version:   14.11.1
+[debug] [2025-08-02T03:05:25.068Z] Platform:      win32
+[debug] [2025-08-02T03:05:25.068Z] Node Version:  v22.16.0
+[debug] [2025-08-02T03:05:25.068Z] Time:          Sat Aug 02 2025 11:05:25 GMT+0800 (Singapore Standard Time)
+[debug] [2025-08-02T03:05:25.069Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-08-02T03:05:25.202Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-08-02T03:05:25.203Z] > authorizing via signed-in user (nguzhukiet0717@gmail.com)
+[debug] [2025-08-02T03:05:25.203Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-08-02T03:05:25.203Z] > authorizing via signed-in user (nguzhukiet0717@gmail.com)
+[debug] [2025-08-02T03:05:25.203Z] [iam] checking project crave-2-cave for permissions ["firebase.projects.get","secretmanager.secrets.create","secretmanager.secrets.get","secretmanager.secrets.update","secretmanager.versions.add"]
+[debug] [2025-08-02T03:05:25.204Z] Checked if tokens are valid: true, expires at: 1754106288233
+[debug] [2025-08-02T03:05:25.204Z] Checked if tokens are valid: true, expires at: 1754106288233
+[debug] [2025-08-02T03:05:25.205Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave:testIamPermissions [none]
+[debug] [2025-08-02T03:05:25.205Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave:testIamPermissions x-goog-quota-user=projects/crave-2-cave
+[debug] [2025-08-02T03:05:25.205Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave:testIamPermissions {"permissions":["firebase.projects.get","secretmanager.secrets.create","secretmanager.secrets.get","secretmanager.secrets.update","secretmanager.versions.add"]}
+[debug] [2025-08-02T03:05:25.543Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave:testIamPermissions 200
+[debug] [2025-08-02T03:05:25.544Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave:testIamPermissions {"permissions":["firebase.projects.get","secretmanager.secrets.create","secretmanager.secrets.get","secretmanager.secrets.update","secretmanager.versions.add"]}
+[debug] [2025-08-02T03:05:25.547Z] Checked if tokens are valid: true, expires at: 1754106288233
+[debug] [2025-08-02T03:05:25.547Z] Checked if tokens are valid: true, expires at: 1754106288233
+[debug] [2025-08-02T03:05:25.547Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave [none]
+[debug] [2025-08-02T03:05:26.403Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave 200
+[debug] [2025-08-02T03:05:26.404Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave {"projectNumber":"328846262825","projectId":"crave-2-cave","lifecycleState":"ACTIVE","name":"crave-2-cave","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2025-06-15T06:37:29.566040Z"}
+[debug] [2025-08-02T03:05:26.405Z] Checked if tokens are valid: true, expires at: 1754106288233
+[debug] [2025-08-02T03:05:26.405Z] Checked if tokens are valid: true, expires at: 1754106288233
+[debug] [2025-08-02T03:05:26.405Z] >>> [apiv2][query] GET https://secretmanager.googleapis.com/v1/projects/crave-2-cave/secrets/GMAIL_USER [none]
+[debug] [2025-08-02T03:05:26.815Z] <<< [apiv2][status] GET https://secretmanager.googleapis.com/v1/projects/crave-2-cave/secrets/GMAIL_USER 404
+[debug] [2025-08-02T03:05:26.815Z] <<< [apiv2][body] GET https://secretmanager.googleapis.com/v1/projects/crave-2-cave/secrets/GMAIL_USER {"error":{"code":404,"message":"Secret [projects/328846262825/secrets/GMAIL_USER] not found.","status":"NOT_FOUND"}}
+[debug] [2025-08-02T03:05:26.816Z] Checked if tokens are valid: true, expires at: 1754106288233
+[debug] [2025-08-02T03:05:26.816Z] Checked if tokens are valid: true, expires at: 1754106288233
+[debug] [2025-08-02T03:05:26.817Z] >>> [apiv2][query] POST https://secretmanager.googleapis.com/v1/projects/crave-2-cave/secrets secretId=GMAIL_USER
+[debug] [2025-08-02T03:05:26.817Z] >>> [apiv2][body] POST https://secretmanager.googleapis.com/v1/projects/crave-2-cave/secrets {"name":"GMAIL_USER","replication":{"automatic":{}},"labels":{"firebase-managed":"functions"}}
+[debug] [2025-08-02T03:05:29.446Z] <<< [apiv2][status] POST https://secretmanager.googleapis.com/v1/projects/crave-2-cave/secrets 200
+[debug] [2025-08-02T03:05:29.446Z] <<< [apiv2][body] POST https://secretmanager.googleapis.com/v1/projects/crave-2-cave/secrets {"name":"projects/328846262825/secrets/GMAIL_USER","replication":{"automatic":{}},"createTime":"2025-08-02T03:05:25.812467Z","labels":{"firebase-managed":"functions"},"etag":"\"163b59258ab768\""}
+[debug] [2025-08-02T03:05:34.721Z] ExitPromptError: User force closed the prompt with SIGINT
+    at Interface.sigint (C:\Users\Bryan Ngu\AppData\Roaming\npm\node_modules\firebase-tools\node_modules\@inquirer\core\dist\commonjs\lib\create-prompt.js:101:37)
+    at Interface.emit (node:events:518:28)
+    at Interface.emit (node:domain:489:12)
+    at [_ttyWrite] [as _ttyWrite] (node:internal/readline/interface:1128:18)
+    at ReadStream.onkeypress (node:internal/readline/interface:267:20)
+    at ReadStream.emit (node:events:530:35)
+    at ReadStream.emit (node:domain:489:12)
+    at emitKeys (node:internal/readline/utils:370:14)
+    at emitKeys.next (<anonymous>)
+    at ReadStream.onData (node:internal/readline/emitKeypressEvents:64:36)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2025-08-02T03:05:36.402Z] ----------------------------------------------------------------------
+[debug] [2025-08-02T03:05:36.404Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Bryan Ngu\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js functions:secrets:set GMAIL_APP_PASSWORD
+[debug] [2025-08-02T03:05:36.404Z] CLI Version:   14.11.1
+[debug] [2025-08-02T03:05:36.404Z] Platform:      win32
+[debug] [2025-08-02T03:05:36.404Z] Node Version:  v22.16.0
+[debug] [2025-08-02T03:05:36.405Z] Time:          Sat Aug 02 2025 11:05:36 GMT+0800 (Singapore Standard Time)
+[debug] [2025-08-02T03:05:36.405Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-08-02T03:05:36.549Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-08-02T03:05:36.549Z] > authorizing via signed-in user (nguzhukiet0717@gmail.com)
+[debug] [2025-08-02T03:05:36.550Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-08-02T03:05:36.550Z] > authorizing via signed-in user (nguzhukiet0717@gmail.com)
+[debug] [2025-08-02T03:05:36.550Z] [iam] checking project crave-2-cave for permissions ["firebase.projects.get","secretmanager.secrets.create","secretmanager.secrets.get","secretmanager.secrets.update","secretmanager.versions.add"]
+[debug] [2025-08-02T03:05:36.551Z] Checked if tokens are valid: true, expires at: 1754106288233
+[debug] [2025-08-02T03:05:36.551Z] Checked if tokens are valid: true, expires at: 1754106288233
+[debug] [2025-08-02T03:05:36.551Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave:testIamPermissions [none]
+[debug] [2025-08-02T03:05:36.552Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave:testIamPermissions x-goog-quota-user=projects/crave-2-cave
+[debug] [2025-08-02T03:05:36.552Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave:testIamPermissions {"permissions":["firebase.projects.get","secretmanager.secrets.create","secretmanager.secrets.get","secretmanager.secrets.update","secretmanager.versions.add"]}
+[debug] [2025-08-02T03:05:36.842Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave:testIamPermissions 200
+[debug] [2025-08-02T03:05:36.842Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave:testIamPermissions {"permissions":["firebase.projects.get","secretmanager.secrets.create","secretmanager.secrets.get","secretmanager.secrets.update","secretmanager.versions.add"]}
+[debug] [2025-08-02T03:05:36.843Z] Checked if tokens are valid: true, expires at: 1754106288233
+[debug] [2025-08-02T03:05:36.843Z] Checked if tokens are valid: true, expires at: 1754106288233
+[debug] [2025-08-02T03:05:36.843Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/crave-2-cave [none]
