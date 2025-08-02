@@ -91,13 +91,14 @@ const WaitingPage = ({ onClose, currentOrder }) => {
             textAlign: 'left'
         },
         orderHeader: {
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start', // Changed from center for better mobile alignment
-            marginBottom: 'clamp(12px, 3vw, 16px)',
-            flexWrap: 'wrap',
-            gap: '8px'
-        },
+    display: 'flex',
+    flexDirection: 'column', // ✅ Stack vertically on small screens
+    alignItems: 'center',     // ✅ Center contents horizontally
+    gap: '8px',
+    marginBottom: 'clamp(12px, 3vw, 16px)',
+    textAlign: 'center'       // ✅ Make text center-aligned for good look
+},
+
         orderGrid: {
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', // Reduced min width
@@ -129,14 +130,19 @@ const WaitingPage = ({ onClose, currentOrder }) => {
             minWidth: '0' // Allow shrinking
         },
         orderNumber: {
-            backgroundColor: '#fef3c7',
-            color: '#92400e',
-            padding: 'clamp(4px, 1vw, 6px) clamp(12px, 3vw, 16px)',
-            borderRadius: 'clamp(6px, 1.5vw, 8px)',
-            fontSize: 'clamp(12px, 3vw, 14px)', // Responsive font size
-            fontWeight: '600',
-            whiteSpace: 'nowrap'
-        },
+    backgroundColor: '#fef3c7',
+    color: '#92400e',
+    padding: 'clamp(4px, 1vw, 6px) clamp(12px, 3vw, 16px)',
+    borderRadius: 'clamp(6px, 1.5vw, 8px)',
+    fontSize: 'clamp(12px, 3vw, 14px)',
+    fontWeight: '600',
+    wordBreak: 'break-all',         // ✅ allow long string to break
+    overflowWrap: 'break-word',     // ✅ allow long strings to wrap
+    whiteSpace: 'normal',           // ❌ remove nowrap to allow wrapping
+    maxWidth: '100%',               // ✅ prevent stretching outside container
+    display: 'inline-block'         // ✅ allows maxWidth and wrapping
+},
+
         viewPhotoButton: {
             padding: 'clamp(10px, 2.5vw, 12px) clamp(16px, 4vw, 24px)', // Responsive padding
             backgroundColor: '#3b82f6',
@@ -226,7 +232,7 @@ const WaitingPage = ({ onClose, currentOrder }) => {
                             color: '#1e40af',
                             fontSize: 'clamp(14px, 3.5vw, 16px)'
                         }}>
-                            Pickup Location: Main Gate
+                            Pickup Location: KY Main Gate
                         </span>
                     </div>
                     {currentOrder && (
@@ -280,7 +286,7 @@ const WaitingPage = ({ onClose, currentOrder }) => {
                         </div>
                     )}
                     <p style={styles.message}>
-                        Please arrive at the main gate by 7:00 PM to receive your order
+                        Please arrive at the KY main gate at around 7:00 PM to receive your order
                     </p>
                     <button style={styles.button} onClick={onClose}>
                         Close

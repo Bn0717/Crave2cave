@@ -250,13 +250,69 @@ export const updateOrderDetails = async (orderId, updates) => {
   }
 };
 
-export const sendDeliveryEmail = async (userId, orderNumber, userEmail) => {
-  const sendEmail = httpsCallable(functions, 'sendDeliveryEmail');
+// Updated sendDeliveryEmail function with enhanced error handling and validation
+export const sendDeliveryEmail = async ({ userId, userEmail, orderNumber, orderTotal, studentName }) => {
   try {
-    const result = await sendEmail({ userId, orderNumber, userEmail });
-    console.log(result.data.message);
+    console.log('🔍 Starting sendDeliveryEmail with parameters:', {
+      userId: userId ? `${userId} (${typeof userId})` : 'MISSING',
+      userEmail: userEmail ? `${userEmail} (${typeof userEmail})` : 'MISSING',
+      orderNumber: orderNumber ? `${orderNumber} (${typeof orderNumber})` : 'MISSING',
+      orderTotal: `${orderTotal} (${typeof orderTotal})`,
+      studentName: studentName ? `${studentName} (${typeof studentName})` : 'MISSING'
+    });
+
+    // Validate parameters before sending
+    const missingParams = [];
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') missingParams.push('userId');
+    if (!userEmail || typeof userEmail !== 'string' || userEmail.trim() === '') missingParams.push('userEmail');
+    if (!orderNumber || typeof orderNumber !== 'string' || orderNumber.trim() === '') missingParams.push('orderNumber');
+    if (!studentName || typeof studentName !== 'string' || studentName.trim() === '') missingParams.push('studentName');
+
+    if (missingParams.length > 0) {
+      const errorMsg = `❌ Missing or invalid required parameters: ${missingParams.join(', ')}`;
+      console.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(userEmail.trim())) {
+      const errorMsg = `❌ Invalid email format: ${userEmail}`;
+      console.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Prepare the payload with proper type conversion
+    const emailPayload = {
+      userId: String(userId).trim(),
+      userEmail: String(userEmail).trim(),
+      orderNumber: String(orderNumber).trim(),
+      orderTotal: Number(orderTotal) || 0,
+      studentName: String(studentName).trim()
+    };
+
+    console.log('📧 Calling Firebase function with payload:', emailPayload);
+
+    const sendEmailFunction = httpsCallable(functions, 'sendDeliveryEmail');
+    const result = await sendEmailFunction(emailPayload);
+    
+    console.log('✅ Email function result:', result.data);
+    return result.data;
+
   } catch (error) {
-    console.error('Error calling sendDeliveryEmail:', error);
-    throw error;
+    console.error('❌ Error in sendDeliveryEmail:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      stack: error.stack
+    });
+    
+    // Return a structured error response instead of throwing
+    return { 
+      success: false, 
+      message: error.message || 'Failed to send email',
+      error: error.code || 'unknown-error',
+      details: error.details || null
+    };
   }
 };

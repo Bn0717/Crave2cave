@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Package, 
@@ -27,9 +27,14 @@ const AdminTab = ({
   setSelectedImage,
   isAuthenticated,
   onAuth,
-  resetAuth
+  resetAuth,
+  showSuccessAnimation,    // ADD THIS
+  showLoadingAnimation,    // ADD THIS  
+  hideLoadingAnimation, 
 }) => {
   const [showHistory, setShowHistory] = useState(false);
+  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+
 
   const styles = {
     card: { 
@@ -194,17 +199,18 @@ const AdminTab = ({
                 <History size={20} /> View History
               </button>
               <button 
-                onClick={resetAuth} 
-                style={{ 
-                  ...styles.button, 
-                  width: 'auto', 
-                  backgroundColor: '#64748b', 
-                  color: 'white', 
-                  padding: '14px 28px' 
-                }}
-              >
-                Logout
-              </button>
+  onClick={() => setShowConfirmPopup(true)}
+  
+  style={{ 
+    ...styles.button, 
+    width: 'auto', 
+    backgroundColor: '#ef4444', 
+    color: 'white', 
+    padding: '14px 28px' 
+  }}
+>
+  Clear All Sessions
+</button>
             </div>
           </div>
 
@@ -917,6 +923,65 @@ const AdminTab = ({
           </div>
         </>
       )}
+      {showConfirmPopup && (
+  <div style={{
+    position: 'fixed',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999
+  }}>
+    <div style={{
+      backgroundColor: '#fff',
+      padding: '24px',
+      borderRadius: '12px',
+      maxWidth: '90%',
+      width: '320px',
+      textAlign: 'center',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+    }}>
+      <h3 style={{ marginBottom: '16px', fontSize: '18px' }}>
+        Clear all saved sessions?
+      </h3>
+      <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '20px' }}>
+        This will log out all users. Are you sure?
+      </p>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+        <button
+          onClick={() => {
+            localStorage.clear();
+            window.location.reload();
+          }}
+          style={{
+            backgroundColor: '#ef4444',
+            color: '#fff',
+            padding: '10px 20px',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer'
+          }}
+        >
+          Confirm
+        </button>
+        <button
+          onClick={() => setShowConfirmPopup(false)}
+          style={{
+            backgroundColor: '#f1f5f9',
+            color: '#334155',
+            padding: '10px 20px',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer'
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };

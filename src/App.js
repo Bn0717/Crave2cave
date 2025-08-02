@@ -16,7 +16,8 @@ import DriverTab from './components/DriverTab';
 
 function App() {
   const [activeTab, setActiveTab] = useState('student');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+const [isDriverAuthenticated, setIsDriverAuthenticated] = useState(false);
   const [showLandingPage, setShowLandingPage] = useState(true);
   const [showMainApp, setShowMainApp] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState('');
@@ -42,8 +43,10 @@ function App() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [userForEmail, setUserForEmail] = useState(null);
   const [resetStudentForm, setResetStudentForm] = useState(null);
+  const [rememberedStudent, setRememberedStudent] = useState(null);
 
   const ADMIN_PASSCODE = 'byyc';
+const DRIVER_PASSCODE = 'kyuem';
 
   const styles = {
     container: { 
@@ -117,19 +120,28 @@ function App() {
     setLoadingMessage(''); 
   };
 
-  const handleAuthentication = (passcodeAttempt) => {
-    if (passcodeAttempt === ADMIN_PASSCODE) {
-      localStorage.setItem('isAdminAuthenticated', 'true');
-      setIsAuthenticated(true);
-    } else {
-      alert('Invalid passcode');
-    }
-  };
+  const handleAuthentication = (passcodeAttempt, tabType) => {
+  if (tabType === 'admin' && passcodeAttempt === ADMIN_PASSCODE) {
+    localStorage.setItem('isAdminAuthenticated', 'true');
+    setIsAdminAuthenticated(true);
+  } else if (tabType === 'driver' && passcodeAttempt === DRIVER_PASSCODE) {
+    localStorage.setItem('isDriverAuthenticated', 'true');
+    setIsDriverAuthenticated(true);
+  } else {
+    alert('Invalid passcode');
+  }
+};
 
   const resetAuth = () => {
-    setIsAuthenticated(false);
+  if (window.confirm("Are you sure you want to log out?")) {
+    setIsAdminAuthenticated(false);
+    setIsDriverAuthenticated(false);
     localStorage.removeItem('isAdminAuthenticated');
-  };
+    localStorage.removeItem('isDriverAuthenticated');
+    setActiveTab('student');
+  }
+};
+
 
   const handleLandingStart = (vendor) => {
     const startConfig = { background: '#ffffff' };
@@ -143,7 +155,6 @@ function App() {
   const handleNavigateToPortal = (portalName) => {
     const startConfig = { background: '#ffffff' };
     handleNavigateWithTransition(startConfig, () => {
-      resetAuth();
       setSelectedVendor('');
       setShowLandingPage(false);
       setShowMainApp(true);
@@ -168,20 +179,22 @@ function App() {
       handleNavigationHome();
       return;
     }
-    if (tabName === 'admin' || tabName === 'driver') {
-      resetAuth();
-    }
     setActiveTab(tabName);
   };
 
   const handleCloseWaitingPage = () => {
-    setOrderConfirmed(false);
-    setCurrentOrder(null);
-    if (resetStudentForm) {
-      resetStudentForm();
-    }
-    fetchAllData();
-  };
+  setOrderConfirmed(false);
+  setCurrentOrder(null);
+  
+  // Clear the student session when order is completed
+  localStorage.removeItem('rememberedStudent');
+  setRememberedStudent(null);
+  
+  if (resetStudentForm) {
+    resetStudentForm(true); // Pass true to clear session
+  }
+  fetchAllData();
+};
 
   const handleEmailSubmit = async (userId, email) => {
   showLoadingAnimation('Saving your email...');
@@ -189,8 +202,11 @@ function App() {
     if (!userId || typeof userId !== 'string') {
       throw new Error('Invalid user ID provided');
     }
+
     await firebaseService.updateUserEmail(userId, email);
+
     setShowEmailModal(false);
+
     showSuccessAnimation(
       'Order Confirmed!',
       'Your order has been submitted successfully. You will receive a confirmation email once the driver starts delivering your order.',
@@ -215,13 +231,37 @@ function App() {
   }
 };
 
+
   useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    const auth = localStorage.getItem('isAdminAuthenticated');
-    if (auth === 'true') setIsAuthenticated(true);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const handleResize = () => setWindowWidth(window.innerWidth);
+  window.addEventListener('resize', handleResize);
+  
+  // Existing admin/driver auth check
+  // Enhanced admin/driver auth check - PERMANENT
+  const adminAuth = localStorage.getItem('isAdminAuthenticated');
+  const driverAuth = localStorage.getItem('isDriverAuthenticated');
+  if (adminAuth === 'true') {
+    setIsAdminAuthenticated(true);
+    setActiveTab('admin'); // Auto-switch to admin tab
+  }
+  if (driverAuth === 'true') {
+    setIsDriverAuthenticated(true);
+    setActiveTab('driver'); // Auto-switch to driver tab
+  }
+  
+  // ADD THIS: Student session check
+  const savedStudent = localStorage.getItem('rememberedStudent');
+  if (savedStudent) {
+    try {
+      setRememberedStudent(JSON.parse(savedStudent));
+    } catch (error) {
+      console.error('Error parsing saved student data:', error);
+      localStorage.removeItem('rememberedStudent');
+    }
+  }
+  
+  return () => window.removeEventListener('resize', handleResize);
+}, []);
 
   useEffect(() => {
     const checkForNewDay = () => {
@@ -230,13 +270,19 @@ function App() {
       const lastAccessDate = localStorage.getItem('lastAccessDate');
       const todayMalaysia = malaysiaTime.toDateString();
       if (lastAccessDate !== todayMalaysia) {
-        localStorage.setItem('lastAccessDate', todayMalaysia);
-        localStorage.removeItem(`selectedVendor-${lastAccessDate}`);
-        setSelectedVendor('');
-        setShowLandingPage(true);
-        setShowMainApp(false);
-        fetchAllData();
-      }
+  localStorage.setItem('lastAccessDate', todayMalaysia);
+  localStorage.removeItem(`selectedVendor-${lastAccessDate}`);
+  
+  
+  // Only clear student session on new day
+  localStorage.removeItem('rememberedStudent');
+  setRememberedStudent(null);
+  
+  setSelectedVendor('');
+  setShowLandingPage(true);
+  setShowMainApp(false);
+  fetchAllData();
+}
     };
     checkForNewDay();
     const interval = setInterval(checkForNewDay, 60000);
@@ -277,6 +323,8 @@ function App() {
     selectedVendor,
     setShowEmailModal,
     setUserForEmail,
+    rememberedStudent,
+  setRememberedStudent,
   };
 
   const gateAnimationStyles = `
@@ -410,8 +458,8 @@ function App() {
       )}
       <div style={styles.maxWidth}>
         {activeTab === 'student' && <StudentTab {...sharedProps} setResetStudentForm={setResetStudentForm} />}
-        {activeTab === 'admin' && <AdminTab {...sharedProps} isAuthenticated={isAuthenticated} onAuth={handleAuthentication} resetAuth={resetAuth} />}
-        {activeTab === 'driver' && <DriverTab {...sharedProps} isAuthenticated={isAuthenticated} onAuth={handleAuthentication} resetAuth={resetAuth} />}
+        {activeTab === 'admin' && <AdminTab {...sharedProps} showSuccessAnimation={showSuccessAnimation} showLoadingAnimation={showLoadingAnimation}  hideLoadingAnimation={hideLoadingAnimation} isAuthenticated={isAdminAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'admin')} resetAuth={resetAuth} />}
+{activeTab === 'driver' && <DriverTab {...sharedProps} isAuthenticated={isDriverAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'driver')} resetAuth={resetAuth} />}
       </div>
     </div>
   );

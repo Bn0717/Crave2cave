@@ -27,7 +27,9 @@ const StudentTab = ({
   setResetStudentForm,
   setShowEmailModal,
   setUserForEmail,
-  selectedVendor
+  selectedVendor,
+  rememberedStudent,
+  setRememberedStudent,
 }) => {
   const [userStep, setUserStep] = useState(1);
   const [studentName, setStudentName] = useState('');
@@ -275,6 +277,11 @@ const StudentTab = ({
       const newUserId = await firebaseService.savePrebookUser(newUser);
       setSelectedUserId(newUserId);
       setCurrentUserIndex(registrationIndex);
+      saveStudentSession({
+  name: studentName,
+  studentId,
+  firestoreId: newUserId
+});
       await fetchAllData();
       hideLoadingAnimation();
       
@@ -293,8 +300,8 @@ const StudentTab = ({
         showSuccessAnimation(
           'Registration Successful!', 
           'You have been registered for the food delivery service.',
-          <p>Please proceed to pay the RM10 commitment fee.</p>,
-          3000,
+          <p>Please proceed to pay the RM10 base delivery fee.</p>,
+          5000,
           true,
           () => setUserStep(2)
         );
@@ -359,8 +366,8 @@ const StudentTab = ({
         const remaining = 3 - newPaidCount;
         showSuccessAnimation(
           'Payment Confirmed!',
-          'Your RM10 commitment fee has been received.',
-          <p>We need {remaining} more paid user{remaining > 1 ? 's' : ''} before order submission opens. Please check back later!</p>,
+          'Your RM10 base delivery fee has been received.',
+          <p>We need {remaining} more paid user{remaining > 1 ? 's' : ''} before order submission opens. Please check back later by retrieving your registration!</p>,
           0,
           true,
           () => {
@@ -587,6 +594,11 @@ const StudentTab = ({
   setStudentName(foundUser.name);
   setStudentId(foundUser.studentId);
   setSelectedUserId(foundUser.firestoreId);
+  saveStudentSession({
+  name: foundUser.name,
+  studentId: foundUser.studentId,
+  firestoreId: foundUser.firestoreId
+});
  
   if (foundUser.commitmentPaid || (systemActivatedToday && userIndex >= 3)) {
     setUserStep(3);
@@ -613,27 +625,123 @@ const StudentTab = ({
   setShowRetrieve(false);
 };
 
-  const resetForm = useCallback(() => {
-    setUserStep(1);
-    setStudentName('');
-    setStudentId('');
-    setSelectedUserId('');
-    setReceiptFile(null);
-    setOrderNumber('');
-    setOrderTotal('');
-    setPaymentProof(null);
-    setOrderReceiptFile(null);
-    setCurrentUserIndex(0);
-    setNameError('');
-    setIdError('');
-    setOrderError('');
-  }, []);
+// Save student session to localStorage
+const saveStudentSession = (studentData) => {
+  const sessionData = {
+    name: studentData.name,
+    studentId: studentData.studentId,
+    firestoreId: studentData.firestoreId,
+    savedAt: new Date().toISOString()
+  };
+  localStorage.setItem('rememberedStudent', JSON.stringify(sessionData));
+  setRememberedStudent(sessionData);
+};
 
-  useEffect(() => {
-    if (setResetStudentForm) {
-      setResetStudentForm(() => resetForm);
+// Clear student session
+const clearStudentSession = () => {
+  localStorage.removeItem('rememberedStudent');
+  setRememberedStudent(null);
+};
+
+const loadFromSession = async () => {
+  if (rememberedStudent) {
+    setStudentName(rememberedStudent.name);
+    setStudentId(rememberedStudent.studentId);
+    setSelectedUserId(rememberedStudent.firestoreId);
+    
+    // Find user in today's data
+    const foundUser = prebookUsers.find(u => u.firestoreId === rememberedStudent.firestoreId);
+    if (foundUser) {
+      const userOrder = registrationOrder.find(order => order.userId === foundUser.firestoreId);
+      const userIndex = userOrder ? userOrder.order - 1 : prebookUsers.findIndex(u => u.firestoreId === foundUser.firestoreId);
+      setCurrentUserIndex(userIndex);
+      
+      // Check if user already has an order today
+      if (foundUser.orderSubmitted && isToday(foundUser.lastOrderDate)) {
+        try {
+          showLoadingAnimation('Loading your order...');
+          const order = await firebaseService.getOrderByUserId(foundUser.firestoreId);
+          if (order) {
+            setCurrentOrder(order);
+            setOrderConfirmed(true);
+            hideLoadingAnimation();
+            return;
+          }
+        } catch (error) {
+          console.error('Error loading order:', error);
+          hideLoadingAnimation();
+        }
+      }
+      
+      // Determine which step to show
+      if (foundUser.commitmentPaid || (systemActivatedToday && userIndex >= 3)) {
+        setUserStep(3);
+        showSuccessAnimation(
+          `Welcome back ${foundUser.name}!`,
+          'You can continue with your order submission.',
+          null, 2000, true
+        );
+      } else {
+        setUserStep(2);
+        showSuccessAnimation(
+          `Welcome back ${foundUser.name}!`,
+          'Please complete your payment to continue.',
+          null, 2000, true
+        );
+      }
     }
-  }, [resetForm, setResetStudentForm]);
+  }
+};
+
+  const resetForm = useCallback((clearSession = false) => {
+  setUserStep(1);
+  setStudentName('');
+  setStudentId('');
+  setSelectedUserId('');
+  setReceiptFile(null);
+  setOrderNumber('');
+  setOrderTotal('');
+  setPaymentProof(null);
+  setOrderReceiptFile(null);
+  setCurrentUserIndex(0);
+  setNameError('');
+  setIdError('');
+  setOrderError('');
+  
+  // ADD THIS: Clear session if requested
+  if (clearSession) {
+    clearStudentSession();
+  }
+}, []);
+
+  // Auto-load student session on component mount
+useEffect(() => {
+  if (rememberedStudent && userStep === 1 && !selectedUserId && prebookUsers.length > 0) {
+    const foundUser = prebookUsers.find(u => u.firestoreId === rememberedStudent.firestoreId);
+    if (foundUser && isToday(foundUser.timestamp)) {
+      loadFromSession();
+    }
+  }
+}, [rememberedStudent, prebookUsers, userStep, selectedUserId]);
+useEffect(() => {
+  setResetStudentForm(() => resetForm);
+}, [resetForm, setResetStudentForm]);
+
+  const parsedOrderTotal = parseFloat(orderTotal) || 0;
+const deliveryFee = calculateDeliveryFee(parsedOrderTotal);
+const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
+const commitmentFeeDeducted = (currentUserIndex < 3 && user?.commitmentPaid && deliveryFee > 0) ? 10 : 0;
+const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
+
+const isSubmitDisabled =
+  !orderNumber.trim() ||
+  !orderTotal ||
+  isNaN(orderTotal) ||
+  Number(orderTotal) <= 0 ||
+  !orderReceiptFile ||
+  (actualDeliveryFee > 0 && !paymentProof); // ✅ ONLY require paymentProof if actual fee > 0
+
+
 
   return (
     <div style={styles.card}>
@@ -702,6 +810,40 @@ const StudentTab = ({
           />
           {idError && <p style={styles.errorText}>{idError}</p>}
           
+          {rememberedStudent && (
+  <div style={{
+    backgroundColor: '#f0f9ff',
+    padding: '16px',
+    borderRadius: '12px',
+    marginBottom: '16px',
+    border: '1px solid #bfdbfe'
+  }}>
+    <p style={{ margin: '0 0 12px 0', color: '#1e40af', fontWeight: '600' }}>
+      Welcome back {rememberedStudent.name}!
+    </p>
+    <div style={styles.buttonRow}>
+      <button 
+        onClick={loadFromSession}
+        style={{ 
+          ...styles.button, 
+          ...styles.buttonBlue 
+        }}
+      >
+        Continue Previous Session
+      </button>
+      <button 
+        onClick={() => resetForm(true)}
+        style={{ 
+          ...styles.button, 
+          ...styles.buttonGray 
+        }}
+      >
+        Start Fresh
+      </button>
+    </div>
+  </div>
+)}
+
           <button 
             onClick={handlePrebook} 
             style={{ 
@@ -717,13 +859,13 @@ const StudentTab = ({
       {userStep === 2 && (
         <div>
           <h3 style={{ 
-            marginBottom: '20px', 
+            marginBottom: '1px', 
             color: '#1e293b',
             fontSize: windowWidth <= 480 ? '16px' : '18px'
           }}>
-            Step 2: Pay Commitment Fee
-          </h3>
-          
+            Step 2: Pay Base Delivery Fee 
+          </h3><p>RM10 base delivery fee applies to the first 3 users but will be waived automatically during order submission.</p>
+
           <UnifiedQRCodeDisplay 
             isCommitmentFee={true} 
             userIndex={currentUserIndex} 
@@ -735,7 +877,7 @@ const StudentTab = ({
             <p style={{ margin: '0 0 8px 0' }}><strong>Name:</strong> {studentName}</p>
             <p style={{ margin: '0 0 8px 0' }}><strong>Student ID:</strong> {studentId}</p>
             <p style={{ margin: 0 }}>
-              <strong>Commitment Fee:</strong> {
+              <strong>Base Delivery Fee:</strong> {
                 currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order >= 4) 
                   ? 'FREE (4th+ user!)' 
                   : 'RM10'
@@ -746,7 +888,7 @@ const StudentTab = ({
           {!(currentUserIndex >= 3 || (registrationOrder.find(o => o.userId === selectedUserId)?.order >= 4)) && (
             <>
               <p style={{ marginBottom: '16px', color: '#64748b' }}>
-                Upload proof of payment (RM10 commitment fee):
+                Upload proof of payment (RM10 base delivery fee):
               </p>
               <input 
                 type="file" 
@@ -833,7 +975,7 @@ const StudentTab = ({
               Order Details
             </h4>
             <label style={{ display: 'block', marginBottom: '8px', color: '#374151', fontWeight: '500' }}>
-              Order Number <span style={{ color: '#ef4444' }}>*</span>
+              Order Number (Enter the first five letters of order number — for driver’s convenience) <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <input 
               type="text" 
@@ -852,24 +994,57 @@ const StudentTab = ({
             <label style={{ display: 'block', marginBottom: '8px', marginTop: '16px', color: '#374151', fontWeight: '500' }}>
               Order Total (RM) <span style={{ color: '#ef4444' }}>*</span>
             </label>
-            <input 
-              type="number" 
-              step="0.01" 
-              placeholder="Enter order total amount (e.g., 15.50)" 
-              value={orderTotal} 
-              onChange={(e) => { 
-                setOrderTotal(e.target.value); 
-                setOrderError(''); 
-              }} 
-              style={{ 
-                ...styles.input, 
-                ...(orderError && !orderTotal && styles.inputError),
-                backgroundColor: orderTotal ? '#f0fdf4' : '#fff' 
-              }} 
-            />
+            <input
+  type="number"
+  step="0.01"
+  min="0.01"
+  placeholder="Enter order total amount (e.g., 15.50)"
+  value={orderTotal}
+  onChange={(e) => {
+    const value = e.target.value;
+    // Only allow positive numbers
+    if (value === '' || (parseFloat(value) > 0 && !isNaN(parseFloat(value)))) {
+      setOrderTotal(value);
+      setOrderError('');
+    }
+  }}
+  onKeyDown={(e) => {
+    // Allow: backspace, delete, tab, escape, enter, decimal point
+    if ([46, 8, 9, 27, 13, 110, 190].indexOf(e.keyCode) !== -1 ||
+        // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+        (e.keyCode === 65 && e.ctrlKey === true) ||
+        (e.keyCode === 67 && e.ctrlKey === true) ||
+        (e.keyCode === 86 && e.ctrlKey === true) ||
+        (e.keyCode === 88 && e.ctrlKey === true)) {
+      return;
+    }
+    // Ensure that it is a number and stop the keypress
+    if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+      e.preventDefault();
+    }
+    // Prevent negative sign, e, E, +
+    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+      e.preventDefault();
+    }
+  }}
+  onPaste={(e) => {
+    // Handle paste event to only allow numbers
+    e.preventDefault();
+    const paste = (e.clipboardData || window.clipboardData).getData('text');
+    if (/^\d*\.?\d*$/.test(paste) && parseFloat(paste) > 0) {
+      setOrderTotal(paste);
+      setOrderError('');
+    }
+  }}
+  style={{
+    ...styles.input,
+    ...(orderError && (!orderTotal || parseFloat(orderTotal) <= 0) && styles.inputError),
+    backgroundColor: (orderTotal && parseFloat(orderTotal) > 0) ? '#f0fdf4' : '#fff'
+  }}
+/>
             {orderError && <p style={styles.errorText}>{orderError}</p>}
             <label style={{ display: 'block', marginBottom: '8px', marginTop: '16px', color: '#374151', fontWeight: '500' }}>
-  Upload Order Receipt <span style={{ color: '#ef4444' }}>*</span>
+  Upload Order Receipt (Must be clear and complete!)<span style={{ color: '#ef4444' }}>*</span>
 </label>
 
             <input
@@ -906,10 +1081,7 @@ const StudentTab = ({
           />
           
           {(() => {
-            const deliveryFee = calculateDeliveryFee(parseFloat(orderTotal) || 0);
-            const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
-            const commitmentFeeDeducted = (currentUserIndex < 3 && user?.commitmentPaid && deliveryFee > 0) ? 10 : 0;
-            const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
+            
             
             if (actualDeliveryFee > 0) {
               return (
@@ -917,7 +1089,7 @@ const StudentTab = ({
                   <h4 style={styles.sectionHeader}>Delivery Fee Payment</h4>
                   <UnifiedQRCodeDisplay amount={actualDeliveryFee} />
                   <p style={{ marginTop: '16px', marginBottom: '12px', color: '#64748b' }}>
-                    Please upload proof of payment for the delivery fee:
+                    Please upload proof of payment for the delivery fee: <span style={{ color: '#ef4444' }}>*</span>
                   </p>
                   <input 
                     type="file" 
@@ -943,37 +1115,17 @@ const StudentTab = ({
           
           <button 
   onClick={handleOrderSubmission} 
-  disabled={
-    !orderNumber.trim() ||
-    !orderTotal ||
-    isNaN(orderTotal) ||
-    Number(orderTotal) <= 0 ||
-    !orderReceiptFile || 
-    (calculateDeliveryFee(parseFloat(orderTotal) || 0) > 0 && !paymentProof)
-  } 
+  disabled={isSubmitDisabled}
   style={{ 
     ...styles.button, 
     ...styles.buttonOrange, 
-    opacity: (
-      !orderNumber.trim() ||
-      !orderTotal ||
-      isNaN(orderTotal) ||
-      Number(orderTotal) <= 0 ||
-      !orderReceiptFile || 
-      (calculateDeliveryFee(parseFloat(orderTotal) || 0) > 0 && !paymentProof)
-    ) ? 0.5 : 1, 
-    cursor: (
-      !orderNumber.trim() ||
-      !orderTotal ||
-      isNaN(orderTotal) ||
-      Number(orderTotal) <= 0 ||
-      !orderReceiptFile || 
-      (calculateDeliveryFee(parseFloat(orderTotal) || 0) > 0 && !paymentProof)
-    ) ? 'not-allowed' : 'pointer' 
+    opacity: isSubmitDisabled ? 0.5 : 1, 
+    cursor: isSubmitDisabled ? 'not-allowed' : 'pointer' 
   }}
 >
   Submit Order
 </button>
+
 
         </div>
       )}
