@@ -236,17 +236,16 @@ const DRIVER_PASSCODE = 'kyuem';
   const handleResize = () => setWindowWidth(window.innerWidth);
   window.addEventListener('resize', handleResize);
   
-  // Existing admin/driver auth check
-  // Enhanced admin/driver auth check - PERMANENT
+  // Enhanced admin/driver auth check - but don't auto-switch tabs
   const adminAuth = localStorage.getItem('isAdminAuthenticated');
   const driverAuth = localStorage.getItem('isDriverAuthenticated');
   if (adminAuth === 'true') {
     setIsAdminAuthenticated(true);
-    setActiveTab('admin'); // Auto-switch to admin tab
+    // Remove the setActiveTab('admin') line
   }
   if (driverAuth === 'true') {
     setIsDriverAuthenticated(true);
-    setActiveTab('driver'); // Auto-switch to driver tab
+    // Remove the setActiveTab('driver') line
   }
   
   // ADD THIS: Student session check
