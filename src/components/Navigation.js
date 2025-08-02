@@ -77,7 +77,7 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
     logoText: {
     fontSize: windowWidth <= 768 ? '18px' : '20px',
     fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+    background: 'linear-gradient(135deg, #3b82f5 0%, #1e40af 100%)',
     WebkitBackgroundClip: 'text', 
     WebkitTextFillColor: 'transparent', 
     backgroundClip: 'text',
