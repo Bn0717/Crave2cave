@@ -13,6 +13,7 @@ import EmailPromptModal from './components/EmailPromptModal';
 import StudentTab from './components/StudentTab';
 import AdminTab from './components/AdminTab';
 import DriverTab from './components/DriverTab';
+import ImageCarousel from './components/ImageCarousel';
 
 function App() {
   const [activeTab, setActiveTab] = useState('student');
@@ -44,6 +45,18 @@ const [isDriverAuthenticated, setIsDriverAuthenticated] = useState(false);
   const [userForEmail, setUserForEmail] = useState(null);
   const [resetStudentForm, setResetStudentForm] = useState(null);
   const [rememberedStudent, setRememberedStudent] = useState(null);
+  const [sessionPrompt, setSessionPrompt] = useState(null);
+  const [selectedImages, setSelectedImages] = useState(null);
+  const [showImageCarousel, setShowImageCarousel] = useState(false);
+  const [systemAvailability, setSystemAvailability] = useState({ 
+  isSystemOpen: true, 
+  nextOpenTime: '', 
+  malaysiaTime: new Date() 
+});
+useEffect(() => {
+  // Initialize system availability on component mount
+  setSystemAvailability(getSystemAvailability());
+}, []);
 
   const ADMIN_PASSCODE = 'byyc';
 const DRIVER_PASSCODE = 'kyuem';
@@ -62,16 +75,71 @@ const DRIVER_PASSCODE = 'kyuem';
     }
   };
 
+  const getSystemAvailability = () => {
+  const now = new Date();
+  const malaysiaTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"}));
+  
+  const dayOfWeek = malaysiaTime.getDay(); // 0=Sunday, 2=Tuesday, 5=Friday
+  const hour = malaysiaTime.getHours();
+  const minute = malaysiaTime.getMinutes();
+  const currentTime = hour + (minute / 60);
+  
+  const isAllowedDay = dayOfWeek === 3 || dayOfWeek === 5 || dayOfWeek === 0 || dayOfWeek === 1 || dayOfWeek === 2 || dayOfWeek === 4 || dayOfWeek === 6 ; // Tuesday or Friday
+  const isAllowedTime = currentTime >= 0 && currentTime <24; // 12 AM to 6 PM
+  
+  const isSystemOpen = isAllowedDay && isAllowedTime;
+  
+  let nextOpenTime = '';
+  if (!isAllowedDay) {
+    // Find next Tuesday or Friday
+    const daysUntilTuesday = (2 - dayOfWeek + 7) % 7;
+    const daysUntilFriday = (5 - dayOfWeek + 7) % 7;
+    const nextDay = daysUntilTuesday <= daysUntilFriday ? daysUntilTuesday : daysUntilFriday;
+    const nextDate = new Date(malaysiaTime);
+    nextDate.setDate(nextDate.getDate() + (nextDay === 0 ? 7 : nextDay));
+    nextOpenTime = nextDate.toLocaleDateString('en-MY', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    }) + ' at 12:00 AM';
+  } else if (currentTime >= 18) {
+    // Next allowed day (Tuesday or Friday)
+    const daysUntilNext = dayOfWeek === 2 ? 3 : 4; // Friday if Tuesday, Tuesday if Friday
+    const nextDate = new Date(malaysiaTime);
+    nextDate.setDate(nextDate.getDate() + daysUntilNext);
+    nextOpenTime = nextDate.toLocaleDateString('en-MY', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    }) + ' at 12:00 AM';
+  }
+  
+  return { isSystemOpen, nextOpenTime, malaysiaTime };
+};
+
+const handleMultipleImages = (images) => {
+  if (Array.isArray(images) && images.length > 0) {
+    setSelectedImages(images);
+  } else if (typeof images === 'string') {
+    setSelectedImages([images]);
+  }
+};
+
   const filterTodayData = useCallback((ordersData = [], users = []) => {
-    const todayOrdersFiltered = ordersData.filter(order => isToday(order.timestamp));
-    const todayUsersFiltered = users.filter(user => isToday(user.registrationDate) || isToday(user.timestamp));
-    setTodayOrders(todayOrdersFiltered);
-    setTodayUsers(todayUsersFiltered);
-    const todayPaidUsers = todayUsersFiltered.filter(u => u.commitmentPaid);
-    const isActivatedToday = todayPaidUsers.length >= 3;
-    setMinOrderReached(isActivatedToday);
-    setSystemActivatedToday(isActivatedToday);
-  }, []);
+  const todayOrdersFiltered = ordersData.filter(order => isToday(order.timestamp));
+  const todayUsersFiltered = users.filter(user => isToday(user.registrationDate) || isToday(user.timestamp));
+  setTodayOrders(todayOrdersFiltered);
+  setTodayUsers(todayUsersFiltered);
+  
+  // Count only users who paid the commitment fee
+  const paidUsersCount = todayUsersFiltered.filter(u => u.commitmentPaid).length;
+  
+  const isActivatedToday = paidUsersCount >= 3;
+  setMinOrderReached(isActivatedToday);
+  setSystemActivatedToday(isActivatedToday);
+}, []);
 
   const fetchAllData = useCallback(async () => {
     try {
@@ -96,6 +164,14 @@ const DRIVER_PASSCODE = 'kyuem';
       setLoadingHistory(false);
     }
   }, [filterTodayData]);
+
+  const getProgressText = (step) => {
+  if (step === 2) return "Awaiting Base Delivery Fee for first 3 users";
+  if (step === 3) return "Awaiting Order Submission"; 
+  if (step === 'order_submitted') return "Email Required";
+  if (step === 'completed') return "Order Confirmed";
+  return "Registered";
+};
 
   const handleNavigateWithTransition = (config, navigationAction) => {
     setTransitionConfig(config);
@@ -142,16 +218,167 @@ const DRIVER_PASSCODE = 'kyuem';
   }
 };
 
+const handleRestoreSession = async () => {
+  if (!sessionPrompt) return;
+
+  // Set selected vendor first
+  setSelectedVendor(sessionPrompt.vendor);
+  
+  // Close session prompt and show main app
+  setSessionPrompt(null);
+  setShowLandingPage(false);
+  setShowMainApp(true);
+
+  if (sessionPrompt.step === 'completed') {
+    const orderDetailsJSON = localStorage.getItem('activeOrderDetails');
+    if (orderDetailsJSON) {
+      const orderDetails = JSON.parse(orderDetailsJSON);
+      setCurrentOrder(orderDetails);
+      setOrderConfirmed(true);
+    }
+    return;
+  } 
+  
+  if (sessionPrompt.step === 'order_submitted') {
+    const pendingOrder = localStorage.getItem('pendingOrderDetails');
+    if (pendingOrder) {
+      const orderDetails = JSON.parse(pendingOrder);
+      setCurrentOrder(orderDetails);
+      setUserForEmail({ 
+        firestoreId: sessionPrompt.student.firestoreId, 
+        name: sessionPrompt.student.name 
+      });
+      setShowEmailModal(true);
+    }
+    return;
+  }
+
+  // ✅ FIX: For steps 1, 2, or 3 - fetch latest data and determine correct step
+  try {
+    showLoadingAnimation('Loading your session...');
+    
+    // Wait for data to be fetched
+    await fetchAllData();
+    
+    // ✅ FIX: Wait a moment for state to update after fetchAllData
+    setTimeout(() => {
+      // ✅ NEW: After fetching data, determine the user's actual status
+      const foundUser = prebookUsers.find(u => u.firestoreId === sessionPrompt.student.firestoreId);
+      
+      if (!foundUser) {
+        hideLoadingAnimation();
+        // ✅ FIX: Set remembered student first so they can continue their session
+        setRememberedStudent({
+          ...sessionPrompt.student,
+          sessionStep: sessionPrompt.step
+        });
+        
+        showSuccessAnimation(
+          `Welcome back, ${sessionPrompt.student.name}!`,
+          sessionPrompt.step === 2 
+            ? 'Please complete your base delivery fee payment to continue.'
+            : 'Continue with your registration.',
+          null,
+          3000,
+          true
+        );
+        return;
+      }
+
+    // Calculate current system status
+    const paidUsersCount = prebookUsers.filter(u => u.commitmentPaid).length;
+    const systemIsActive = paidUsersCount >= 3;
+    const userOrder = registrationOrder.find(order => order.userId === foundUser.firestoreId);
+    const userIndex = userOrder ? userOrder.order - 1 : prebookUsers.findIndex(u => u.firestoreId === foundUser.firestoreId);
+    
+    // Set remembered student with the session step
+    setRememberedStudent({
+      ...sessionPrompt.student,
+      sessionStep: sessionPrompt.step
+    });
+    
+    hideLoadingAnimation();
+    
+    // ✅ IMPROVED: Show appropriate message based on ACTUAL user status, not just session step
+    if (sessionPrompt.step === 2) {
+      // User hasn't paid commitment fee yet
+      showSuccessAnimation(
+        `Welcome back, ${sessionPrompt.student.name}!`,
+        'Please complete your base delivery fee payment to continue.',
+        <p>We need {Math.max(0, 3 - paidUsersCount)} more paid user{(3 - paidUsersCount) !== 1 ? 's' : ''} before order submission opens.</p>,
+        5000,
+        true
+      );
+    } else if (sessionPrompt.step === 3) {
+      // User is on step 3 - but check if they can actually submit or need to wait
+      if (foundUser.commitmentPaid && !systemIsActive) {
+        // User has paid but system not active - show waiting message
+        const remaining = Math.max(0, 3 - paidUsersCount);
+        showSuccessAnimation(
+          `Welcome back, ${sessionPrompt.student.name}!`,
+          'Your payment has been confirmed.',
+          <div>
+            <p>We need at least 3 paid users before order submission opens.</p>
+            <p><strong>Current progress: {paidUsersCount}/3 users</strong></p>
+            <p>Please check back later or wait for more users to join!</p>
+          </div>,
+          0, // Don't auto-close
+          true
+        );
+      } else if ((foundUser.commitmentPaid && systemIsActive) || userIndex >= 3) {
+        // User can submit order
+        showSuccessAnimation(
+          `Welcome back, ${sessionPrompt.student.name}!`,
+          userIndex >= 3 ? 'System is active! You can proceed directly to order submission.' : 'Your payment has been confirmed. You can now submit your order.',
+          null,
+          2500,
+          true
+        );
+      } else {
+        // Edge case - shouldn't happen but handle gracefully
+        showSuccessAnimation(
+          `Welcome back, ${sessionPrompt.student.name}!`,
+          'Loading your current status...',
+          null,
+          2500,
+          true
+        );
+      }
+    }
+    
+    }, 500); // Wait 500ms for state to update
+  } catch (error) {
+    hideLoadingAnimation();
+    console.error('Error loading session:', error);
+    showSuccessAnimation(
+      'Error Loading Session',
+      'Failed to load your session. Please try again.',
+      null,
+      3000,
+      true
+    );
+  }
+};
+
+const handleStartNewSession = () => {
+  const todayKey = new Date().toLocaleDateString('en-CA');
+  localStorage.removeItem(`userSession-${todayKey}`);
+  localStorage.removeItem('activeOrderDetails');
+  setSessionPrompt(null);
+};
+
 
   const handleLandingStart = (vendor) => {
-    const startConfig = { background: '#ffffff' };
-    handleNavigateWithTransition(startConfig, () => {
-      setSelectedVendor(vendor);
-      setShowLandingPage(false);
-      setShowMainApp(true);
-    });
-  };
+  // ADD THIS LINE: Save to localStorage immediately
+  localStorage.setItem(`selectedVendor-${new Date().toLocaleDateString('en-CA')}`, vendor);
 
+  const startConfig = { background: '#ffffff' };
+  handleNavigateWithTransition(startConfig, () => {
+    setSelectedVendor(vendor);
+    setShowLandingPage(false);
+    setShowMainApp(true);
+  });
+};
   const handleNavigateToPortal = (portalName) => {
     const startConfig = { background: '#ffffff' };
     handleNavigateWithTransition(startConfig, () => {
@@ -183,17 +410,22 @@ const DRIVER_PASSCODE = 'kyuem';
   };
 
   const handleCloseWaitingPage = () => {
+  // ✅ FIX: Keep the session in 'completed' state - DON'T clear it
   setOrderConfirmed(false);
   setCurrentOrder(null);
   
-  // Clear the student session when order is completed
-  localStorage.removeItem('rememberedStudent');
+  // Clear the remembered student from memory but keep session data
   setRememberedStudent(null);
   
   if (resetStudentForm) {
-    resetStudentForm(true); // Pass true to clear session
+    resetStudentForm(false); // Pass false to NOT clear session
   }
   fetchAllData();
+
+  // ✅ KEEP the session data so user can return to timer
+  // Don't clear userSession or activeOrderDetails
+  // Only clear pendingOrderDetails since order is complete
+  localStorage.removeItem('pendingOrderDetails');
 };
 
   const handleEmailSubmit = async (userId, email) => {
@@ -205,8 +437,35 @@ const DRIVER_PASSCODE = 'kyuem';
 
     await firebaseService.updateUserEmail(userId, email);
 
+    // ✅ FIX: Close email modal FIRST
     setShowEmailModal(false);
 
+    // ✅ FIX: Update session to 'completed' and move order data
+    const todayKey = new Date().toLocaleDateString('en-CA');
+    const sessionJSON = localStorage.getItem(`userSession-${todayKey}`);
+    if (sessionJSON) {
+      try {
+        const sessionData = JSON.parse(sessionJSON);
+        const updatedSession = {
+          ...sessionData,
+          step: 'completed'
+        };
+        localStorage.setItem(`userSession-${todayKey}`, JSON.stringify(updatedSession));
+        
+        // Move order details from pending to active
+        const pendingOrder = localStorage.getItem('pendingOrderDetails');
+        if (pendingOrder) {
+          localStorage.setItem('activeOrderDetails', pendingOrder);
+          localStorage.removeItem('pendingOrderDetails');
+        }
+      } catch (e) {
+        console.error('Error updating session after email:', e);
+      }
+    }
+
+    hideLoadingAnimation();
+
+    // ✅ FIX: Show success message THEN navigate to timer
     showSuccessAnimation(
       'Order Confirmed!',
       'Your order has been submitted successfully. You will receive a confirmation email once the driver starts delivering your order.',
@@ -214,10 +473,12 @@ const DRIVER_PASSCODE = 'kyuem';
       4000,
       true,
       () => {
+        // ✅ Show the timer countdown page after success message
         setOrderConfirmed(true);
       }
     );
   } catch (error) {
+    hideLoadingAnimation();
     console.error('Failed to save email:', error);
     showSuccessAnimation(
       'Email Save Failed',
@@ -226,67 +487,55 @@ const DRIVER_PASSCODE = 'kyuem';
       3000,
       true
     );
-  } finally {
-    hideLoadingAnimation();
   }
 };
 
-
-  useEffect(() => {
-  const handleResize = () => setWindowWidth(window.innerWidth);
-  window.addEventListener('resize', handleResize);
+useEffect(() => {
+  const checkSystemAvailability = () => {
+    setSystemAvailability(getSystemAvailability());
+  };
   
-  // Enhanced admin/driver auth check - but don't auto-switch tabs
-  const adminAuth = localStorage.getItem('isAdminAuthenticated');
-  const driverAuth = localStorage.getItem('isDriverAuthenticated');
-  if (adminAuth === 'true') {
-    setIsAdminAuthenticated(true);
-    // Remove the setActiveTab('admin') line
-  }
-  if (driverAuth === 'true') {
-    setIsDriverAuthenticated(true);
-    // Remove the setActiveTab('driver') line
-  }
+  // Check every minute
+  const interval = setInterval(checkSystemAvailability, 60000);
   
-  // ADD THIS: Student session check
-  const savedStudent = localStorage.getItem('rememberedStudent');
-  if (savedStudent) {
-    try {
-      setRememberedStudent(JSON.parse(savedStudent));
-    } catch (error) {
-      console.error('Error parsing saved student data:', error);
-      localStorage.removeItem('rememberedStudent');
-    }
-  }
-  
-  return () => window.removeEventListener('resize', handleResize);
+  return () => clearInterval(interval);
 }, []);
 
-  useEffect(() => {
-    const checkForNewDay = () => {
-      const now = new Date();
-      const malaysiaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' }));
-      const lastAccessDate = localStorage.getItem('lastAccessDate');
-      const todayMalaysia = malaysiaTime.toDateString();
-      if (lastAccessDate !== todayMalaysia) {
-  localStorage.setItem('lastAccessDate', todayMalaysia);
-  localStorage.removeItem(`selectedVendor-${lastAccessDate}`);
-  
-  
-  // Only clear student session on new day
-  localStorage.removeItem('rememberedStudent');
-  setRememberedStudent(null);
-  
-  setSelectedVendor('');
-  setShowLandingPage(true);
-  setShowMainApp(false);
-  fetchAllData();
-}
-    };
-    checkForNewDay();
-    const interval = setInterval(checkForNewDay, 60000);
-    return () => clearInterval(interval);
-  }, [fetchAllData, resetStudentForm]);
+useEffect(() => {
+  const todayKey = new Date().toLocaleDateString('en-CA');
+  const lastAccessDate = localStorage.getItem('lastAccessDate');
+
+  if (lastAccessDate !== todayKey) {
+    console.log("New day detected. Clearing old session data.");
+    localStorage.clear();
+    localStorage.setItem('lastAccessDate', todayKey);
+  }
+
+  const sessionJSON = localStorage.getItem(`userSession-${todayKey}`);
+  if (sessionJSON) {
+    try {
+      const sessionData = JSON.parse(sessionJSON);
+      
+      // ✅ FIX: Always show session prompt for meaningful sessions
+      if (sessionData.step && sessionData.student) {
+        setSessionPrompt(sessionData);
+      }
+    } catch (e) {
+      console.error("Error parsing session data", e);
+      localStorage.removeItem(`userSession-${todayKey}`);
+    }
+  }
+
+  // Other setups remain the same...
+  const handleResize = () => setWindowWidth(window.innerWidth);
+  window.addEventListener('resize', handleResize);
+  const adminAuth = localStorage.getItem('isAdminAuthenticated');
+  if (adminAuth === 'true') setIsAdminAuthenticated(true);
+  const driverAuth = localStorage.getItem('isDriverAuthenticated');
+  if (driverAuth === 'true') setIsDriverAuthenticated(true);
+
+  return () => window.removeEventListener('resize', handleResize);
+}, []);
 
   useEffect(() => {
     if (showMainApp) {
@@ -294,11 +543,6 @@ const DRIVER_PASSCODE = 'kyuem';
     }
   }, [fetchAllData, showMainApp]);
 
-  useEffect(() => {
-    if (selectedVendor) {
-      localStorage.setItem(`selectedVendor-${new Date().toDateString()}`, selectedVendor);
-    }
-  }, [selectedVendor]);
 
   const sharedProps = {
     prebookUsers,
@@ -324,6 +568,10 @@ const DRIVER_PASSCODE = 'kyuem';
     setUserForEmail,
     rememberedStudent,
   setRememberedStudent,
+  systemAvailability,
+  setSelectedImages: setSelectedImages,
+  handleMultipleImages: handleMultipleImages,
+  setShowImageCarousel: setShowImageCarousel,
   };
 
   const gateAnimationStyles = `
@@ -412,6 +660,59 @@ const DRIVER_PASSCODE = 'kyuem';
       <>
         <style>{gateAnimationStyles}</style>
         <GateTransitionOverlay config={transitionConfig} />
+        {sessionPrompt && (
+  <div style={{
+    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: 10000,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+  }}>
+    <div style={{
+      backgroundColor: 'white', padding: '24px', borderRadius: '16px',
+      boxShadow: '0 10px 30px rgba(0,0,0,0.2)', width: '100%', maxWidth: '400px',
+      textAlign: 'center'
+    }}>
+      <h3 style={{ marginTop: 0, color: '#1e293b' }}>
+        {sessionPrompt.step === 'order_submitted' 
+          ? `Email Required, ${sessionPrompt.student.name}!`
+          : sessionPrompt.step === 'completed'
+          ? `Continue Order Tracking?`
+          : `Welcome Back, ${sessionPrompt.student.name}!`
+        }
+      </h3>
+      
+      <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', margin: '16px 0', textAlign: 'left', fontSize: '14px' }}>
+        <p style={{ margin: '0 0 8px 0' }}><strong>Name:</strong> {sessionPrompt.student.name}</p>
+        <p style={{ margin: '0' }}><strong>Student ID:</strong> {sessionPrompt.student.studentId}</p>
+        <p style={{ margin: '8px 0 0 0', color: '#15803d' }}>
+          <strong>Progress:</strong> {getProgressText(sessionPrompt.step)}
+        </p>
+      </div>
+
+      <p style={{ color: '#475569', margin: '8px 0 24px 0' }}>
+        {sessionPrompt.step === 'order_submitted' 
+          ? 'Your order was submitted but needs an email address for updates.'
+          : sessionPrompt.step === 'completed'
+          ? 'Your order is being processed. View your order details?'
+          : `Continue your session for ${sessionPrompt.vendor}?`
+        }
+      </p>
+      
+      <div style={{ display: 'flex', gap: '12px' }}>
+        <button onClick={handleStartNewSession} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer', fontWeight: '600' }}>
+          Start New
+        </button>
+        <button onClick={handleRestoreSession} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: '#3b82f6', color: 'white', cursor: 'pointer', fontWeight: '600' }}>
+          {sessionPrompt.step === 'order_submitted' 
+            ? 'Add Email' 
+            : sessionPrompt.step === 'completed'
+            ? 'View Timer'
+            : 'Yes, Continue'
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+)}
         {isLoading && <LoadingAnimation message={loadingMessage} />}
         {showSuccess && <SuccessAnimation {...successConfig} onClose={() => setShowSuccess(false)} />}
         <LandingPage 
@@ -447,6 +748,15 @@ const DRIVER_PASSCODE = 'kyuem';
       )}
       {orderConfirmed && <WaitingPage onClose={handleCloseWaitingPage} currentOrder={currentOrder} />}
       {selectedImage && <ImageModal imageUrl={selectedImage} onClose={() => setSelectedImage(null)} />}
+{showImageCarousel && selectedImages && (
+  <ImageCarousel 
+    images={selectedImages} 
+    onClose={() => {
+      setShowImageCarousel(false);
+      setSelectedImages(null);
+    }} 
+  />
+)}
       {showEmailModal && (
         <EmailPromptModal
           user={userForEmail}

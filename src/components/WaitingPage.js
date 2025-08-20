@@ -221,7 +221,7 @@ const WaitingPage = ({ onClose, currentOrder }) => {
                         />
                     </div>
                     <h2 style={styles.title}>Your Order is Being Prepared</h2>
-                    <CountdownTimer targetTime="19:00" />
+                    <CountdownTimer targetTime="19:15" />
                     <div 
                         style={styles.locationInfo} 
                         className={window.innerWidth < 480 ? "location-info-mobile" : ""}
@@ -277,7 +277,7 @@ const WaitingPage = ({ onClose, currentOrder }) => {
                                     <p style={styles.orderValue}>{currentOrder.studentId}</p>
                                 </div>
                             </div>
-                            {currentOrder.orderImageURL && (
+                            {currentOrder.orderImageURLs && currentOrder.orderImageURLs.length > 0 && (
                                 <button onClick={() => setShowImage(true)} style={styles.viewPhotoButton}>
                                     <Camera size={window.innerWidth < 480 ? 18 : 20} />
                                     View Order Photo
@@ -292,12 +292,12 @@ const WaitingPage = ({ onClose, currentOrder }) => {
                         Close
                     </button>
                 </div>
-                {showImage && currentOrder?.orderImageURL && (
-                    <ImageModal
-                        imageUrl={currentOrder.orderImageURL}
-                        onClose={() => setShowImage(false)}
-                    />
-                )}
+                {showImage && currentOrder?.orderImageURLs && currentOrder.orderImageURLs.length > 0 && (
+    <ImageModal
+        imageUrl={currentOrder.orderImageURLs[0]} // Show first image, or you can track which one to show
+        onClose={() => setShowImage(false)}
+    />
+)}
             </div>
         </>
     );

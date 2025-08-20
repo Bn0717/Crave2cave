@@ -4,5 +4,6 @@ export const calculateDeliveryFee = (amount) => {
     if (amount >= 50 && amount < 100) return 17;
     if (amount >= 100 && amount < 150) return 25;
     if (amount >= 150 && amount < 200) return 30;
-    return Math.min(amount * 0.15, 55);
+    if (amount >= 200 && amount < 300) return 45;
+    if (amount >= 300) return 60;
 };

@@ -12,7 +12,9 @@ import {
   Loader2,
   Navigation as NavigationIcon,
   Check,
-  Image
+  Image,
+  Clock3,
+  Store,
 } from 'lucide-react';
 
 import AuthScreen from './AuthScreen';
@@ -72,7 +74,9 @@ const DriverTab = ({
   fetchAllData,
   showSuccessAnimation,
   showLoadingAnimation,
-  hideLoadingAnimation
+  hideLoadingAnimation,
+  setShowImageCarousel,
+  setSelectedImages,
 }) => {
   const [deliveryStatus, setDeliveryStatus] = useState('pending');
   const [selectedOrders, setSelectedOrders] = useState([]);
@@ -495,28 +499,139 @@ const getOrdersByVendor = () => {
         </div>
       </div>
 
-      <div style={styles.card}>
-        <div style={styles.cardHeader}>
-          <Clock color="#f59e0b" size={28} />
-        </div>
-        <div style={{ textAlign: 'center' }}>
-          <h3 style={{ marginBottom: '16px', color: '#1e293b' }}>Next Pickup Time</h3>
-          <CountdownTimer targetTime="19:00" />
-          <p style={{ marginTop: '12px', color: '#64748b', fontSize: '14px', textAlign: 'center' }}>
-  📅 {pickupDateTime}<br/>
-  🚚 Pickup at 7:00 PM (Location: [Your pickup location])
-</p>
-        </div>
-      </div>
+{todayOrders.length > 0 ? (
+  <div style={styles.card}>
+    <div style={styles.cardHeader}>
+      <Package color="#3b82f6" size={28} />
+      <h2 style={styles.cardTitle}>Today's Orders</h2>
+    </div>
 
-      {todayOrders.length > 0 ? (
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
-            <Package color="#3b82f6" size={28} />
-            <h2 style={styles.cardTitle}>Today's Orders</h2>
+    {/* Pickup Information Card */}
+    <div style={{
+      backgroundColor: '#f0f9ff',
+      border: '2px solid #0ea5e9',
+      borderRadius: '16px',
+      padding: windowWidth <= 480 ? '16px' : '20px',
+      marginBottom: '24px'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '16px'
+      }}>
+        <MapPin color="#0ea5e9" size={24} />
+        <h3 style={{
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '16px' : '18px',
+          color: '#0c4a6e',
+          fontWeight: '600'
+        }}>
+          Pickup Information
+        </h3>
+      </div>
+      
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: windowWidth <= 768 ? '1fr' : '1fr 1fr',
+        gap: '16px'
+      }}>
+                {/* Pickup Details */}
+        <div style={{
+          backgroundColor: 'white',
+          padding: windowWidth <= 480 ? '12px' : '16px', // Reduced padding on mobile
+          borderRadius: '12px',
+          border: '1px solid #bae6fd'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Clock3 size={16} color="#0ea5e9" />
+            <span style={{ fontWeight: '600', color: '#0c4a6e' }}>Pickup Schedule</span>
           </div>
 
+          {/* This wrapper makes the timer smaller and centered */}
           <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            margin: '4px 0',
+            transform: windowWidth <= 480 ? 'scale(0.75)' : 'scale(0.85)' // Smaller scale on mobile
+          }}>
+          </div>
+
+          {/* More compact date and time text */}
+          <div>
+              <p style={{ 
+                  margin: '2px 0', 
+                  fontSize: '13px', 
+                  color: '#1e293b',
+                  fontWeight: 'bold'
+              }}>
+                  📅 {pickupDateTime}
+              </p>
+              <p style={{ 
+                  margin: '2px 0', 
+                  fontSize: '13px', 
+                  color: '#1e293b',
+                  fontWeight: 'bold'
+              }}>
+                  🕕 6:30 PM
+              </p>
+          </div>
+        </div>
+        {/* Vendor Summary */}
+        <div style={{
+          backgroundColor: 'white',
+          padding: '16px',
+          borderRadius: '12px',
+          border: '1px solid #bae6fd'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <Store size={16} color="#0ea5e9" />
+            <span style={{ fontWeight: '600', color: '#0c4a6e' }}>Pickup Locations</span>
+          </div>
+          {getUniqueVendors().map(vendor => {
+            const vendorOrderCount = todayOrders.filter(order => 
+              order.vendor?.toLowerCase() === vendor.key
+            ).length;
+            const vendorInfo = VENDOR_DATA[vendor.key] || VENDOR_DATA.default;
+            
+            return (
+              <div key={vendor.key} style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '8px 0',
+                borderBottom: '1px solid #f1f5f9'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: vendorInfo.color
+                  }} />
+                  <span style={{ fontSize: '14px', color: '#1e293b' }}>
+                    {vendorInfo.name}
+                  </span>
+                </div>
+                <span style={{
+                  backgroundColor: vendorInfo.backgroundColor,
+                  color: vendorInfo.color,
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  fontWeight: '600'
+                }}>
+                  {vendorOrderCount} order{vendorOrderCount !== 1 ? 's' : ''}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+
+    {/* Selection Controls */}
+    <div style={{
       backgroundColor: '#f8fafc',
       padding: windowWidth <= 480 ? '12px' : '16px 20px',
       borderRadius: '12px',
@@ -525,7 +640,7 @@ const getOrdersByVendor = () => {
       flexDirection: 'column',
       gap: windowWidth <= 480 ? '12px' : '16px'
     }}>
-      {/* Selection Counter */}
+      {/* Rest of your existing selection controls code remains the same */}
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
@@ -542,7 +657,6 @@ const getOrdersByVendor = () => {
           Selected: {selectedOrders.length} / {todayOrders.length}
         </p>
         
-        {/* Mobile: Show total selected orders count as badge */}
         {windowWidth <= 480 && selectedOrders.length > 0 && (
           <div style={{
             backgroundColor: '#3b82f6',
@@ -557,7 +671,6 @@ const getOrdersByVendor = () => {
         )}
       </div>
 
-      {/* Buttons Section */}
       <div style={{
         display: 'flex',
         flexDirection: windowWidth <= 480 ? 'column' : 'row',
@@ -566,17 +679,15 @@ const getOrdersByVendor = () => {
         justifyContent: windowWidth <= 480 ? 'stretch' : 'flex-end'
       }}>
         
-        {/* Selection Buttons Row */}
         <div style={{
-  display: 'flex',
-  gap: windowWidth <= 480 ? '6px' : '8px',
-  flexWrap: windowWidth <= 480 ? 'wrap' : 'wrap',  // ← CHANGE THIS LINE
-  flex: windowWidth <= 480 ? '1' : 'none',
-  overflowX: 'visible',  // ← CHANGE THIS LINE
-  paddingBottom: windowWidth <= 480 ? '2px' : '0'
-}}>
+          display: 'flex',
+          gap: windowWidth <= 480 ? '6px' : '8px',
+          flexWrap: windowWidth <= 480 ? 'wrap' : 'wrap',
+          flex: windowWidth <= 480 ? '1' : 'none',
+          overflowX: 'visible',
+          paddingBottom: windowWidth <= 480 ? '2px' : '0'
+        }}>
           
-          {/* Select All Button */}
           <button
             onClick={handleSelectAll}
             style={{
@@ -597,65 +708,63 @@ const getOrdersByVendor = () => {
             {selectedOrders.length < todayOrders.length ? 'All' : 'None'}
           </button>
 
-          {/* Vendor Selection Buttons */}
           {getUniqueVendors().map(vendor => {
-  const vendorOrders = todayOrders.filter(order => 
-    order.vendor?.toLowerCase() === vendor.key
-  );
-  const selectedCount = vendorOrders.filter(order => 
-    selectedOrders.includes(order.id)
-  ).length;
-  
-  return (
-    <button
-      key={vendor.key}
-      onClick={() => handleSelectByVendor(vendor.key)}
-      style={{
-        background: selectedCount === vendorOrders.length && selectedCount > 0 
-          ? '#e0f2fe' 
-          : '#ffffff',
-        border: selectedCount === vendorOrders.length && selectedCount > 0 
-          ? '1px solid #0284c7' 
-          : '1px solid #cbd5e1',
-        color: selectedCount === vendorOrders.length && selectedCount > 0 
-          ? '#0284c7' 
-          : '#475569',
-        fontWeight: '600',
-        padding: windowWidth <= 480 ? '8px 10px' : '8px 12px',
-        borderRadius: '8px',
-        cursor: 'pointer',
-        fontSize: windowWidth <= 480 ? '11px' : '13px',
-        transition: 'all 0.2s ease',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-        whiteSpace: 'nowrap',
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px'
-      }}
-    >
-      <span>{windowWidth <= 480 ? vendor.name.substring(0, 8) : vendor.name}</span>
-      {selectedCount > 0 && (
-        <span style={{
-          backgroundColor: '#3b82f6',
-          color: 'white',
-          borderRadius: '10px',
-          padding: '2px 6px',
-          fontSize: '10px',
-          fontWeight: 'bold',
-          lineHeight: '1',
-          minWidth: '16px',
-          textAlign: 'center'
-        }}>
-          {selectedCount}
-        </span>
-      )}
-    </button>
-  );
-})}
+            const vendorOrders = todayOrders.filter(order => 
+              order.vendor?.toLowerCase() === vendor.key
+            );
+            const selectedCount = vendorOrders.filter(order => 
+              selectedOrders.includes(order.id)
+            ).length;
+            
+            return (
+              <button
+                key={vendor.key}
+                onClick={() => handleSelectByVendor(vendor.key)}
+                style={{
+                  background: selectedCount === vendorOrders.length && selectedCount > 0 
+                    ? '#e0f2fe' 
+                    : '#ffffff',
+                  border: selectedCount === vendorOrders.length && selectedCount > 0 
+                    ? '1px solid #0284c7' 
+                    : '1px solid #cbd5e1',
+                  color: selectedCount === vendorOrders.length && selectedCount > 0 
+                    ? '#0284c7' 
+                    : '#475569',
+                  fontWeight: '600',
+                  padding: windowWidth <= 480 ? '8px 10px' : '8px 12px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: windowWidth <= 480 ? '11px' : '13px',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <span>{windowWidth <= 480 ? vendor.name.substring(0, 8) : vendor.name}</span>
+                {selectedCount > 0 && (
+                  <span style={{
+                    backgroundColor: '#3b82f6',
+                    color: 'white',
+                    borderRadius: '10px',
+                    padding: '2px 6px',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    lineHeight: '1',
+                    minWidth: '16px',
+                    textAlign: 'center'
+                  }}>
+                    {selectedCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Action Buttons */}
         <div style={{
           display: 'flex',
           gap: windowWidth <= 480 ? '8px' : '12px',
@@ -685,235 +794,286 @@ const getOrdersByVendor = () => {
           )}
         </div>
       </div>
-
-      {/* Mobile: Additional info row */}
-      {windowWidth <= 480 && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          paddingTop: '8px',
-          borderTop: '1px solid #e2e8f0',
-          fontSize: '12px',
-          color: '#64748b'
-        }}>
-          {selectedOrders.length > 0 && (
-            <span style={{ color: '#3b82f6', fontWeight: '600' }}>
-              Ready to {deliveryStatus === 'pending' ? 'start' : 'complete'}
-            </span>
-          )}
-        </div>
-      )}
     </div>
-    {/* ⬆️ END OF NEW MOBILE-RESPONSIVE VERSION ⬆️ */}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-  {Object.entries(getOrdersByVendor()).map(([vendorKey, orders]) => {
-    const vendorInfo = VENDOR_DATA[vendorKey] || VENDOR_DATA.default;
-    return (
-      <div key={vendorKey} style={{
-        backgroundColor: '#f8fafc',
-        borderRadius: '16px',
-        padding: windowWidth <= 480 ? '12px' : '16px',
-        border: '1px solid #e2e8f0'
-      }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          marginBottom: '16px',
-          padding: '8px 12px',
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-        }}>
-          {vendorInfo.logoUrl && (
-            <img
-              src={vendorInfo.logoUrl}
-              alt={vendorInfo.name}
-              style={{
-                width: windowWidth <= 480 ? '32px' : '40px',
-                height: windowWidth <= 480 ? '32px' : '40px',
-                borderRadius: '8px',
-                objectFit: 'contain'
-              }}
-            />
-          )}
-          <div>
-            <h3 style={{
-              margin: 0,
-              fontSize: windowWidth <= 480 ? '16px' : '18px',
-              fontWeight: '700',
-              color: vendorInfo.color
+    {/* Enhanced Orders Display */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {Object.entries(getOrdersByVendor()).map(([vendorKey, orders]) => {
+        const vendorInfo = VENDOR_DATA[vendorKey] || VENDOR_DATA.default;
+        return (
+          <div key={vendorKey} style={{
+            backgroundColor: '#f8fafc',
+            borderRadius: '16px',
+            padding: windowWidth <= 480 ? '12px' : '16px',
+            border: '1px solid #e2e8f0'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              marginBottom: '16px',
+              padding: '8px 12px',
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
             }}>
-              {vendorInfo.name}
-            </h3>
-            <p style={{
-              margin: 0,
-              fontSize: '12px',
-              color: '#64748b'
-            }}>
-              {orders.length} order{orders.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-        </div>
-        
-        <div style={{
-          display: 'grid',
-          gap: windowWidth <= 480 ? '12px' : '16px',
-          gridTemplateColumns: windowWidth <= 480 ? '1fr' : windowWidth <= 768 ? 'repeat(auto-fit, minmax(280px, 1fr))' : 'repeat(auto-fit, minmax(320px, 1fr))'
-        }}>
-          {orders.map((order) => (
-            <div
-              key={order.id}
-              style={{
-                ...styles.orderCard,
-                ...(selectedOrders.includes(order.id) ? styles.orderCardSelected : {}),
-                cursor: order.status === 'pending' ? 'pointer' : 'not-allowed',
-opacity: order.status === 'pending' ? 1 : 0.6,
-...(order.status !== 'pending' ? { backgroundColor: '#f1f5f9', borderColor: '#cbd5e1' } : {}),
-                padding: windowWidth <= 480 ? '12px' : '16px',
-                gap: windowWidth <= 480 ? '12px' : '16px'
-              }}
-              onClick={() => order.status === 'pending' && toggleOrderSelection(order.id)}
-            >
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: windowWidth <= 480 ? '8px' : '12px', minWidth: 0 }}>
-                <VendorTag vendor={order.vendor} />
-                <h4 style={{ 
-                  margin: 0, 
-                  fontSize: windowWidth <= 480 ? '14px' : '16px', 
-                  color: '#1e293b', 
-                  fontWeight: '600', 
-                  whiteSpace: 'nowrap', 
-                  overflow: 'hidden', 
-                  textOverflow: 'ellipsis' 
+              <div>
+                <h3 style={{
+                  margin: 0,
+                  fontSize: windowWidth <= 480 ? '16px' : '18px',
+                  fontWeight: '700',
+                  color: vendorInfo.color
                 }}>
-                  Order #{order.orderNumber}
-                </h4>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  padding: windowWidth <= 480 ? '6px' : '8px', 
-                  backgroundColor: 'white', 
-                  borderRadius: '8px' 
+                  {vendorInfo.name}
+                </h3>
+                <p style={{
+                  margin: 0,
+                  fontSize: '12px',
+                  color: '#64748b'
                 }}>
-                  <User size={windowWidth <= 480 ? 14 : 16} color="#64748b" />
-                  <div>
-                    <p style={{ 
+                  {orders.length} order{orders.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
+            
+            <div style={{
+  display: 'grid',
+  gap: windowWidth <= 480 ? '8px' : windowWidth <= 768 ? '12px' : '16px',
+  gridTemplateColumns: windowWidth <= 480 ? '1fr' : 
+                      windowWidth <= 768 ? '1fr' : 
+                      windowWidth <= 1024 ? 'repeat(auto-fit, minmax(300px, 1fr))' : 
+                      'repeat(auto-fit, minmax(350px, 1fr))',
+  width: '100%',
+  maxWidth: '100%'
+}}>
+              {orders.map((order) => (
+                <div
+                  key={order.id}
+                  style={{
+                    ...styles.orderCard,
+                    ...(selectedOrders.includes(order.id) ? styles.orderCardSelected : {}),
+                    cursor: order.status === 'pending' ? 'pointer' : 'not-allowed',
+                    opacity: order.status === 'pending' ? 1 : 0.6,
+                    ...(order.status !== 'pending' ? { backgroundColor: '#f1f5f9', borderColor: '#cbd5e1' } : {}),
+                    padding: windowWidth <= 480 ? '12px' : '16px',
+                    gap: windowWidth <= 480 ? '12px' : '16px'
+                  }}
+                  onClick={() => order.status === 'pending' && toggleOrderSelection(order.id)}
+                >
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: windowWidth <= 480 ? '8px' : '12px', minWidth: 0 }}>
+                    <VendorTag vendor={order.vendor} />
+                    <h4 style={{ 
                       margin: 0, 
-                      fontWeight: '500', 
-                      fontSize: windowWidth <= 480 ? '12px' : '14px', 
+                      fontSize: windowWidth <= 480 ? '14px' : '16px', 
+                      color: '#1e293b', 
+                      fontWeight: '600', 
                       whiteSpace: 'nowrap', 
                       overflow: 'hidden', 
                       textOverflow: 'ellipsis' 
                     }}>
-                      {order.userName}
-                    </p>
-                    <p style={{ 
-                      margin: 0, 
-                      fontSize: windowWidth <= 480 ? '10px' : '12px', 
-                      color: '#64748b' 
+                      Order #{order.orderNumber}
+                    </h4>
+                    
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      padding: windowWidth <= 480 ? '6px' : '8px', 
+                      backgroundColor: 'white', 
+                      borderRadius: '8px' 
                     }}>
-                      {order.studentId}
-                    </p>
+                      <User size={windowWidth <= 480 ? 14 : 16} color="#64748b" />
+                      <div>
+                        <p style={{ 
+                          margin: 0, 
+                          fontWeight: '500', 
+                          fontSize: windowWidth <= 480 ? '12px' : '14px', 
+                          whiteSpace: 'nowrap', 
+                          overflow: 'hidden', 
+                          textOverflow: 'ellipsis' 
+                        }}>
+                          {order.userName}
+                        </p>
+                        <p style={{ 
+                          margin: 0, 
+                          fontSize: windowWidth <= 480 ? '10px' : '12px', 
+                          color: '#64748b' 
+                        }}>
+                          {order.studentId}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      padding: windowWidth <= 480 ? '8px 6px' : '10px 8px', 
+                      backgroundColor: 'white', 
+                      borderRadius: '8px' 
+                    }}>
+                      <span style={{ 
+                        color: '#64748b', 
+                        fontSize: windowWidth <= 480 ? '11px' : '13px', 
+                        fontWeight: '500' 
+                      }}>
+                        Order Total:
+                      </span>
+                      <span style={{ 
+                        fontWeight: 'bold', 
+                        fontSize: windowWidth <= 480 ? '14px' : '16px' 
+                      }}>
+                        RM{order.orderTotal.toFixed(2)}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  padding: windowWidth <= 480 ? '8px 6px' : '10px 8px', 
-                  backgroundColor: 'white', 
-                  borderRadius: '8px' 
-                }}>
-                  <span style={{ 
-                    color: '#64748b', 
-                    fontSize: windowWidth <= 480 ? '11px' : '13px', 
-                    fontWeight: '500' 
-                  }}>
-                    Order Total:
-                  </span>
-                  <span style={{ 
-                    fontWeight: 'bold', 
-                    fontSize: windowWidth <= 480 ? '14px' : '16px' 
-                  }}>
-                    RM{order.orderTotal.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-              <div style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                justifyContent: 'space-between', 
-                alignItems: 'flex-end', 
-                flexShrink: 0,
-                gap: '8px'
-              }}>
-                <div style={{
-                  width: windowWidth <= 480 ? '20px' : '24px', 
-                  height: windowWidth <= 480 ? '20px' : '24px', 
-                  borderRadius: '6px',
-                  border: `2px solid ${selectedOrders.includes(order.id) ? '#3b82f6' : '#d1d5db'}`,
-                  backgroundColor: selectedOrders.includes(order.id) ? '#3b82f6' : 'transparent',
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center'
-                }}>
-                  {selectedOrders.includes(order.id) && <Check size={windowWidth <= 480 ? 12 : 16} color="white" />}
-                </div>
-                <div
-                  style={{ textAlign: 'center', cursor: 'pointer' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedImage(order.orderImageURL || vendorInfo.logoUrl);
-                  }}
-                >
-                  <img
-                    src={order.orderImageURL || vendorInfo.logoUrl}
-                    alt={order.orderImageURL ? "Receipt" : "Vendor Logo"}
-                    style={{
-                      width: windowWidth <= 480 ? '50px' : '70px', 
-                      height: windowWidth <= 480 ? '50px' : '70px',
-                      borderRadius: '8px', 
-                      objectFit: 'contain',
-                      border: '2px solid #e2e8f0', 
-                      padding: '4px', 
-                      background: 'white',
-                      display: (order.orderImageURL || vendorInfo.logoUrl) ? 'block' : 'none'
-                    }}
-                  />
+
+                  {/* Enhanced Right Side with Receipt */}
                   <div style={{ 
                     display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    gap: '4px', 
-                    fontSize: windowWidth <= 480 ? '9px' : '11px', 
-                    color: '#64748b', 
-                    marginTop: '4px' 
+                    flexDirection: 'column', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'flex-end', 
+                    flexShrink: 0,
+                    gap: '8px',
+                    minWidth: windowWidth <= 480 ? '80px' : '100px'
                   }}>
-                    <Image size={windowWidth <= 480 ? 10 : 12} />
-                    <span>View</span>
+                    {/* Selection Checkbox */}
+                    <div style={{
+                      width: windowWidth <= 480 ? '20px' : '24px', 
+                      height: windowWidth <= 480 ? '20px' : '24px', 
+                      borderRadius: '6px',
+                      border: `2px solid ${selectedOrders.includes(order.id) ? '#3b82f6' : '#d1d5db'}`,
+                      backgroundColor: selectedOrders.includes(order.id) ? '#3b82f6' : 'transparent',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center'
+                    }}>
+                      {selectedOrders.includes(order.id) && <Check size={windowWidth <= 480 ? 12 : 16} color="white" />}
+                    </div>
+
+                    {/* Enhanced Receipt Display */}
+                    <div
+                      style={{ textAlign: 'center', cursor: 'pointer' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedImage(order.orderImageURL);
+                      }}
+                    >
+                      {(order.orderImageURLs && order.orderImageURLs.length > 0) || order.orderImageURL ? (
+  <div style={{ position: 'relative' }}>
+    <img
+      src={order.orderImageURLs?.[0] || order.orderImageURL}
+      alt="Order Receipt"
+      style={{
+        width: windowWidth <= 480 ? '60px' : '80px', 
+        height: windowWidth <= 480 ? '60px' : '80px',
+        borderRadius: '12px', 
+        objectFit: 'cover',
+        border: '3px solid #e2e8f0', 
+        background: 'white',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+        cursor: 'pointer'
+      }}
+      // Replace this onClick:
+onClick={(e) => {
+  e.stopPropagation();
+  const orderImages = order.orderImageURLs;
+  if (orderImages && orderImages.length > 0) {
+    if (orderImages.length === 1) {
+      setSelectedImage(orderImages[0]);
+    } else {
+      setSelectedImages(orderImages);
+      setShowImageCarousel(true);
+    }
+  } else if (order.orderImageURL) {
+    setSelectedImage(order.orderImageURL);
+  }
+}}
+    />
+    {order.orderImageURLs && order.orderImageURLs.length > 1 && (
+      <div style={{
+        position: 'absolute',
+        bottom: '-2px',
+        right: '-2px',
+        backgroundColor: '#3b82f6',
+        color: 'white',
+        borderRadius: '50%',
+        width: '18px',
+        height: '18px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '10px',
+        fontWeight: 'bold',
+        border: '2px solid white'
+      }}>
+        +{order.orderImageURLs.length - 1}
+      </div>
+    )}
+                        </div>
+                      ) : (
+                        <div style={{
+                          width: windowWidth <= 480 ? '60px' : '80px', 
+                          height: windowWidth <= 480 ? '60px' : '80px',
+                          borderRadius: '12px',
+                          border: '2px dashed #cbd5e1',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: '#f8fafc'
+                        }}>
+                          <Image size={windowWidth <= 480 ? 20 : 24} color="#94a3b8" />
+                          <span style={{
+                            fontSize: '10px',
+                            color: '#94a3b8',
+                            fontWeight: '500',
+                            marginTop: '4px'
+                          }}>
+                            No Receipt
+                          </span>
+                        </div>
+                      )}
+                      
+                      <div style={{ 
+  display: 'flex', 
+  alignItems: 'center', 
+  justifyContent: 'center', 
+  gap: '4px', 
+  fontSize: windowWidth <= 480 ? '9px' : '11px', 
+  color: (order.orderImageURLs && order.orderImageURLs.length > 0) || order.orderImageURL ? '#3b82f6' : '#94a3b8', 
+  marginTop: '6px',
+  fontWeight: '600'
+}}>
+  <Image size={windowWidth <= 480 ? 10 : 12} />
+  <span>
+  {(order.orderImageURLs && order.orderImageURLs.length > 0) || order.orderImageURL 
+    ? `View ${order.orderImageURLs?.length > 1 ? `${order.orderImageURLs.length} Receipts` : 'Receipt'}` 
+    : 'No Receipt'
+  }
+</span>
+</div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
-    );
-  })}
-</div>
-        </div>
-      ) : (
-        <div style={styles.card}>
-          <div style={{ textAlign: 'center', padding: '60px', color: '#64748b' }}>
-            <AlertCircle size={56} style={{ marginBottom: '20px' }} />
-            <h3 style={{ marginBottom: '8px' }}>No Orders Today</h3>
-            <p style={{ fontSize: '16px', margin: 0 }}>No delivery orders have been placed yet.</p>
           </div>
-        </div>
-      )}
+        );
+      })}
+    </div>
+  </div>
+) : (
+  // No orders message remains the same
+  <div style={styles.card}>
+    <div style={{ textAlign: 'center', padding: '60px', color: '#64748b' }}>
+      <AlertCircle size={56} style={{ marginBottom: '20px' }} />
+      <h3 style={{ marginBottom: '8px' }}>No Orders Today</h3>
+      <p style={{ fontSize: '16px', margin: 0 }}>No delivery orders have been placed yet.</p>
+    </div>
+  </div>
+)}
     </div>
   );
 };

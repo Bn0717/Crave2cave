@@ -37,36 +37,6 @@ const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false, userIndex = 0, 
         );
     }
 
-    if (isFourthUser && isCommitmentFee) {
-        return (
-            <div style={{
-                backgroundColor: '#f0fdf4',
-                padding: window.innerWidth <= 480 ? '16px' : '20px',
-                borderRadius: '12px',
-                border: '2px solid #86efac',
-                marginBottom: '24px',
-                textAlign: 'center'
-            }}>
-                <CheckCircle color="#16a34a" size={window.innerWidth <= 480 ? 24 : 32} />
-                <p style={{
-                    margin: '12px 0 0 0',
-                    fontWeight: '600',
-                    color: '#166534',
-                    fontSize: window.innerWidth <= 480 ? '16px' : '18px'
-                }}>
-                    Congratulations! You're the 4th registrant!
-                </p>
-                <p style={{
-                    margin: '8px 0 0 0',
-                    fontSize: window.innerWidth <= 480 ? '13px' : '15px',
-                    color: '#166534'
-                }}>
-                    Your commitment fee is waived. Please proceed to continue.
-                </p>
-            </div>
-        );
-    }
-
     const getQRSize = () => {
         if (window.innerWidth <= 480) return '180px';
         if (window.innerWidth <= 768) return '200px';
@@ -120,10 +90,45 @@ const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false, userIndex = 0, 
                     }}
                 />
             </div>
-            <div style={{
-                marginTop: window.innerWidth <= 480 ? '16px' : '20px',
-                padding: window.innerWidth <= 480 ? '12px 24px' : '16px 32px',
-                background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+<button
+    onClick={() => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            const link = document.createElement('a');
+            link.download = `payment-qr-${displayAmount.toFixed(2)}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        };
+        img.src = qrImage;
+    }}
+    style={{
+        marginTop: window.innerWidth <= 480 ? '12px' : '16px',
+        padding: window.innerWidth <= 480 ? '10px 20px' : '12px 24px',
+        backgroundColor: '#3b82f6',
+        color: 'white',
+        border: 'none',
+        borderRadius: '8px',
+        fontSize: window.innerWidth <= 480 ? '13px' : '15px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+        boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+    }}
+    onMouseOver={(e) => e.target.style.backgroundColor = '#2563eb'}
+    onMouseOut={(e) => e.target.style.backgroundColor = '#3b82f6'}
+>
+    💾 Save QR to Gallery
+</button>
+<div style={{
+    marginTop: window.innerWidth <= 480 ? '16px' : '20px',
+    padding: window.innerWidth <= 480 ? '12px 24px' : '16px 32px',
+    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
                 color: 'white',
                 borderRadius: '12px',
                 fontWeight: 'bold',

@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, CheckCircle, MapPin } from 'lucide-react';
 
-const CountdownTimer = ({ targetTime = "19:00" }) => {
+const CountdownTimer = ({ 
+  targetTime = "19:15", 
+  currentOrder = null,  // ADD THIS
+  onViewImage = null    // ADD THIS
+}) => {
     const calculateTimeLeft = useCallback(() => {
         const now = new Date();
         const target = new Date();
@@ -93,7 +97,7 @@ const CountdownTimer = ({ targetTime = "19:00" }) => {
                     gap: '6px'
                 }}>
                     <MapPin size={16} color="#64748b" />
-                    Please arrive at the main gate by 7:00 PM
+                    Please arrive at the main gate by 7:15 PM
                 </p>
             )}
         </div>

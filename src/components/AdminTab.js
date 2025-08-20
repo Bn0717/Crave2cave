@@ -7,7 +7,9 @@ import {
   History, 
   Loader2, 
   AlertCircle,
-  UserCheck
+  UserCheck,
+  Camera,
+  Image
 } from 'lucide-react';
 
 import AuthScreen from './AuthScreen';
@@ -31,6 +33,8 @@ const AdminTab = ({
   showSuccessAnimation,    // ADD THIS
   showLoadingAnimation,    // ADD THIS  
   hideLoadingAnimation, 
+  setShowImageCarousel,
+  setSelectedImages,
 }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
@@ -160,6 +164,8 @@ const AdminTab = ({
       </div>
     );
   }
+
+  const paidUsers = todayUsers.filter(u => u.commitmentPaid).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
   return (
     <div>
@@ -512,6 +518,438 @@ const AdminTab = ({
             )}
           </div>
 
+<div style={styles.card}>
+  <div style={styles.cardHeader}>
+    <Camera color="#8b5cf6" size={28} />
+    <h2 style={styles.cardTitle}>Payment & Order Verification</h2>
+  </div>
+  
+  {todayUsers.length > 0 ? (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: windowWidth <= 480 
+  ? '1fr' 
+  : windowWidth <= 768 
+  ? 'repeat(auto-fit, minmax(280px, 1fr))' 
+  : windowWidth <= 1200
+  ? 'repeat(auto-fit, minmax(320px, 1fr))'
+  : 'repeat(3, 1fr)',
+      gap: windowWidth <= 480 ? '12px' : '16px'
+    }}>
+      {todayUsers.map((user, userIndex) => {
+        const userOrder = todayOrders.find(order => order.userId === user.firestoreId);
+// Get the first 3 users who PAID (by payment time, not registration time)
+const firstThreePaidUsers = todayUsers
+  .filter(u => u.commitmentPaid && isToday(u.timestamp))
+  .sort((a, b) => new Date(a.receiptUploadTime || a.timestamp) - new Date(b.receiptUploadTime || b.timestamp))
+  .slice(0, 3);
+
+const isFirstThreeUser = firstThreePaidUsers.some(paidUser => paidUser.firestoreId === user.firestoreId);
+        
+        return (
+          <div key={user.id} style={{
+            backgroundColor: '#f8fafc',
+            border: user.commitmentPaid 
+              ? '2px solid #10b981' 
+              : '2px solid #f59e0b',
+            borderRadius: '16px',
+            padding: windowWidth <= 480 ? '16px' : '20px',
+            transition: 'all 0.3s ease',
+            position: 'relative'
+          }}>
+            {/* First Three Users Badge - Only for users who are actually in first 3 paid */}
+{isFirstThreeUser && (
+  <div style={{
+    position: 'absolute',
+    top: '-8px',
+    right: '16px',
+    backgroundColor: '#7c3aed',
+    color: 'white',
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: windowWidth <= 480 ? '10px' : '11px',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)'
+  }}>
+    First 3 Paid User
+  </div>
+)}
+
+            {/* User Header with Combined Info */}
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: windowWidth <= 480 ? '14px' : '16px',
+              marginBottom: '16px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            }}>
+              {/* User Basic Info Row */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: userOrder ? '12px' : '0'
+              }}>
+                <div>
+                  <h4 style={{
+                    margin: 0,
+                    fontSize: windowWidth <= 480 ? '15px' : '17px',
+                    color: '#1e293b',
+                    fontWeight: '700'
+                  }}>
+                    {user.name}
+                  </h4>
+                  <p style={{
+                    margin: '2px 0 0 0',
+                    fontSize: windowWidth <= 480 ? '11px' : '12px',
+                    color: '#64748b',
+                    fontWeight: '500'
+                  }}>
+                    ID: {user.studentId}
+                  </p>
+                </div>
+                
+                <div style={{
+                  padding: '6px 12px',
+                  borderRadius: '16px',
+                  fontSize: windowWidth <= 480 ? '10px' : '11px',
+                  fontWeight: '700',
+                  backgroundColor: user.commitmentPaid ? '#d1fae5' : '#fef3c7',
+                  color: user.commitmentPaid ? '#065f46' : '#92400e',
+                  border: `2px solid ${user.commitmentPaid ? '#86efac' : '#fcd34d'}`
+                }}>
+                  {user.commitmentPaid ? 'PAID' : 'PENDING'}
+                </div>
+              </div>
+
+              {/* Order Summary (if order exists) */}
+              {userOrder && (
+                <div style={{
+                  backgroundColor: '#f1f5f9',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '8px'
+                  }}>
+                    <span style={{
+                      fontSize: windowWidth <= 480 ? '11px' : '12px',
+                      fontWeight: '600',
+                      color: '#475569',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}>
+                      Order #{userOrder.orderNumber}
+                    </span>
+                    <span style={{
+                      fontSize: windowWidth <= 480 ? '10px' : '11px',
+                      color: '#64748b',
+                      fontWeight: '500'
+                    }}>
+                      {new Date(userOrder.timestamp).toLocaleString('en-MY', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })}
+                    </span>
+                  </div>
+                  
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: windowWidth <= 480 ? '1fr 1fr' : '1fr 1fr 1fr',
+                    gap: '8px',
+                    marginBottom: '8px'
+                  }}>
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '8px',
+                      backgroundColor: 'white',
+                      borderRadius: '6px'
+                    }}>
+                      <div style={{
+                        fontSize: windowWidth <= 480 ? '10px' : '11px',
+                        color: '#64748b',
+                        marginBottom: '2px'
+                      }}>
+                        Order Total
+                      </div>
+                      <div style={{
+                        fontSize: windowWidth <= 480 ? '13px' : '14px',
+                        fontWeight: 'bold',
+                        color: '#059669'
+                      }}>
+                        RM{userOrder.orderTotal.toFixed(2)}
+                      </div>
+                    </div>
+                    
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '8px',
+                      backgroundColor: 'white',
+                      borderRadius: '6px'
+                    }}>
+                      <div style={{
+                        fontSize: windowWidth <= 480 ? '10px' : '11px',
+                        color: '#64748b',
+                        marginBottom: '2px'
+                      }}>
+                        Delivery Fee
+                      </div>
+                      <div style={{
+                        fontSize: windowWidth <= 480 ? '13px' : '14px',
+                        fontWeight: 'bold',
+                        color: '#f59e0b'
+                      }}>
+                        RM{userOrder.deliveryFee.toFixed(2)}
+                      </div>
+                    </div>
+                    
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '8px',
+                      backgroundColor: '#f0fdf4',
+                      borderRadius: '6px',
+                      border: '1px solid #bbf7d0',
+                      gridColumn: windowWidth <= 480 ? '1 / -1' : 'auto'
+                    }}>
+                      <div style={{
+                        fontSize: windowWidth <= 480 ? '10px' : '11px',
+                        color: '#166534',
+                        marginBottom: '2px'
+                      }}>
+                        Total with Delivery
+                      </div>
+                      <div style={{
+                        fontSize: windowWidth <= 480 ? '14px' : '16px',
+                        fontWeight: 'bold',
+                        color: '#166534'
+                      }}>
+                        RM{userOrder.totalWithDelivery.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Photo Verification Buttons */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: windowWidth <= 768 
+                ? (isFirstThreeUser ? 'repeat(2, 1fr)' : '1fr 1fr')
+                : (isFirstThreeUser ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)'),
+              gap: '8px'
+            }}>
+              {/* Base Delivery Fee (Only for first 3 paid users OR unpaid users when system not active) */}
+{(isFirstThreeUser || (!user.commitmentPaid && prebookUsers.filter(u => u.commitmentPaid).length < 3)) && (
+  <button
+    onClick={() => {
+      if (user.receiptURL) {
+        setSelectedImage(user.receiptURL);
+      } else {
+        alert('No base delivery fee payment photo available');
+      }
+    }}
+    style={{
+      backgroundColor: user.receiptURL ? '#dbeafe' : '#f3f4f6',
+      border: `2px solid ${user.receiptURL ? '#3b82f6' : '#d1d5db'}`,
+      borderRadius: '8px',
+      padding: windowWidth <= 480 ? '10px' : '12px',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '6px',
+      ...(windowWidth <= 768 && isFirstThreeUser ? { gridColumn: '1 / -1' } : {})
+    }}
+  >
+    <Camera size={16} color={user.receiptURL ? '#3b82f6' : '#9ca3af'} />
+    <span style={{
+      fontSize: windowWidth <= 480 ? '10px' : '11px',
+      fontWeight: '600',
+      color: user.receiptURL ? '#1e40af' : '#6b7280',
+      textAlign: 'center'
+    }}>
+      Base Fee (RM10)
+    </span>
+  </button>
+)}
+
+              {/* Order Receipt */}
+              <button
+                // Replace this onClick:
+onClick={() => {
+  const orderImages = userOrder?.orderImageURLs;
+  if (orderImages && orderImages.length > 0) {
+    if (orderImages.length === 1) {
+      setSelectedImage(orderImages[0]);
+    } else {
+      setSelectedImages(orderImages);
+      setShowImageCarousel(true);
+    }
+  } else {
+    alert('No order receipt photo available');
+  }
+}}
+                style={{
+                  backgroundColor: (userOrder?.orderImageURLs && userOrder.orderImageURLs.length > 0) ? '#fef3c7' : '#f3f4f6',
+border: `2px solid ${(userOrder?.orderImageURLs && userOrder.orderImageURLs.length > 0) ? '#f59e0b' : '#d1d5db'}`,
+                  borderRadius: '8px',
+                  padding: windowWidth <= 480 ? '10px' : '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Image size={16} color={(userOrder?.orderImageURLs && userOrder.orderImageURLs.length > 0) ? '#f59e0b' : '#9ca3af'} />
+                <span style={{
+                  fontSize: windowWidth <= 480 ? '10px' : '11px',
+                  fontWeight: '600',
+                  color: (userOrder?.orderImageURLs && userOrder.orderImageURLs.length > 0) ? '#92400e' : '#6b7280',
+                  textAlign: 'center'
+                }}>
+                  Order Receipt
+                </span>
+                {(userOrder?.orderImageURLs && userOrder.orderImageURLs.length > 0) && (
+                  <span style={{
+                    fontSize: '9px',
+                    color: '#059669',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                  </span>
+                )}
+              </button>
+
+              {/* Delivery Fee Payment */}
+              <button
+                onClick={() => {
+  const deliveryPayment = userOrder?.paymentProofURL;
+  if (deliveryPayment) {
+    setSelectedImage(deliveryPayment);
+  } else {
+    alert('No delivery fee payment photo available');
+  }
+}}
+                style={{
+                  backgroundColor: userOrder?.paymentProofURL ? '#d1fae5' : '#f3f4f6',
+border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
+                  borderRadius: '8px',
+                  padding: windowWidth <= 480 ? '10px' : '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Camera size={16} color={userOrder?.paymentProofURL ? '#10b981' : '#9ca3af'} />
+                <span style={{
+                  fontSize: windowWidth <= 480 ? '10px' : '11px',
+                  fontWeight: '600',
+                  color: (userOrder?.deliveryPaymentPhoto || userOrder?.deliveryPayment || userOrder?.deliveryFeePhoto) ? '#065f46' : '#6b7280',
+                  textAlign: 'center'
+                }}>
+                  Delivery Payment
+                </span>
+                {(userOrder?.deliveryPaymentPhoto || userOrder?.deliveryPayment || userOrder?.deliveryFeePhoto) && (
+                  <span style={{
+                    fontSize: '9px',
+                    color: '#059669',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    VIEW
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Summary Footer - FIXED CALCULATION */}
+            <div style={{
+              marginTop: '12px',
+              padding: '12px',
+              backgroundColor: user.commitmentPaid ? '#f0fdf4' : '#fffbeb',
+              borderRadius: '8px',
+              border: `1px solid ${user.commitmentPaid ? '#bbf7d0' : '#fde68a'}`
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span style={{
+                  fontSize: windowWidth <= 480 ? '11px' : '12px',
+                  fontWeight: '600',
+                  color: user.commitmentPaid ? '#166534' : '#92400e'
+                }}>
+                  Total Paid to System:
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+  <span style={{
+  fontSize: windowWidth <= 480 ? '14px' : '16px',
+  fontWeight: 'bold',
+  color: user.commitmentPaid ? '#166534' : '#92400e'
+}}>
+  RM{(() => {
+    let total = 0;
+    // ✅ CHANGE: Use the same firstThreePaidUsers logic
+    const isAmongFirstThreePaid = firstThreePaidUsers.some(paidUser => paidUser.firestoreId === user.firestoreId);
+    if (isAmongFirstThreePaid) {
+      total += 10; // Base delivery fee
+    }
+    if (userOrder?.deliveryFee) {
+      total += userOrder.deliveryFee;
+    }
+    return total.toFixed(2);
+  })()}
+</span>
+{(() => {
+  const isAmongFirstThreePaid = firstThreePaidUsers.some(paidUser => paidUser.firestoreId === user.firestoreId);  
+  return isAmongFirstThreePaid ? (
+    <span style={{
+      fontSize: windowWidth <= 480 ? '9px' : '10px',
+      color: '#166534',
+      fontWeight: '500',
+      marginTop: '2px',
+      textAlign: 'right'
+    }}>
+      (incl. RM10 base fee)
+    </span>
+  ) : null;
+})()}
+</div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  ) : (
+    <div style={{ 
+      textAlign: 'center', 
+      padding: '60px',
+      color: '#64748b'
+    }}>
+      <Camera size={56} style={{ marginBottom: '20px' }} />
+      <p style={{ fontSize: '18px' }}>No registered users today.</p>
+    </div>
+  )}
+</div>
+          
           {/* Charts */}
           <div style={{ 
             display: 'grid', 
@@ -542,37 +980,6 @@ const AdminTab = ({
                 { label: 'Delivery Fees', value: todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) }
               ]}
             />
-          </div>
-
-          {/* Today's Orders Table */}
-          <div style={styles.card}>
-            <h3 style={{ fontSize: '22px', marginBottom: '24px' }}>Today's Orders</h3>
-            {todayOrders.length === 0 ? (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '60px',
-                color: '#64748b'
-              }}>
-                <AlertCircle size={56} style={{ marginBottom: '20px' }} />
-                <p style={{ fontSize: '18px' }}>No orders for today yet.</p>
-              </div>
-            ) : (
-              <ResponsiveTable
-                headers={['Order #', 'Photo', 'Customer', 'Student ID', 'Order Total', 
-                'Delivery Fee', 'Total', 'Time']}
-                onImageClick={(imageUrl) => setSelectedImage(imageUrl)}
-                data={todayOrders.map((order, index) => [
-                    order.orderNumber,
-                    { type: 'image', value: order.orderImageURL }, 
-                    order.userName,
-                    order.studentId,
-                    `RM${order.orderTotal.toFixed(2)}`,
-                    `RM${order.deliveryFee.toFixed(2)}`,
-                    `RM${order.totalWithDelivery.toFixed(2)}`,
-                    new Date(order.timestamp).toLocaleString()
-                ])}
-            />
-            )}
           </div>
         </>
       ) : (
