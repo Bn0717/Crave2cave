@@ -90,24 +90,11 @@ const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false, userIndex = 0, 
                     }}
                 />
             </div>
-<button
-    onClick={() => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-            const link = document.createElement('a');
-            link.download = `payment-qr-${displayAmount.toFixed(2)}.png`;
-            link.href = canvas.toDataURL();
-            link.click();
-        };
-        img.src = qrImage;
-    }}
+<a
+    href={qrImage}
+    download="TNG-Payment-QR.png"
     style={{
+        // We use the exact same styles as your button
         marginTop: window.innerWidth <= 480 ? '12px' : '16px',
         padding: window.innerWidth <= 480 ? '10px 20px' : '12px 24px',
         backgroundColor: '#3b82f6',
@@ -118,13 +105,16 @@ const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false, userIndex = 0, 
         fontWeight: '600',
         cursor: 'pointer',
         transition: 'all 0.2s',
-        boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+        boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)',
+        // Add this line to remove the link underline
+        textDecoration: 'none', 
+        display: 'inline-block' // Ensures proper layout
     }}
     onMouseOver={(e) => e.target.style.backgroundColor = '#2563eb'}
     onMouseOut={(e) => e.target.style.backgroundColor = '#3b82f6'}
 >
     💾 Save QR to Gallery
-</button>
+</a>
 <div style={{
     marginTop: window.innerWidth <= 480 ? '16px' : '20px',
     padding: window.innerWidth <= 480 ? '12px 24px' : '16px 32px',

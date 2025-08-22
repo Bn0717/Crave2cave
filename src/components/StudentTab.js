@@ -214,8 +214,13 @@ const StudentTab = ({
     return true;
   };
 
-  // ADD THESE TWO FUNCTIONS
 const handleAddReceipt = (event) => {
+  // Prevent adding more than 3 files.
+  if (orderReceiptFiles.length >= 3) {
+    alert("You can only upload a maximum of 3 receipts.");
+    return;
+  }
+  
   if (event.target.files && event.target.files[0]) {
     const newFile = event.target.files[0];
     setOrderReceiptFiles(prevFiles => [...prevFiles, newFile]);
@@ -1141,9 +1146,27 @@ const isSubmitDisabled =
   onChange={handleAddReceipt}
   style={{ display: 'none' }}
   id="receipt-upload-input"
+  disabled={orderReceiptFiles.length >= 3}
 />
-<label htmlFor="receipt-upload-input" style={{ ...styles.button, ...styles.buttonBlue, display: 'inline-block', width: 'auto', textAlign: 'center', marginBottom: '16px' }}>
-  Add Receipt
+<label 
+  htmlFor="receipt-upload-input" 
+  style={{ 
+    ...styles.button, 
+    ...(orderReceiptFiles.length >= 3 ? styles.buttonGray : styles.buttonBlue),
+    display: 'inline-block', 
+    width: 'auto', 
+    textAlign: 'center', 
+    marginBottom: '16px',
+    ...(orderReceiptFiles.length >= 3 && {
+      cursor: 'not-allowed',
+      opacity: 0.7
+    })
+  }}
+>
+  {orderReceiptFiles.length >= 3 
+    ? 'Maximum 3 Receipts' 
+    : `Add Receipt (${orderReceiptFiles.length}/3)`
+  }
 </label>
 
 {orderReceiptFiles.length === 0 && orderError === 'missingFile' && (

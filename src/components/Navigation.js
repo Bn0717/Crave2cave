@@ -17,7 +17,7 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
     const vendors = {
         'mixue': { name: 'Mixue', icon: '🧋', shortName: 'Mixue' },
         'dominos': { name: 'Dominos', icon: '🍕', shortName: 'Dominos' },
-        'mcdonalds': { name: "McDonald's", icon: '🍟', shortName: "McD's" }, // ✅ Shorter name for mobile
+        'ayam_gepuk': { name: "Ayam Gepuk", icon: '🍗', shortName: "Ayam Gepuk" }, // ✅ Shorter name for mobile
     };
     return vendors[vendorId];
 };

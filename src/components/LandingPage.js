@@ -8,7 +8,7 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
 
   const vendors = [
     { id: 'dominos', name: "Domino's Pizza", logo: '🍕', color: '#0078d4' },
-    { id: 'mcdonalds', name: "McDonald's", logo: '🍟', color: '#ffcc02' },
+    { id: 'ayam_gepuk', name: "Ayam Gepuk Pak Gembus", logo: '🍗', color: '#ffcc02' },
     { id: 'mixue', name: 'MIXUE', logo: '🧋', color: '#ff69b4' }
   ];
 

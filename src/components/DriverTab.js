@@ -23,7 +23,7 @@ import CountdownTimer from './CountdownTimer';
 
 const VENDOR_DATA = {
   dominos: { name: "Domino's", color: '#006491', backgroundColor: '#E5F0F4' },
-  mcdonalds: { name: "McDonald's", color: '#f1af20ff', backgroundColor: '#FFDBCF' },
+  ayam_gepuk: { name: "Ayam Gepuk Pak Gembus", color: '#f1af20ff', backgroundColor: '#FFDBCF' },
   mixue: { name: 'Mixue', color: '#ef0a0aff', backgroundColor: '#F9EBEB' },
   default: { name: 'Unknown Store', color: '#475569', backgroundColor: '#F1F5F9', logoUrl: '' }
 };
