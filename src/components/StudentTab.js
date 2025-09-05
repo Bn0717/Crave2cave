@@ -935,7 +935,7 @@ const isSubmitDisabled =
         <div style={styles.banner}>
           <span style={styles.bannerText}>
             {windowWidth <= 430
-              ? "New user? Watch our 2-min guide!"
+              ? "New? Watch our 2-min guide!"
               : "First time here? Watch a 2-min guide to see how it works!"
             }
           </span>
