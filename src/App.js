@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
 import logoForAnimation from './assets/logo(1).png';
 import * as firebaseService from './services/firebase';
@@ -50,6 +50,7 @@ function App() {
   const [selectedImages, setSelectedImages] = useState(null);
   const [showImageCarousel, setShowImageCarousel] = useState(false);
   const [isCurrentUserEligible, setIsCurrentUserEligible] = useState(false);
+  const contentRef = useRef(null);
   const [systemAvailability, setSystemAvailability] = useState({ 
   isSystemOpen: true, 
   nextOpenTime: '', 
@@ -550,6 +551,13 @@ useEffect(() => {
     }
   }, [fetchAllData, showMainApp]);
 
+    // This effect runs whenever the activeTab state changes
+  useEffect(() => {
+      if (contentRef.current) {
+        contentRef.current.scrollIntoView();
+      }
+    }, [activeTab]);
+
 
   const sharedProps = {
     prebookUsers,
@@ -776,7 +784,7 @@ useEffect(() => {
           windowWidth={windowWidth}
         />
       )}
-      <div style={styles.maxWidth}>
+      <div ref={contentRef} style={styles.maxWidth}>
         {activeTab === 'student' && <StudentTab {...sharedProps} setResetStudentForm={setResetStudentForm} />}
         {activeTab === 'admin' && <AdminTab {...sharedProps} showSuccessAnimation={showSuccessAnimation} showLoadingAnimation={showLoadingAnimation}  hideLoadingAnimation={hideLoadingAnimation} isAuthenticated={isAdminAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'admin')} resetAuth={resetAuth} />}
 {activeTab === 'driver' && <DriverTab {...sharedProps} isAuthenticated={isDriverAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'driver')} resetAuth={resetAuth} />}
