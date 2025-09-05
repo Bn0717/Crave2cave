@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
 import logoForAnimation from './assets/logo(1).png';
 import * as firebaseService from './services/firebase';
@@ -50,6 +50,8 @@ function App() {
   const [selectedImages, setSelectedImages] = useState(null);
   const [showImageCarousel, setShowImageCarousel] = useState(false);
   const [isCurrentUserEligible, setIsCurrentUserEligible] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date().toLocaleDateString('en-CA'));
+  const [allOrders, setAllOrders] = useState([]);
   const [systemAvailability, setSystemAvailability] = useState({ 
   isSystemOpen: true, 
   nextOpenTime: '', 
@@ -59,6 +61,36 @@ useEffect(() => {
   // Initialize system availability on component mount
   setSystemAvailability(getSystemAvailability());
 }, []);
+
+useEffect(() => {
+  // This effect handles scroll restoration on navigation
+  const handleNavigation = () => {
+    // Scroll to top when activeTab changes
+    window.scrollTo(0, 0);
+    
+    // Also ensure the main content element is in view
+    const contentElement = document.getElementById('main-content');
+    if (contentElement) {
+      contentElement.scrollIntoView();
+    }
+  };
+
+  // Call immediately on component mount and tab changes
+  handleNavigation();
+  
+  // Set up a timeout as a fallback for slower renders
+  const timer = setTimeout(handleNavigation, 100);
+  
+  return () => clearTimeout(timer);
+}, [activeTab, showMainApp]); // Run when activeTab or showMainApp changes
+
+// Also add this to handle the specific case when order confirmation changes
+useEffect(() => {
+  if (orderConfirmed) {
+    window.scrollTo(0, 0);
+  }
+}, [orderConfirmed]);
+
 
   const ADMIN_PASSCODE = 'byyc';
 const DRIVER_PASSCODE = 'kyuem';
@@ -121,6 +153,30 @@ const DRIVER_PASSCODE = 'kyuem';
   return { isSystemOpen, nextOpenTime, malaysiaTime };
 };
 
+const fetchAllData = useCallback(async () => {
+  try {
+    setLoadingUsers(true);
+    setLoadingOrders(true);
+    setLoadingHistory(true);
+    const [users, ordersData, history] = await Promise.all([
+      firebaseService.getPrebookUsers(),
+      firebaseService.getOrders(),
+      firebaseService.getHistoryData()
+    ]);
+    setPrebookUsers(users);
+    setAllOrders(ordersData); // <-- Store all orders here
+    setHistoryData(history);
+    const orderArray = users.map((user, index) => ({ userId: user.firestoreId, order: index + 1 }));
+    setRegistrationOrder(orderArray);
+  } catch (error) {
+    console.error('Error fetching data:', error);
+  } finally {
+    setLoadingUsers(false);
+    setLoadingOrders(false);
+    setLoadingHistory(false);
+  }
+}, []);
+
 const handleMultipleImages = (images) => {
   if (Array.isArray(images) && images.length > 0) {
     setSelectedImages(images);
@@ -143,30 +199,6 @@ const handleMultipleImages = (images) => {
   setSystemActivatedToday(isActivatedToday);
 }, []);
 
-  const fetchAllData = useCallback(async () => {
-    try {
-      setLoadingUsers(true);
-      setLoadingOrders(true);
-      setLoadingHistory(true);
-      const [users, ordersData, history] = await Promise.all([
-        firebaseService.getPrebookUsers(),
-        firebaseService.getOrders(),
-        firebaseService.getHistoryData()
-      ]);
-      setPrebookUsers(users);
-      setHistoryData(history);
-      filterTodayData(ordersData, users);
-      const orderArray = users.map((user, index) => ({ userId: user.firestoreId, order: index + 1 }));
-      setRegistrationOrder(orderArray);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoadingUsers(false);
-      setLoadingOrders(false);
-      setLoadingHistory(false);
-    }
-  }, [filterTodayData]);
-
   const getProgressText = (step) => {
   if (step === 2) return "Awaiting Base Delivery Fee for first 3 users";
   if (step === 3) return "Awaiting Order Submission"; 
@@ -183,20 +215,20 @@ const handleMultipleImages = (images) => {
     }, 1600);
   };
 
-  const showSuccessAnimation = (title, message, additionalInfo = null, duration = 2000, showOkButton = true, onCloseCallback = null) => {
-    setSuccessConfig({ title, message, additionalInfo, duration, showOkButton, onClose: onCloseCallback });
-    setShowSuccess(true);
-  };
+  const showSuccessAnimation = useCallback((title, message, additionalInfo = null, duration = 2000, showOkButton = true, onCloseCallback = null) => {
+  setSuccessConfig({ title, message, additionalInfo, duration, showOkButton, onClose: onCloseCallback });
+  setShowSuccess(true);
+}, []); // <-- The empty dependency array is key. It tells React this function never needs to be recreated.
 
   const showLoadingAnimation = (message) => { 
-    setLoadingMessage(message); 
-    setIsLoading(true); 
-  };
+  setLoadingMessage(message); 
+  setIsLoading(true); 
+};
 
-  const hideLoadingAnimation = () => { 
-    setIsLoading(false); 
-    setLoadingMessage(''); 
-  };
+const hideLoadingAnimation = () => { 
+  setIsLoading(false); 
+  setLoadingMessage(''); 
+};
 
   const handleAuthentication = (passcodeAttempt, tabType) => {
   if (tabType === 'admin' && passcodeAttempt === ADMIN_PASSCODE) {
@@ -222,17 +254,22 @@ const handleMultipleImages = (images) => {
 
 // In App.js, find the handleRestoreSession function and add this line:
 
-const handleRestoreSession = async () => {
+const handleRestoreSession = () => {
   if (!sessionPrompt) return;
 
-  // Set selected vendor first
+  // 1. Immediately set the state needed to navigate
   setSelectedVendor(sessionPrompt.vendor);
+  setRememberedStudent({
+    ...sessionPrompt.student,
+    sessionStep: sessionPrompt.step
+  });
   
-  // Close session prompt and show main app
+  // 2. Navigate instantly without waiting for any data
   setSessionPrompt(null);
   setShowLandingPage(false);
   setShowMainApp(true);
-
+  
+  // 3. Handle specific "completed" states which don't need eligibility checks
   if (sessionPrompt.step === 'completed') {
     const orderDetailsJSON = localStorage.getItem('activeOrderDetails');
     if (orderDetailsJSON) {
@@ -241,8 +278,8 @@ const handleRestoreSession = async () => {
       setOrderConfirmed(true);
     }
     return;
-  } 
-  
+  }
+
   if (sessionPrompt.step === 'order_submitted') {
     const pendingOrder = localStorage.getItem('pendingOrderDetails');
     if (pendingOrder) {
@@ -255,115 +292,6 @@ const handleRestoreSession = async () => {
       setShowEmailModal(true);
     }
     return;
-  }
-
-  // For steps 1, 2, or 3 - fetch latest data and determine correct step
-  try {
-    showLoadingAnimation('Loading your session...');
-    
-    // Wait for data to be fetched
-    await fetchAllData();
-    
-    // Wait a moment for state to update after fetchAllData
-    setTimeout(() => {
-      // After fetching data, determine the user's actual status
-      const foundUser = prebookUsers.find(u => u.firestoreId === sessionPrompt.student.firestoreId);
-      
-      if (!foundUser) {
-        hideLoadingAnimation();
-        // Set remembered student first so they can continue their session
-        setRememberedStudent({
-          ...sessionPrompt.student,
-          sessionStep: sessionPrompt.step
-        });
-        
-        showSuccessAnimation(
-          `Welcome back, ${sessionPrompt.student.name}!`,
-          sessionPrompt.step === 2 
-            ? 'Please complete your base delivery fee payment to continue.'
-            : 'Continue with your registration.',
-          null,
-          3000,
-          true
-        );
-        return;
-      }
-
-      // 🚨 ADD THIS LINE - This was missing!
-      setIsCurrentUserEligible(foundUser.eligibleForDeduction || false);
-
-      // Calculate current system status
-      const paidUsersCount = prebookUsers.filter(u => u.commitmentPaid).length;
-      const systemIsActive = paidUsersCount >= 3;
-      const userOrder = registrationOrder.find(order => order.userId === foundUser.firestoreId);
-      const userIndex = userOrder ? userOrder.order - 1 : prebookUsers.findIndex(u => u.firestoreId === foundUser.firestoreId);
-      
-      // Set remembered student with the session step
-      setRememberedStudent({
-        ...sessionPrompt.student,
-        sessionStep: sessionPrompt.step
-      });
-      
-      hideLoadingAnimation();
-      
-      // Show appropriate message based on ACTUAL user status, not just session step
-      if (sessionPrompt.step === 2) {
-        // User hasn't paid commitment fee yet
-        showSuccessAnimation(
-          `Welcome back, ${sessionPrompt.student.name}!`,
-          'Please complete your base delivery fee payment to continue.',
-          <p>We need {Math.max(0, 3 - paidUsersCount)} more paid user{(3 - paidUsersCount) !== 1 ? 's' : ''} before order submission opens.</p>,
-          5000,
-          true
-        );
-      } else if (sessionPrompt.step === 3) {
-        // User is on step 3 - but check if they can actually submit or need to wait
-        if (foundUser.commitmentPaid && !systemIsActive) {
-          // User has paid but system not active - show waiting message
-          const remaining = Math.max(0, 3 - paidUsersCount);
-          showSuccessAnimation(
-            `Welcome back, ${sessionPrompt.student.name}!`,
-            'Your payment has been confirmed.',
-            <div>
-              <p>We need at least 3 paid users before order submission opens.</p>
-              <p><strong>Current progress: {paidUsersCount}/3 users</strong></p>
-              <p>Please check back later or wait for more users to join!</p>
-            </div>,
-            0, // Don't auto-close
-            true
-          );
-        } else if ((foundUser.commitmentPaid && systemIsActive) || userIndex >= 3) {
-          // User can submit order
-          showSuccessAnimation(
-            `Welcome back, ${sessionPrompt.student.name}!`,
-            userIndex >= 3 ? 'System is active! You can proceed directly to order submission.' : 'Your payment has been confirmed. You can now submit your order.',
-            null,
-            2500,
-            true
-          );
-        } else {
-          // Edge case - shouldn't happen but handle gracefully
-          showSuccessAnimation(
-            `Welcome back, ${sessionPrompt.student.name}!`,
-            'Loading your current status...',
-            null,
-            2500,
-            true
-          );
-        }
-      }
-      
-    }, 500); // Wait 500ms for state to update
-  } catch (error) {
-    hideLoadingAnimation();
-    console.error('Error loading session:', error);
-    showSuccessAnimation(
-      'Error Loading Session',
-      'Failed to load your session. Please try again.',
-      null,
-      3000,
-      true
-    );
   }
 };
 
@@ -396,7 +324,7 @@ const handleStartNewSession = () => {
     });
   };
 
-  const handleNavigationHome = () => {
+    const handleNavigationHome = useCallback(() => {
     const homeConfig = { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' };
     handleNavigateWithTransition(homeConfig, () => {
       setShowLandingPage(true);
@@ -406,7 +334,7 @@ const handleStartNewSession = () => {
         resetStudentForm();
       }
     });
-  };
+  }, [resetStudentForm]);
 
   const handleTabNavigation = (tabName) => {
     if (tabName === 'student' && !selectedVendor) {
@@ -497,6 +425,7 @@ const handleStartNewSession = () => {
   }
 };
 
+
 useEffect(() => {
   const checkSystemAvailability = () => {
     setSystemAvailability(getSystemAvailability());
@@ -532,6 +461,9 @@ useEffect(() => {
       localStorage.removeItem(`userSession-${todayKey}`);
     }
   }
+  
+
+  
 
   // Other setups remain the same...
   const handleResize = () => setWindowWidth(window.innerWidth);
@@ -550,6 +482,49 @@ useEffect(() => {
     }
   }, [fetchAllData, showMainApp]);
 
+useEffect(() => {
+    const dailyResetInterval = setInterval(() => {
+      const todayString = new Date().toLocaleDateString('en-CA');
+      
+      // Check if the date has changed since the last check
+      if (todayString !== currentDate) {
+        console.log("Midnight crossed! Resetting app for the new day.");
+
+        // Update the state to the new date
+        setCurrentDate(todayString);
+        
+        // Show a helpful message to the user
+        showSuccessAnimation(
+          "It's a New Day!",
+          "The system has been reset for today's orders.",
+          null, 4000
+        );
+
+        // Reset all the daily data states to their initial values
+        setPrebookUsers([]);
+        setTodayUsers([]);
+        setTodayOrders([]);
+        setMinOrderReached(false);
+        setSystemActivatedToday(false);
+        setRememberedStudent(null);
+        setSelectedVendor(''); // Also reset the vendor
+        
+        // Clear old session data from the browser
+        const oldDateKey = new Date();
+        oldDateKey.setDate(oldDateKey.getDate() - 1);
+        const yesterdayKey = oldDateKey.toLocaleDateString('en-CA');
+        localStorage.removeItem(`userSession-${yesterdayKey}`);
+        localStorage.removeItem('activeOrderDetails');
+        
+        // Go back to the landing page to start fresh
+        handleNavigationHome();
+      }
+    }, 60000); // Check every 60 seconds (1 minute)
+
+    // Cleanup function to stop the timer when the component unmounts
+    return () => clearInterval(dailyResetInterval);
+  }, [currentDate, showSuccessAnimation, handleNavigationHome]); // Dependencies for the hook
+
   useEffect(() => {
       // We use a very short timeout to ensure the browser has rendered the new content.
       const timer = setTimeout(() => {
@@ -563,6 +538,31 @@ useEffect(() => {
       return () => clearTimeout(timer);
     }, [activeTab, showMainApp]); // Also scroll when the main app first appears
 
+    useEffect(() => {
+    const fetchEligibilityForRestoredSession = async () => {
+      // Only run if there's a remembered student and the main data has loaded.
+      if (rememberedStudent && prebookUsers.length > 0) {
+        const user = prebookUsers.find(u => u.firestoreId === rememberedStudent.firestoreId);
+        if (user) {
+          setIsCurrentUserEligible(user.eligibleForDeduction || false);
+        }
+      }
+    };
+  
+    fetchEligibilityForRestoredSession();
+  }, [rememberedStudent, prebookUsers, setIsCurrentUserEligible]); // It's good practice to include the setter function here
+
+  useEffect(() => {
+  filterTodayData(allOrders, prebookUsers);
+}, [allOrders, prebookUsers, filterTodayData]);
+
+useEffect(() => {
+  // If the app is NOT in a loading state for users or orders,
+  // then we can safely hide any active loading animation.
+  if (!loadingUsers && !loadingOrders) {
+    hideLoadingAnimation();
+  }
+}, [loadingUsers, loadingOrders]);
 
   const sharedProps = {
     prebookUsers,
@@ -594,6 +594,7 @@ useEffect(() => {
   setShowImageCarousel: setShowImageCarousel,
   isCurrentUserEligible,
   setIsCurrentUserEligible,  
+  setSelectedVendor,
   };
 
   const gateAnimationStyles = `
@@ -790,7 +791,7 @@ useEffect(() => {
         />
       )}
       <div id="main-content" style={styles.maxWidth}>
-        {activeTab === 'student' && <StudentTab {...sharedProps} setResetStudentForm={setResetStudentForm} />}
+        {activeTab === 'student' && <StudentTab {...sharedProps} setSelectedVendor={setSelectedVendor} setResetStudentForm={setResetStudentForm} />}
         {activeTab === 'admin' && <AdminTab {...sharedProps} showSuccessAnimation={showSuccessAnimation} showLoadingAnimation={showLoadingAnimation}  hideLoadingAnimation={hideLoadingAnimation} isAuthenticated={isAdminAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'admin')} resetAuth={resetAuth} />}
 {activeTab === 'driver' && <DriverTab {...sharedProps} isAuthenticated={isDriverAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'driver')} resetAuth={resetAuth} />}
   {activeTab === 'guide' && <UserGuideTab />}

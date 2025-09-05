@@ -39,7 +39,6 @@ const AdminTab = ({
   const [showHistory, setShowHistory] = useState(false);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
 
-
   const styles = {
     card: { 
       backgroundColor: 'white', 

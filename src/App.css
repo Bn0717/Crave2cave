@@ -104,3 +104,19 @@ img {
         transform: translateY(0);
     }
 }
+
+/* Add smooth scrolling to the entire app */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Ensure all transitions are smooth */
+* {
+  transition: all 0.3s ease;
+}
+
+/* Specific styles for the main content area */
+#main-content {
+  min-height: 100vh;
+  padding-top: 20px;
+}

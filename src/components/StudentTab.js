@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, CheckCircle, AlertCircle, PlayCircle, X } from 'lucide-react';
+import { Users, CheckCircle, AlertCircle, PlayCircle, X, Film, Loader2 } from 'lucide-react';
 import * as firebaseService from '../services/firebase';
 import { calculateDeliveryFee } from '../utils/calculateDeliveryFee';
 import { isToday } from '../utils/isToday';
@@ -8,6 +8,7 @@ import BeautifulMessage from './BeautifulMessage';
 import FeeBreakdown from './FeeBreakdown';
 import UnifiedQRCodeDisplay from './UnifiedQRCodeDisplay';
 import CountdownTimer from './CountdownTimer';
+import LoadingAnimation from './LoadingAnimation';
 
 const StudentTab = ({
   prebookUsers,
@@ -33,6 +34,7 @@ const StudentTab = ({
   systemAvailability,
   isCurrentUserEligible,        // ← ADD THIS LINE
   setIsCurrentUserEligible,
+  setSelectedVendor,
 }) => {
   const [userStep, setUserStep] = useState(() => {
   // ✅ Initialize with session step if available
@@ -52,6 +54,9 @@ const StudentTab = ({
   const [idError, setIdError] = useState('');
   const [orderError, setOrderError] = useState('');
   const [isVideoVisible, setIsVideoVisible] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+   const [isLoading, setIsLoading] = useState(false); // Add local loading state
+  const [loadingMessage, setLoadingMessage] = useState(''); 
 
 
   const styles = {
@@ -302,6 +307,17 @@ const StudentTab = ({
     }
   };
 
+  const showLocalLoading = (message) => {
+    setLoadingMessage(message);
+    setIsLoading(true);
+  };
+
+  // Replace all hideLoadingAnimation calls with this function
+  const hideLocalLoading = () => {
+    setIsLoading(false);
+    setLoadingMessage('');
+  };
+
   const validateName = (name) => {
     if (!name.trim()) { 
       setNameError('Name is required'); 
@@ -364,152 +380,152 @@ const handleRemoveReceipt = (indexToRemove) => {
   };
 
 const handlePrebook = async () => {
-  if (!systemAvailability.isSystemOpen) {
-    showSuccessAnimation(
-      'System Closed',
-      'The food delivery system is only available on Tuesday and Friday from 12:00 AM to 6:00 PM (Malaysia Time).',
-      <div>
-        <p style={{ margin: '8px 0', color: '#92400e', fontWeight: '600' }}>
-          Next available: {systemAvailability.nextOpenTime}
-        </p>
-      </div>,
-      0,
-      true
-    );
-    return;
-  }
+    if (!systemAvailability.isSystemOpen) {
+      showSuccessAnimation(
+        'System Closed',
+        'The food delivery system is only available on Tuesday and Friday from 12:00 AM to 6:00 PM (Malaysia Time).',
+        <div>
+          <p style={{ margin: '8px 0', color: '#92400e', fontWeight: '600' }}>
+            Next available: {systemAvailability.nextOpenTime}
+          </p>
+        </div>,
+        0,
+        true
+      );
+      return;
+    }
 
-  if (!validateName(studentName) || !validateStudentId(studentId)) return;
-  
-  const existingUser = prebookUsers.find(user => 
-    isToday(user.timestamp) && 
-    (user.studentId === studentId || user.name.toLowerCase() === studentName.toLowerCase())
-  );
-  
-  if (existingUser) {
-    showSuccessAnimation(
-      'Registration Already Exists', 
-      `This name or Student ID has already been registered today.`, 
-      <BeautifulMessage 
-        type="error" 
-        message="Please try again tomorrow or retrieve your registration." 
-        icon={<AlertCircle />} 
-      />, 
-      3000, 
-      true
-    );
-    return;
-  }
-
-  showLoadingAnimation('Registering...');
-  
-  try {
-    const currentPaidUsersCount = prebookUsers.filter(u => u.commitmentPaid).length;
-    const currentUserPosition = prebookUsers.length + 1;
-
-    // ✅ FIX: Eligibility is NOT decided here.
-    const newUser = {
-      name: studentName,
-      studentId,
-      timestamp: new Date().toISOString(),
-      commitmentPaid: false,
-      orderSubmitted: false,
-      registrationOrder: currentUserPosition,
-      hasOrdered: false,
-      orderTotal: 0,
-      // The `eligibleForDeduction` field is removed from this object.
-    };
-
-    const nextStep = currentPaidUsersCount >= 3 ? 3 : 2;
-    const newUserId = await firebaseService.savePrebookUser(newUser);
+    if (!validateName(studentName) || !validateStudentId(studentId)) return;
     
-    updateSession(nextStep, { name: studentName, studentId, firestoreId: newUserId });
-    
-    setSelectedUserId(newUserId);
-    await fetchAllData();
-    hideLoadingAnimation();
-    setUserStep(nextStep);
-
-    const message = currentPaidUsersCount >= 3
-      ? 'System is already activated! You can submit your order directly.'
-      : 'Please proceed to pay the RM10 base delivery fee to help activate the system.';
-
-    showSuccessAnimation(
-      'Registration Successful!', 
-      message,
-      null,
-      3000,
-      true
+    const existingUser = prebookUsers.find(user => 
+      isToday(user.timestamp) && 
+      (user.studentId === studentId || user.name.toLowerCase() === studentName.toLowerCase())
     );
+    
+    if (existingUser) {
+      showSuccessAnimation(
+        'Registration Already Exists', 
+        `This name or Student ID has already been registered today.`, 
+        <BeautifulMessage 
+          type="error" 
+          message="Please try again tomorrow or retrieve your registration." 
+          icon={<AlertCircle />} 
+        />, 
+        3000, 
+        true
+      );
+      return;
+    }
 
-  } catch (error) {
-    hideLoadingAnimation();
-    alert('Error registering user. Please try again.');
-    console.error('Registration error:', error);
-  }
-};
+    showLocalLoading('Registering...');
+    
+    // Use setTimeout to allow the UI to update before Firebase operations
+    setTimeout(async () => {
+      try {
+        const currentPaidUsersCount = todayUsers.filter(u => u.commitmentPaid).length;
+        const currentUserPosition = todayUsers.length + 1;
+
+        const newUser = {
+          name: studentName,
+          studentId,
+          timestamp: new Date().toISOString(),
+          commitmentPaid: false,
+          orderSubmitted: false,
+          registrationOrder: currentUserPosition,
+          hasOrdered: false,
+          orderTotal: 0,
+          vendor: selectedVendor
+        };
+
+        const nextStep = currentPaidUsersCount >= 3 ? 3 : 2;
+        const newUserId = await firebaseService.savePrebookUser(newUser);
+        
+        updateSession(nextStep, { name: studentName, studentId, firestoreId: newUserId }, selectedVendor);
+        
+        setSelectedUserId(newUserId);
+        fetchAllData();
+        setUserStep(nextStep);
+
+        hideLocalLoading();
+
+        const message = currentPaidUsersCount >= 3
+          ? 'System is already activated! You can submit your order directly.'
+          : 'Please proceed to pay the RM10 base delivery fee to help activate the system.';
+
+        showSuccessAnimation(
+          'Registration Successful!', 
+          message,
+          null,
+          3000,
+          true
+        );
+
+      } catch (error) {
+        hideLocalLoading();
+        alert('Error registering user. Please try again.');
+        console.error('Registration error:', error);
+      }
+    }, 50); // Small delay to allow UI to update
+  };
 
 const handleCommitmentPayment = async () => {
-  if (!receiptFile) {
-    showSuccessAnimation('Missing Receipt', 'Please upload a payment receipt.', null, 3000, true);
-    return;
-  }
-
-  showLoadingAnimation('Uploading receipt...');
-
-  try {
-    if (!(receiptFile instanceof File)) {
-      throw new Error('Invalid receipt file: Please select a valid image');
+    if (!receiptFile) {
+      showSuccessAnimation('Missing Receipt', 'Please upload a payment receipt.', null, 3000, true);
+      return;
     }
-    const receiptURL = await firebaseService.uploadFileToStorage(receiptFile);
 
-    // 1. Determine eligibility based on the data we have right now.
-    const currentPaidCount = prebookUsers.filter(u => u.commitmentPaid).length;
-    const isEligibleForDeduction = currentPaidCount < 3;
+    showLocalLoading('Uploading receipt...');
 
-    // 2. ✅ SET OUR LOCAL STATE IMMEDIATELY. This is the key to the fix.
-    setIsCurrentUserEligible(isEligibleForDeduction);
+    // Use setTimeout to allow UI to update
+    setTimeout(async () => {
+      try {
+        if (!(receiptFile instanceof File)) {
+          throw new Error('Invalid receipt file: Please select a valid image');
+        }
+        const receiptURL = await firebaseService.uploadFileToStorage(receiptFile);
 
-    // 3. Update the database as the permanent source of truth.
-    await firebaseService.updatePrebookUser(selectedUserId, {
-      commitmentPaid: true,
-      receiptURL,
-      receiptUploadTime: new Date().toISOString(),
-      eligibleForDeduction: isEligibleForDeduction,
-    });
+        const currentPaidCount = todayUsers.filter(u => u.commitmentPaid).length;
+        const isEligibleForDeduction = currentPaidCount < 3;
 
-    // 4. Update the session and navigate.
-    updateSession(3, { name: studentName, studentId, firestoreId: selectedUserId });
-    
-    // We can now remove the complex data fetching from here.
-    // The local state has already solved the UI problem.
-    await fetchAllData(); // Still good to refresh data for other parts of the app.
-    hideLoadingAnimation();
+        setIsCurrentUserEligible(isEligibleForDeduction);
 
-    const newPaidCount = currentPaidCount + 1;
-    if (newPaidCount >= 3) {
-      showSuccessAnimation(
-        'Payment Confirmed!',
-        'You can now submit your order!',
-        null, 2500, true,
-        () => setUserStep(3) // Simple navigation is fine now.
-      );
-    } else {
-      const remaining = 3 - newPaidCount;
-      showSuccessAnimation(
-        'Payment Confirmed!',
-        'Your payment has been received.',
-        <p>We need {remaining} more paid user{remaining > 1 ? 's' : ''} to activate.</p>,
-        0, true,
-        () => setUserStep(3)
-      );
-    }
-  } catch (error) {
-    hideLoadingAnimation();
-    showSuccessAnimation('Upload Failed', `Error: ${error.message}`, null, 3000, true);
-    console.error('Payment error:', error);
-  }
-};
+        await firebaseService.updatePrebookUser(selectedUserId, {
+          commitmentPaid: true,
+          receiptURL,
+          receiptUploadTime: new Date().toISOString(),
+          eligibleForDeduction: isEligibleForDeduction,
+        });
+
+        updateSession(3, { name: studentName, studentId, firestoreId: selectedUserId }, selectedVendor);
+        
+        fetchAllData();
+        hideLocalLoading();
+
+        const newPaidCount = currentPaidCount + 1;
+        if (newPaidCount >= 3) {
+          showSuccessAnimation(
+            'Payment Confirmed!',
+            'You can now submit your order!',
+            null, 2500, true,
+            () => setUserStep(3)
+          );
+        } else {
+          const remaining = 3 - newPaidCount;
+          showSuccessAnimation(
+            'Payment Confirmed!',
+            'Your payment has been received.',
+            <p>We need {remaining} more paid user{remaining > 1 ? 's' : ''} to activate.</p>,
+            0, true,
+            () => setUserStep(3)
+          );
+        }
+      } catch (error) {
+        hideLocalLoading();
+        showSuccessAnimation('Upload Failed', `Error: ${error.message}`, null, 3000, true);
+        console.error('Payment error:', error);
+      }
+    }, 50);
+  };
 
   const handleOrderSubmission = async () => {
   if (orderReceiptFiles.length === 0) {
@@ -532,9 +548,8 @@ const handleCommitmentPayment = async () => {
   const deliveryFee = calculateDeliveryFee(totalAmount);
   const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
 
-// Use the eligibleForDeduction flag set during payment
-const commitmentFeeDeducted = (user?.eligibleForDeduction && deliveryFee > 0) ? 10 : 0;
-
+  // Use the eligibleForDeduction flag set during payment
+  const commitmentFeeDeducted = (user?.eligibleForDeduction && deliveryFee > 0) ? 10 : 0;
   const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
 
   if (actualDeliveryFee > 0 && !paymentProof) {
@@ -548,7 +563,7 @@ const commitmentFeeDeducted = (user?.eligibleForDeduction && deliveryFee > 0) ? 
     return;
   }
 
-  showLoadingAnimation('Processing order...');
+  showLocalLoading('Processing order...'); // Changed to local function
 
   try {
     let paymentProofURL = null;
@@ -596,10 +611,10 @@ const commitmentFeeDeducted = (user?.eligibleForDeduction && deliveryFee > 0) ? 
       lastOrderDate: new Date().toISOString(),
     });
 
-    hideLoadingAnimation();
+    hideLocalLoading(); // Changed to local function
 
-    // ✅ FIX: Update session to 'order_submitted' state (awaiting email)
-    updateSession('order_submitted', { name: studentName, studentId, firestoreId: selectedUserId });
+    // Update session to 'order_submitted' state (awaiting email)
+    updateSession('order_submitted', { name: studentName, studentId, firestoreId: selectedUserId }, selectedVendor);
     localStorage.setItem('pendingOrderDetails', JSON.stringify(completeOrder));
 
     showSuccessAnimation(
@@ -624,13 +639,10 @@ const commitmentFeeDeducted = (user?.eligibleForDeduction && deliveryFee > 0) ? 
         setUserForEmail({ firestoreId: selectedUserId, name: studentName });
         setShowEmailModal(true);
         setCurrentOrder(completeOrder);
-        
-        // ✅ CRITICAL: Don't call setOrderConfirmed(true) here
-        // Wait until email is submitted in the email modal
       }
     );
   } catch (error) {
-    hideLoadingAnimation();
+    hideLocalLoading(); // Changed to local function
     showSuccessAnimation(
       'Order Submission Failed',
       `Failed to submit order: ${error.message}`,
@@ -644,7 +656,7 @@ const commitmentFeeDeducted = (user?.eligibleForDeduction && deliveryFee > 0) ? 
 
 
   const handleRetrieveRegistration = async (name, id) => {
-    if (!systemAvailability.isSystemOpen) {
+  if (!systemAvailability.isSystemOpen) {
     showSuccessAnimation(
       'System Closed',
       'The food delivery system is only available on Tuesday and Friday from 12:00 AM to 6:00 PM (Malaysia Time).',
@@ -653,7 +665,7 @@ const commitmentFeeDeducted = (user?.eligibleForDeduction && deliveryFee > 0) ? 
           Next available: {systemAvailability.nextOpenTime}
         </p>
       </div>,
-      0, // Don't auto-close
+      0,
       true
     );
     return;
@@ -664,7 +676,7 @@ const commitmentFeeDeducted = (user?.eligibleForDeduction && deliveryFee > 0) ? 
     user.studentId === id &&
     isToday(user.timestamp)
   );
- 
+
   if (!foundUser) {
     showSuccessAnimation(
       "Registration Not Found",
@@ -681,25 +693,26 @@ const commitmentFeeDeducted = (user?.eligibleForDeduction && deliveryFee > 0) ? 
     return;
   }
 
+  // CRITICAL: Set the vendor FIRST before any other operations
+  if (foundUser.vendor) {
+    setSelectedVendor(foundUser.vendor);
+  }
+
   if (foundUser.orderSubmitted && isToday(foundUser.lastOrderDate)) {
-    showLoadingAnimation('Retrieving your order...');
+    showLocalLoading('Retrieving your order...'); // Changed to local function
     try {
-      // Fetch the existing order for the user
       const order = await firebaseService.getOrderByUserId(foundUser.firestoreId);
       if (order) {
-        // Close the retrieve form
         setShowRetrieve(false);
-        // Set the current order with retrieved data
         setCurrentOrder({
-    ...order,
-    orderReceiptURL: order.orderReceiptURL || null
-  });
-        // Navigate to WaitingPage
+          ...order,
+          orderReceiptURL: order.orderReceiptURL || null
+        });
         setOrderConfirmed(true);
-        hideLoadingAnimation();
+        hideLocalLoading(); // Changed to local function
         return;
       } else {
-        hideLoadingAnimation();
+        hideLocalLoading(); // Changed to local function
         showSuccessAnimation(
           "Order Not Found",
           `No order details found for ${foundUser.name}.`,
@@ -716,7 +729,7 @@ const commitmentFeeDeducted = (user?.eligibleForDeduction && deliveryFee > 0) ? 
       }
     } catch (error) {
       console.error('Error retrieving order:', error);
-      hideLoadingAnimation();
+      hideLocalLoading(); // Changed to local function
       showSuccessAnimation(
         "Error",
         `Failed to retrieve order: ${error.message}`,
@@ -735,60 +748,37 @@ const commitmentFeeDeducted = (user?.eligibleForDeduction && deliveryFee > 0) ? 
 
   setIsCurrentUserEligible(foundUser.eligibleForDeduction || false);
 
-  // ✅ NEW LOGIC: Check current system state for navigation
-  const currentPaidUsersCount = prebookUsers.filter(u => u.commitmentPaid).length;
-  const systemIsActive = currentPaidUsersCount >= 3;
+  // Check current system state for navigation
+  const usersFromRegistrationDay = prebookUsers.filter(u => 
+      new Date(u.timestamp).toLocaleDateString() === new Date(foundUser.timestamp).toLocaleDateString()
+    );
+
+  const paidUsersOnRegistrationDay = usersFromRegistrationDay.filter(u => u.commitmentPaid).length;
+  const wasSystemActiveOnRegistrationDay = paidUsersOnRegistrationDay >= 3;
 
   if (foundUser.commitmentPaid) {
-  // User has paid - always go to step 3
-  updateSession(3, { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId });
-  setUserStep(3);
-  showSuccessAnimation(
-    `Welcome back, ${foundUser.name}!`,
-    'You can now submit your order.',
-    null,
-    2500,
-    true
-  );
-} else {
-  // User hasn't paid - check if system is already active
-  if (systemIsActive) {
-    // ✅ FIX: System is active, user can skip payment and go to step 3
-    // Their eligibleForDeduction flag remains what it was set during registration
-    updateSession(3, { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId });
+    updateSession(3, { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId }, foundUser.vendor);
     setUserStep(3);
-    
-    const deductionMessage = foundUser.eligibleForDeduction 
-      ? 'You will get RM10 deduction on delivery fee!'
-      : 'No RM10 deduction (you were not among the first 3 to register and pay for the base delivery fee).';
-    
-    showSuccessAnimation(
-      `Welcome back, ${foundUser.name}!`,
-      `System is already active! You can submit your order directly. ${deductionMessage}`,
-      null,
-      4000,
-      true
-    );
+    showSuccessAnimation(`Welcome back, ${foundUser.name}!`, 'You can now submit your order.', null, 2500, true);
+  } else if (wasSystemActiveOnRegistrationDay) {
+    updateSession(3, { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId }, foundUser.vendor);
+    setUserStep(3);
+    const deductionMessage = foundUser.eligibleForDeduction ? 'You will get RM10 deduction on delivery fee!' : 'No RM10 deduction applies.';
+    showSuccessAnimation(`Welcome back, ${foundUser.name}!`, `System is active! You can submit your order directly. ${deductionMessage}`, null, 4000, true);
   } else {
-    // System not active, user needs to pay - go to step 2
-    updateSession(2, { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId });
+    const currentPaidUsersCount = todayUsers.filter(u => u.commitmentPaid).length;
+    updateSession(2, { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId }, foundUser.vendor);
     setUserStep(2);
-    showSuccessAnimation(
-      `Welcome back, ${foundUser.name}!`,
-      'Please complete your base delivery fee payment to continue.',
-      <p>We still need {3 - currentPaidUsersCount} more paid users to activate the system.</p>,
-      5000,
-      true
-    );
+    showSuccessAnimation(`Welcome back, ${foundUser.name}!`, 'Please complete your base delivery fee payment.', <p>We need {Math.max(0, 3 - currentPaidUsersCount)} more paid users today to activate the system.</p>, 5000, true);
   }
-}
 };
 
-const updateSession = (step, studentData) => {
+
+const updateSession = (step, studentData, vendor) => {
   const todayKey = new Date().toLocaleDateString('en-CA');
   const sessionData = {
-    vendor: selectedVendor,
-    step: step, // Can now be: 1, 2, 3, 'order_submitted', or 'completed'
+    vendor: vendor,
+    step: step,
     student: {
       name: studentData.name,
       studentId: studentData.studentId,
@@ -821,31 +811,33 @@ const loadFromSession = async () => {
       // Check if user already has an order today
       if (foundUser.orderSubmitted && isToday(foundUser.lastOrderDate)) {
         try {
-          showLoadingAnimation('Loading your order...');
+          showLocalLoading('Loading your order...'); // Changed to local function
           const order = await firebaseService.getOrderByUserId(foundUser.firestoreId);
           if (order) {
             setCurrentOrder(order);
             setOrderConfirmed(true);
-            hideLoadingAnimation();
+            hideLocalLoading(); // Changed to local function
             return;
           }
         } catch (error) {
           console.error('Error loading order:', error);
-          hideLoadingAnimation();
+          hideLocalLoading(); // Changed to local function
         }
       }
       
-      // ✅ FIX: Get the saved session step and set it IMMEDIATELY
+      // Get the saved session step and vendor
       const todayKey = new Date().toLocaleDateString('en-CA');
       const sessionJSON = localStorage.getItem(`userSession-${todayKey}`);
       
       if (sessionJSON) {
         try {
           const sessionData = JSON.parse(sessionJSON);
+          if (sessionData.vendor) {
+            setSelectedVendor(sessionData.vendor); // Update the vendor
+          }
           if (typeof sessionData.step === 'number') {
-            // ✅ Set step immediately without animation
             setUserStep(sessionData.step);
-            return; // Exit early to prevent success animation
+            return;
           }
         } catch (e) {
           console.error('Error parsing session data in loadFromSession:', e);
@@ -876,26 +868,30 @@ const loadFromSession = async () => {
   }
 }, []);
 
-useEffect(() => {
-  if (rememberedStudent && !selectedUserId && prebookUsers.length > 0) {
-    const foundUser = prebookUsers.find(u => u.firestoreId === rememberedStudent.firestoreId);
-    if (foundUser) {
-      // ✅ Set all data immediately
-      setStudentName(rememberedStudent.name);
-      setStudentId(rememberedStudent.studentId);
-      setSelectedUserId(rememberedStudent.firestoreId);
+    useEffect(() => {
+  const handleSessionRestore = () => {
+    const isRestoringAndLoading = rememberedStudent && prebookUsers.length === 0;
+
+    if (isRestoringAndLoading) {
+      showLocalLoading("Restoring your session..."); // Changed to local function
+    } else {
+      hideLocalLoading(); // Changed to local function
       
-      const userOrder = registrationOrder.find(order => order.userId === foundUser.firestoreId);
-      const userIndex = userOrder ? userOrder.order - 1 : prebookUsers.findIndex(u => u.firestoreId === foundUser.firestoreId);
-      setCurrentUserIndex(userIndex);
-      
-      // ✅ Set the step from session data immediately
-      if (rememberedStudent.sessionStep) {
-        setUserStep(rememberedStudent.sessionStep);
+      if (rememberedStudent) {
+        const user = prebookUsers.find(u => u.firestoreId === rememberedStudent.firestoreId);
+        if (user) {
+          setIsCurrentUserEligible(user.eligibleForDeduction || false);
+        }
       }
     }
-  }
-}, [rememberedStudent, prebookUsers, registrationOrder]);
+  };
+
+  handleSessionRestore();
+
+  return () => {
+    hideLocalLoading(); // Changed to local function
+  };
+}, [rememberedStudent, prebookUsers, setIsCurrentUserEligible]);
 
 useEffect(() => {
   setResetStudentForm(() => resetForm);
@@ -930,6 +926,8 @@ const isSubmitDisabled =
 
   return (
     <div style={styles.card}>
+      {/* Add LoadingAnimation component */}
+      {isLoading && <LoadingAnimation message={loadingMessage} />}
       <>
         {/* This is the banner that is always visible */}
         <div style={styles.banner}>
@@ -991,12 +989,12 @@ const isSubmitDisabled =
       <div style={styles.progressBar}>
         <div style={styles.progressText}>
   <span>Minimum 3 official users required</span>
-  <span>{prebookUsers.filter(u => u.commitmentPaid).length}/3</span>
+  <span>{todayUsers.filter(u => u.commitmentPaid).length}/3</span>
 </div>
         <div style={styles.progressTrack}>
           <div style={{
   ...styles.progressFill,
-  width: `${Math.min((prebookUsers.filter(u => u.commitmentPaid).length / 3) * 100, 100)}%`
+  width: `${Math.min((todayUsers.filter(u => u.commitmentPaid).length / 3) * 100, 100)}%`
 }}></div>
         </div>
       </div>
@@ -1043,12 +1041,21 @@ const isSubmitDisabled =
 
           <button 
             onClick={handlePrebook} 
+            disabled={isProcessing}
             style={{ 
               ...styles.button, 
-              ...styles.buttonGreen 
+              ...styles.buttonGreen,
+              ...(isProcessing && { opacity: 0.7, cursor: 'not-allowed' })
             }}
           >
-            Register for Delivery
+            {isProcessing ? (
+              <>
+                <Loader2 size={18} style={{ marginRight: '8px', animation: 'spin 1s linear infinite' }} />
+                Registering...
+              </>
+            ) : (
+              'Register for Delivery'
+            )}
           </button>
         </div>
       )}

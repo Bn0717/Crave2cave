@@ -2,7 +2,19 @@ import React, { useState } from 'react';
 import { Users, Truck, BarChart3, Menu, X, Home, BookOpen } from 'lucide-react';
 import logo from '../assets/logo(1).png';
 
-// *** FIXED: Re-added `setIsAuthenticated` to the props destructuring ***
+// --- THIS IS THE CRITICAL FIX ---
+// Define VENDORS as a constant OUTSIDE the component.
+// This object is created only once and is always up-to-date.
+const VENDORS = {
+    'mixue': { name: 'Mixue', icon: '🧋', shortName: 'Mixue' },
+    'dominos': { name: 'Dominos', icon: '🍕', shortName: 'Dominos' },
+    'ayam_gepuk': { name: "Ayam Gepuk", icon: '🍗', shortName: "Ayam Gepuk" },
+};
+
+// A fallback for any case where the vendor might not be found.
+const FALLBACK_VENDOR = { name: 'Select Vendor', icon: '🏪', shortName: 'Vendor' };
+
+
 const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransitioning, windowWidth }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -12,31 +24,18 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
         setIsMobileMenuOpen(false);
     };
 
-        // Add this helper function inside your Navigation component
-    const getVendorDetails = (vendorId) => {
-    const vendors = {
-        'mixue': { name: 'Mixue', icon: '🧋', shortName: 'Mixue' },
-        'dominos': { name: 'Dominos', icon: '🍕', shortName: 'Dominos' },
-        'ayam_gepuk': { name: "Ayam Gepuk", icon: '🍗', shortName: "Ayam Gepuk" }, // ✅ Shorter name for mobile
-    };
-    return vendors[vendorId];
-};
-
-    const vendorDetails = getVendorDetails(selectedVendor);
-
-    // *** FIXED: The logic to reset authentication is restored here ***
-     const handleTabClick = (tabId) => {
+    const handleTabClick = (tabId) => {
         if (isTransitioning) return;
-        onTabChange(tabId); // Just tell App.js what happened
+        onTabChange(tabId);
         setIsMobileMenuOpen(false);
     };
 
     const tabs = [
-    { id: 'student', label: 'Student Portal', icon: Users },
-    { id: 'driver', label: 'Driver Portal', icon: Truck },
-    { id: 'admin', label: 'Admin Portal', icon: BarChart3 },
-    { id: 'guide', label: 'User Guide', icon: BookOpen } // <-- ADD THIS LINE
-];
+        { id: 'student', label: 'Student Portal', icon: Users },
+        { id: 'driver', label: 'Driver Portal', icon: Truck },
+        { id: 'admin', label: 'Admin Portal', icon: BarChart3 },
+        { id: 'guide', label: 'User Guide', icon: BookOpen }
+    ];
 
     const navStyles = {
         navbar: {
@@ -53,53 +52,49 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
             maxWidth: '1200px', margin: '0 auto', padding: '0 20px',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '70px'
         },
-            //... inside navStyles
-    leftSection: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: windowWidth <= 768 ? '8px' : '20px', // ✅ Reduce gap on small screens
-        gap: windowWidth <= 400 ? '4px' : (windowWidth <= 768 ? '8px' : '20px'),
-        flex: 1, // ✅ Allow this section to grow
-        minWidth: 0 // ✅ Allow items to shrink if needed
-    },
-    logoContainer: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px', // Space between logo image and text
-      cursor: 'pointer',
-      padding: '5px', // Add some padding for the hover effect
-      borderRadius: '10px',
-      transition: 'background-color 0.2s ease',
-    },
-    logoImage: {
-      height: '45px', // Slightly smaller logo for better balance
-      width: 'auto',
-      objectFit: 'contain'
-    },
-    logoText: {
-    fontSize: windowWidth <= 768 ? '18px' : '20px',
-    fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #3b82f5 0%, #1e40af 100%)',
-    WebkitBackgroundClip: 'text', 
-    WebkitTextFillColor: 'transparent', 
-    backgroundClip: 'text',
-    // Remove this line: display: windowWidth <= 370 ? 'none' : 'block',
-    whiteSpace: 'nowrap' // Keep logo text on one line
-},
-    vendorName: {
-        display: 'flex',
-        alignItems: 'center',
-        // New: Smaller padding on narrow screens
-        padding: windowWidth <= 400 ? '4px 8px' : '6px 12px',
-        backgroundColor: '#eef2ff', 
-        color: '#4338ca', 
-        borderRadius: '9999px',
-        // New: Smaller font size on narrow screens
-        fontSize: windowWidth <= 400 ? '11px' : '13px',
-        fontWeight: '600',
-        border: '1px solid #c7d2fe',
-        whiteSpace: 'nowrap',
-    },
+        leftSection: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: windowWidth <= 400 ? '4px' : (windowWidth <= 768 ? '8px' : '20px'),
+            flex: 1,
+            minWidth: 0
+        },
+        logoContainer: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            cursor: 'pointer',
+            padding: '5px',
+            borderRadius: '10px',
+            transition: 'background-color 0.2s ease',
+            minWidth: 0,
+        },
+        logoImage: {
+            height: '45px',
+            width: 'auto',
+            objectFit: 'contain'
+        },
+        logoText: {
+            fontSize: windowWidth <= 400 ? '16px' : (windowWidth <= 768 ? '18px' : '20px'),
+            fontWeight: 'bold',
+            background: 'linear-gradient(135deg, #3b82f5 0%, #1e40af 100%)',
+            WebkitBackgroundClip: 'text', 
+            WebkitTextFillColor: 'transparent', 
+            backgroundClip: 'text',
+            whiteSpace: 'nowrap',
+        },
+        vendorName: {
+            display: 'flex',
+            alignItems: 'center',
+            padding: windowWidth <= 400 ? '4px 8px' : '6px 12px',
+            backgroundColor: '#eef2ff', 
+            color: '#4338ca', 
+            borderRadius: '9999px',
+            fontSize: windowWidth <= 400 ? '11px' : '13px',
+            fontWeight: '600',
+            border: '1px solid #c7d2fe',
+            whiteSpace: 'nowrap',
+        },
         desktopMenu: { display: 'flex', alignItems: 'center', gap: '8px' },
         navButton: {
             display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px',
@@ -134,6 +129,10 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
         }
     };
 
+    // --- ANOTHER CRITICAL FIX ---
+    // Look up the details directly from the constant VENDORS object.
+    const vendorDetails = VENDORS[selectedVendor] || FALLBACK_VENDOR;
+
     return (
         <>
             <style>
@@ -162,25 +161,20 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
                 <div style={navStyles.container}>
                     <div style={navStyles.leftSection}>
                         <div className="logo-container" style={navStyles.logoContainer} onClick={handleHomeClick}>
-                        <img src={logo} alt="Crave 2 Cave Logo" style={navStyles.logoImage} />
-                        <span className="logo-text" style={navStyles.logoText}>
-                            Crave 2 Cave
-                        </span>
-                    </div>
+                            <img src={logo} alt="Crave 2 Cave Logo" style={navStyles.logoImage} />
+                            <span className="logo-text" style={navStyles.logoText}>Crave 2 Cave</span>
+                        </div>
 
-                    {selectedVendor && (
-    <div className="vendor-name-display" style={navStyles.vendorName}>
-        <span style={{ marginRight: '8px', fontSize: '18px', lineHeight: 1 }}>
-            {getVendorDetails(selectedVendor).icon}
-        </span>
-        <span>
-            {windowWidth <= 480 
-                ? getVendorDetails(selectedVendor).shortName || getVendorDetails(selectedVendor).name
-                : getVendorDetails(selectedVendor).name
-            }
-        </span>
-    </div>
-)}
+                        {selectedVendor && (
+                            <div className="vendor-name-display" style={navStyles.vendorName}>
+                                <span style={{ marginRight: '8px', fontSize: '18px', lineHeight: 1 }}>
+                                    {vendorDetails.icon}
+                                </span>
+                                <span>
+                                    {windowWidth <= 480 ? vendorDetails.shortName : vendorDetails.name}
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="desktop-menu" style={navStyles.desktopMenu}>
@@ -192,7 +186,6 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
                         {tabs.map((tab) => {
                             const IconComponent = tab.icon;
                             const isActive = activeTab === tab.id;
-                            // The onClick here now calls the corrected handleTabClick function
                             return (
                                 <button key={tab.id} className={`nav-button ${isActive ? 'active' : ''}`} style={{ ...navStyles.navButton, ...(isActive ? navStyles.activeTab : {}) }} onClick={() => handleTabClick(tab.id)}>
                                     <IconComponent size={18} />
@@ -208,7 +201,6 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
                 </div>
             </nav>
 
-            {/* Also fix the mobile menu to use the correct handler */}
             <div style={navStyles.mobileMenu}>
                  <button onClick={handleHomeClick} style={navStyles.mobileMenuItem}>
                     <Home size={20} />
