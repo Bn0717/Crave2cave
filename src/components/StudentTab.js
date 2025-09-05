@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, CheckCircle, AlertCircle } from 'lucide-react';
+import { Users, CheckCircle, AlertCircle, PlayCircle, X } from 'lucide-react';
 import * as firebaseService from '../services/firebase';
 import { calculateDeliveryFee } from '../utils/calculateDeliveryFee';
 import { isToday } from '../utils/isToday';
@@ -31,6 +31,8 @@ const StudentTab = ({
   rememberedStudent,
   setRememberedStudent,
   systemAvailability,
+  isCurrentUserEligible,        // ← ADD THIS LINE
+  setIsCurrentUserEligible,
 }) => {
   const [userStep, setUserStep] = useState(() => {
   // ✅ Initialize with session step if available
@@ -49,7 +51,8 @@ const StudentTab = ({
   const [nameError, setNameError] = useState('');
   const [idError, setIdError] = useState('');
   const [orderError, setOrderError] = useState('');
-  const [isCurrentUserEligible, setIsCurrentUserEligible] = useState(false);
+  const [isVideoVisible, setIsVideoVisible] = useState(false);
+
 
   const styles = {
     card: { 
@@ -199,6 +202,104 @@ const StudentTab = ({
       backgroundColor: '#f8fafc', // A light background for images with transparency
       transition: 'transform 0.2s ease',
     },
+    banner: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: windowWidth <= 480 ? '8px' : '12px', // Tighter gap on mobile
+      padding: windowWidth <= 480 ? '10px 12px' : '12px 20px', // Tighter padding on mobile
+      backgroundColor: '#eef2ff',
+      color: '#4338ca',
+      borderRadius: '16px',
+      marginBottom: '24px',
+      border: '1px solid #c7d2fe',
+    },
+    bannerText: {
+      fontWeight: '500',
+      // Dynamically shrink font size for smaller screens
+      fontSize: windowWidth <= 390 ? '12px' : windowWidth <= 480 ? '13px' : '15px',
+      whiteSpace: 'nowrap', // This is the key to keeping it on one line
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      flex: '1 1 auto', // Allow it to take up available space
+    },
+    bannerActions: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      flexShrink: 0, // Prevent buttons from shrinking
+    },
+    bannerButton: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      // Dynamically shrink padding for smaller screens
+      padding: windowWidth <= 480 ? '6px 10px' : '8px 16px',
+      backgroundColor: '#4f46e5',
+      color: 'white',
+      border: 'none',
+      borderRadius: '10px',
+      cursor: 'pointer',
+      fontWeight: '600',
+      // Dynamically shrink font size for smaller screens
+      fontSize: windowWidth <= 480 ? '12px' : '14px',
+      transition: 'background-color 0.2s ease',
+    },
+    videoContainer: {
+      maxHeight: isVideoVisible ? '500px' : '0',
+      overflow: 'hidden',
+      transition: 'max-height 0.5s ease-in-out, margin-bottom 0.5s ease-in-out',
+      marginBottom: isVideoVisible ? '24px' : '0',
+      borderRadius: '16px',
+      boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+    },
+    modalOverlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      backdropFilter: 'blur(8px)',
+      zIndex: 2000,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '16px', // Add padding to ensure content never touches screen edges
+    },
+    modalContent: {
+      position: 'relative',
+      background: 'transparent', // The container itself is now transparent
+      width: '100%',
+      maxWidth: '1200px', // Set a max width for large screens
+      maxHeight: '100%', // Ensure it never exceeds the screen height
+      display: 'flex',
+      flexDirection: 'column', // Stack the button and video
+      alignItems: 'flex-end', // Align the close button to the right
+      gap: '8px', // Space between close button and video
+    },
+    closeModalButton: {
+      width: '36px',
+      height: '36px',
+      borderRadius: '50%',
+      border: 'none',
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      color: '#4f46e5',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+      flexShrink: 0, // Prevent the button from being squished
+    },
+    videoWrapper: {
+      width: '100%',
+      aspectRatio: '16 / 9', // The magic that keeps the video in the correct shape
+      backgroundColor: '#000',
+      borderRadius: '16px',
+      overflow: 'hidden', // Ensures the iframe corners are rounded
+      boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+    }
   };
 
   const validateName = (name) => {
@@ -659,7 +760,7 @@ const commitmentFeeDeducted = (user?.eligibleForDeduction && deliveryFee > 0) ? 
     
     const deductionMessage = foundUser.eligibleForDeduction 
       ? 'You will get RM10 deduction on delivery fee!'
-      : 'No RM10 deduction (you were not among the first 3 to register).';
+      : 'No RM10 deduction (you were not among the first 3 to register and pay for the base delivery fee).';
     
     showSuccessAnimation(
       `Welcome back, ${foundUser.name}!`,
@@ -829,6 +930,52 @@ const isSubmitDisabled =
 
   return (
     <div style={styles.card}>
+      <>
+        {/* This is the banner that is always visible */}
+        <div style={styles.banner}>
+          <span style={styles.bannerText}>
+            {windowWidth <= 430
+              ? "New user? Watch our 2-min guide!"
+              : "First time here? Watch a 2-min guide to see how it works!"
+            }
+          </span>
+          <div style={styles.bannerActions}>
+            <button
+              onClick={() => setIsVideoVisible(true)} // This now opens the modal
+              style={styles.bannerButton}
+            >
+              <PlayCircle size={windowWidth <= 480 ? 16 : 18} />
+              <span>
+                {windowWidth <= 420 ? 'Play' : 'Play Video'}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* This is the Video Modal that only appears when isVideoVisible is true */}
+        {isVideoVisible && (
+          <div style={styles.modalOverlay} onClick={() => setIsVideoVisible(false)}>
+            <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+              <button style={styles.closeModalButton} onClick={() => setIsVideoVisible(false)}>
+                <X size={24} />
+              </button>
+              <div style={styles.videoWrapper}>
+                <iframe
+                  width="100%"
+                  height="100%"
+                  src="https://www.youtube.com/embed/CDzYM5_5nxc?rel=0&cc_load_policy=1&autoplay=1"
+                  title="Tutorial Video"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                  // V-- THIS IS THE CRITICAL ATTRIBUTE FOR FULLSCREEN --V
+                  allowFullScreen
+                  style={{ border: 0 }} // Clean up iframe default border
+                ></iframe>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
       <div style={styles.cardHeader}>
         <Users color="#3b82f6" size={28} />
         <h2 style={styles.cardTitle}>Food Delivery Registration</h2>

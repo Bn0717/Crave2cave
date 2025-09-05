@@ -113,7 +113,7 @@ const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false, userIndex = 0, 
     onMouseOver={(e) => e.target.style.backgroundColor = '#2563eb'}
     onMouseOut={(e) => e.target.style.backgroundColor = '#3b82f6'}
 >
-    💾 Save QR to Gallery
+    💾 Download QR or Screenshot
 </a>
 <div style={{
     marginTop: window.innerWidth <= 480 ? '16px' : '20px',

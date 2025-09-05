@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Truck, BarChart3, Menu, X, Home } from 'lucide-react';
+import { Users, Truck, BarChart3, Menu, X, Home, BookOpen } from 'lucide-react';
 import logo from '../assets/logo(1).png';
 
 // *** FIXED: Re-added `setIsAuthenticated` to the props destructuring ***
@@ -32,10 +32,11 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
     };
 
     const tabs = [
-        { id: 'student', label: 'Student Portal', icon: Users },
-        { id: 'driver', label: 'Driver Portal', icon: Truck },
-        { id: 'admin', label: 'Admin Portal', icon: BarChart3 }
-    ];
+    { id: 'student', label: 'Student Portal', icon: Users },
+    { id: 'driver', label: 'Driver Portal', icon: Truck },
+    { id: 'admin', label: 'Admin Portal', icon: BarChart3 },
+    { id: 'guide', label: 'User Guide', icon: BookOpen } // <-- ADD THIS LINE
+];
 
     const navStyles = {
         navbar: {
@@ -57,6 +58,7 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
         display: 'flex',
         alignItems: 'center',
         gap: windowWidth <= 768 ? '8px' : '20px', // ✅ Reduce gap on small screens
+        gap: windowWidth <= 400 ? '4px' : (windowWidth <= 768 ? '8px' : '20px'),
         flex: 1, // ✅ Allow this section to grow
         minWidth: 0 // ✅ Allow items to shrink if needed
     },
@@ -87,14 +89,16 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
     vendorName: {
         display: 'flex',
         alignItems: 'center',
-        padding: '6px 12px', // Consistent padding
+        // New: Smaller padding on narrow screens
+        padding: windowWidth <= 400 ? '4px 8px' : '6px 12px',
         backgroundColor: '#eef2ff', 
         color: '#4338ca', 
         borderRadius: '9999px',
-        fontSize: '13px', // A good, readable size for mobile
+        // New: Smaller font size on narrow screens
+        fontSize: windowWidth <= 400 ? '11px' : '13px',
         fontWeight: '600',
         border: '1px solid #c7d2fe',
-        // We no longer need textTransform: 'capitalize' if using getVendorDetails
+        whiteSpace: 'nowrap',
     },
         desktopMenu: { display: 'flex', alignItems: 'center', gap: '8px' },
         navButton: {
@@ -134,11 +138,11 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
         <>
             <style>
                 {`
-                @media (max-width: 860px) {
+                @media (max-width: 1040px) {
                     .desktop-menu { display: none !important; }
                     .mobile-menu-button { display: block !important; }
                 }
-                @media (min-width: 861px) {
+                @media (min-width: 1041px) {
                     .mobile-menu-button { display: none !important; }
                 }
                 .nav-button:hover:not(.active) {

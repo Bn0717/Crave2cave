@@ -14,11 +14,12 @@ import StudentTab from './components/StudentTab';
 import AdminTab from './components/AdminTab';
 import DriverTab from './components/DriverTab';
 import ImageCarousel from './components/ImageCarousel';
+import UserGuideTab from './components/UserGuideTab';
 
 function App() {
   const [activeTab, setActiveTab] = useState('student');
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-const [isDriverAuthenticated, setIsDriverAuthenticated] = useState(false);
+  const [isDriverAuthenticated, setIsDriverAuthenticated] = useState(false);
   const [showLandingPage, setShowLandingPage] = useState(true);
   const [showMainApp, setShowMainApp] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState('');
@@ -48,6 +49,7 @@ const [isDriverAuthenticated, setIsDriverAuthenticated] = useState(false);
   const [sessionPrompt, setSessionPrompt] = useState(null);
   const [selectedImages, setSelectedImages] = useState(null);
   const [showImageCarousel, setShowImageCarousel] = useState(false);
+  const [isCurrentUserEligible, setIsCurrentUserEligible] = useState(false);
   const [systemAvailability, setSystemAvailability] = useState({ 
   isSystemOpen: true, 
   nextOpenTime: '', 
@@ -71,7 +73,7 @@ const DRIVER_PASSCODE = 'kyuem';
       margin: '0 auto', 
       padding: '0 20px', 
       width: '100%', 
-      boxSizing: 'border-box' 
+      boxSizing: 'border-box', 
     }
   };
 
@@ -218,6 +220,8 @@ const handleMultipleImages = (images) => {
   }
 };
 
+// In App.js, find the handleRestoreSession function and add this line:
+
 const handleRestoreSession = async () => {
   if (!sessionPrompt) return;
 
@@ -253,21 +257,21 @@ const handleRestoreSession = async () => {
     return;
   }
 
-  // ✅ FIX: For steps 1, 2, or 3 - fetch latest data and determine correct step
+  // For steps 1, 2, or 3 - fetch latest data and determine correct step
   try {
     showLoadingAnimation('Loading your session...');
     
     // Wait for data to be fetched
     await fetchAllData();
     
-    // ✅ FIX: Wait a moment for state to update after fetchAllData
+    // Wait a moment for state to update after fetchAllData
     setTimeout(() => {
-      // ✅ NEW: After fetching data, determine the user's actual status
+      // After fetching data, determine the user's actual status
       const foundUser = prebookUsers.find(u => u.firestoreId === sessionPrompt.student.firestoreId);
       
       if (!foundUser) {
         hideLoadingAnimation();
-        // ✅ FIX: Set remembered student first so they can continue their session
+        // Set remembered student first so they can continue their session
         setRememberedStudent({
           ...sessionPrompt.student,
           sessionStep: sessionPrompt.step
@@ -285,67 +289,70 @@ const handleRestoreSession = async () => {
         return;
       }
 
-    // Calculate current system status
-    const paidUsersCount = prebookUsers.filter(u => u.commitmentPaid).length;
-    const systemIsActive = paidUsersCount >= 3;
-    const userOrder = registrationOrder.find(order => order.userId === foundUser.firestoreId);
-    const userIndex = userOrder ? userOrder.order - 1 : prebookUsers.findIndex(u => u.firestoreId === foundUser.firestoreId);
-    
-    // Set remembered student with the session step
-    setRememberedStudent({
-      ...sessionPrompt.student,
-      sessionStep: sessionPrompt.step
-    });
-    
-    hideLoadingAnimation();
-    
-    // ✅ IMPROVED: Show appropriate message based on ACTUAL user status, not just session step
-    if (sessionPrompt.step === 2) {
-      // User hasn't paid commitment fee yet
-      showSuccessAnimation(
-        `Welcome back, ${sessionPrompt.student.name}!`,
-        'Please complete your base delivery fee payment to continue.',
-        <p>We need {Math.max(0, 3 - paidUsersCount)} more paid user{(3 - paidUsersCount) !== 1 ? 's' : ''} before order submission opens.</p>,
-        5000,
-        true
-      );
-    } else if (sessionPrompt.step === 3) {
-      // User is on step 3 - but check if they can actually submit or need to wait
-      if (foundUser.commitmentPaid && !systemIsActive) {
-        // User has paid but system not active - show waiting message
-        const remaining = Math.max(0, 3 - paidUsersCount);
+      // 🚨 ADD THIS LINE - This was missing!
+      setIsCurrentUserEligible(foundUser.eligibleForDeduction || false);
+
+      // Calculate current system status
+      const paidUsersCount = prebookUsers.filter(u => u.commitmentPaid).length;
+      const systemIsActive = paidUsersCount >= 3;
+      const userOrder = registrationOrder.find(order => order.userId === foundUser.firestoreId);
+      const userIndex = userOrder ? userOrder.order - 1 : prebookUsers.findIndex(u => u.firestoreId === foundUser.firestoreId);
+      
+      // Set remembered student with the session step
+      setRememberedStudent({
+        ...sessionPrompt.student,
+        sessionStep: sessionPrompt.step
+      });
+      
+      hideLoadingAnimation();
+      
+      // Show appropriate message based on ACTUAL user status, not just session step
+      if (sessionPrompt.step === 2) {
+        // User hasn't paid commitment fee yet
         showSuccessAnimation(
           `Welcome back, ${sessionPrompt.student.name}!`,
-          'Your payment has been confirmed.',
-          <div>
-            <p>We need at least 3 paid users before order submission opens.</p>
-            <p><strong>Current progress: {paidUsersCount}/3 users</strong></p>
-            <p>Please check back later or wait for more users to join!</p>
-          </div>,
-          0, // Don't auto-close
+          'Please complete your base delivery fee payment to continue.',
+          <p>We need {Math.max(0, 3 - paidUsersCount)} more paid user{(3 - paidUsersCount) !== 1 ? 's' : ''} before order submission opens.</p>,
+          5000,
           true
         );
-      } else if ((foundUser.commitmentPaid && systemIsActive) || userIndex >= 3) {
-        // User can submit order
-        showSuccessAnimation(
-          `Welcome back, ${sessionPrompt.student.name}!`,
-          userIndex >= 3 ? 'System is active! You can proceed directly to order submission.' : 'Your payment has been confirmed. You can now submit your order.',
-          null,
-          2500,
-          true
-        );
-      } else {
-        // Edge case - shouldn't happen but handle gracefully
-        showSuccessAnimation(
-          `Welcome back, ${sessionPrompt.student.name}!`,
-          'Loading your current status...',
-          null,
-          2500,
-          true
-        );
+      } else if (sessionPrompt.step === 3) {
+        // User is on step 3 - but check if they can actually submit or need to wait
+        if (foundUser.commitmentPaid && !systemIsActive) {
+          // User has paid but system not active - show waiting message
+          const remaining = Math.max(0, 3 - paidUsersCount);
+          showSuccessAnimation(
+            `Welcome back, ${sessionPrompt.student.name}!`,
+            'Your payment has been confirmed.',
+            <div>
+              <p>We need at least 3 paid users before order submission opens.</p>
+              <p><strong>Current progress: {paidUsersCount}/3 users</strong></p>
+              <p>Please check back later or wait for more users to join!</p>
+            </div>,
+            0, // Don't auto-close
+            true
+          );
+        } else if ((foundUser.commitmentPaid && systemIsActive) || userIndex >= 3) {
+          // User can submit order
+          showSuccessAnimation(
+            `Welcome back, ${sessionPrompt.student.name}!`,
+            userIndex >= 3 ? 'System is active! You can proceed directly to order submission.' : 'Your payment has been confirmed. You can now submit your order.',
+            null,
+            2500,
+            true
+          );
+        } else {
+          // Edge case - shouldn't happen but handle gracefully
+          showSuccessAnimation(
+            `Welcome back, ${sessionPrompt.student.name}!`,
+            'Loading your current status...',
+            null,
+            2500,
+            true
+          );
+        }
       }
-    }
-    
+      
     }, 500); // Wait 500ms for state to update
   } catch (error) {
     hideLoadingAnimation();
@@ -572,6 +579,8 @@ useEffect(() => {
   setSelectedImages: setSelectedImages,
   handleMultipleImages: handleMultipleImages,
   setShowImageCarousel: setShowImageCarousel,
+  isCurrentUserEligible,
+  setIsCurrentUserEligible,  
   };
 
   const gateAnimationStyles = `
@@ -746,7 +755,9 @@ useEffect(() => {
           }} 
         />
       )}
-      {orderConfirmed && <WaitingPage onClose={handleCloseWaitingPage} currentOrder={currentOrder} />}
+      {orderConfirmed && <WaitingPage onClose={handleCloseWaitingPage} currentOrder={currentOrder} setSelectedImage={setSelectedImage}          // ← Add this
+    setShowImageCarousel={setShowImageCarousel}  // ← Add this
+    setSelectedImages={setSelectedImages} />}
       {selectedImage && <ImageModal imageUrl={selectedImage} onClose={() => setSelectedImage(null)} />}
 {showImageCarousel && selectedImages && (
   <ImageCarousel 
@@ -769,6 +780,7 @@ useEffect(() => {
         {activeTab === 'student' && <StudentTab {...sharedProps} setResetStudentForm={setResetStudentForm} />}
         {activeTab === 'admin' && <AdminTab {...sharedProps} showSuccessAnimation={showSuccessAnimation} showLoadingAnimation={showLoadingAnimation}  hideLoadingAnimation={hideLoadingAnimation} isAuthenticated={isAdminAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'admin')} resetAuth={resetAuth} />}
 {activeTab === 'driver' && <DriverTab {...sharedProps} isAuthenticated={isDriverAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'driver')} resetAuth={resetAuth} />}
+  {activeTab === 'guide' && <UserGuideTab />}
       </div>
     </div>
   );
