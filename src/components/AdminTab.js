@@ -507,6 +507,15 @@ const AdminTab = ({
                   }}>
                     <p style={{ margin: 0, fontWeight: '600', color: '#92400e' }}>{user.name}</p>
                     <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#b45309' }}>{user.studentId}</p>
+                    <p style={{ 
+  margin: '4px 0 0', 
+  fontSize: windowWidth <= 480 ? '10px' : '11px', 
+  color: '#b45309', 
+  fontWeight: '600',
+  textTransform: 'uppercase'
+}}>
+  {user.vendor || 'No vendor'}
+</p>
                   </div>
                 ))}
               </div>
@@ -608,6 +617,15 @@ const isFirstThreeUser = firstThreePaidUsers.some(paidUser => paidUser.firestore
                   }}>
                     ID: {user.studentId}
                   </p>
+                  <p style={{
+  margin: '2px 0 0 0',
+  fontSize: windowWidth <= 480 ? '10px' : '11px',
+  color: '#1e293b',
+  fontWeight: '600',
+  textTransform: 'uppercase'
+}}>
+  {user.vendor || 'No vendor'}
+</p>
                 </div>
                 
                 <div style={{

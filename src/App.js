@@ -63,31 +63,25 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
-  // This effect handles scroll restoration on navigation
-  const handleNavigation = () => {
-    // Scroll to top when activeTab changes
-    window.scrollTo(0, 0);
-    
-    // Also ensure the main content element is in view
-    const contentElement = document.getElementById('main-content');
-    if (contentElement) {
-      contentElement.scrollIntoView();
-    }
-  };
-
-  // Call immediately on component mount and tab changes
-  handleNavigation();
+  // Force scroll to top immediately when activeTab or showMainApp changes
+  window.scrollTo({ top: 0, behavior: 'instant' });
   
-  // Set up a timeout as a fallback for slower renders
-  const timer = setTimeout(handleNavigation, 100);
+  // Also ensure body scroll is at top
+  document.body.scrollTop = 0;
+  document.documentElement.scrollTop = 0;
   
-  return () => clearTimeout(timer);
-}, [activeTab, showMainApp]); // Run when activeTab or showMainApp changes
+  // Additional fallback for mobile
+  setTimeout(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, 50);
+}, [activeTab, showMainApp]);
 
-// Also add this to handle the specific case when order confirmation changes
+// Also add this separate effect for order confirmation
 useEffect(() => {
   if (orderConfirmed) {
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.body.scrollTop = 0;
+    document.documentElement.scrollTop = 0;
   }
 }, [orderConfirmed]);
 
@@ -526,17 +520,11 @@ useEffect(() => {
   }, [currentDate, showSuccessAnimation, handleNavigationHome]); // Dependencies for the hook
 
   useEffect(() => {
-      // We use a very short timeout to ensure the browser has rendered the new content.
-      const timer = setTimeout(() => {
-        const contentElement = document.getElementById('main-content');
-        if (contentElement) {
-          // scrollIntoView() is the most reliable method.
-          contentElement.scrollIntoView();
-        }
-      }, 50); // A 50ms delay is usually enough.
-
-      return () => clearTimeout(timer);
-    }, [activeTab, showMainApp]); // Also scroll when the main app first appears
+  // Immediate scroll to top on any navigation
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  document.body.scrollTop = 0;
+  document.documentElement.scrollTop = 0;
+}, [activeTab, showMainApp]);
 
     useEffect(() => {
     const fetchEligibilityForRestoredSession = async () => {
