@@ -62,29 +62,6 @@ useEffect(() => {
   setSystemAvailability(getSystemAvailability());
 }, []);
 
-useEffect(() => {
-  // Force scroll to top immediately when activeTab or showMainApp changes
-  window.scrollTo({ top: 0, behavior: 'instant' });
-  
-  // Also ensure body scroll is at top
-  document.body.scrollTop = 0;
-  document.documentElement.scrollTop = 0;
-  
-  // Additional fallback for mobile
-  setTimeout(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' });
-  }, 50);
-}, [activeTab, showMainApp]);
-
-// Also add this separate effect for order confirmation
-useEffect(() => {
-  if (orderConfirmed) {
-    window.scrollTo({ top: 0, behavior: 'instant' });
-    document.body.scrollTop = 0;
-    document.documentElement.scrollTop = 0;
-  }
-}, [orderConfirmed]);
-
 
   const ADMIN_PASSCODE = 'byyc';
 const DRIVER_PASSCODE = 'kyuem';
@@ -147,6 +124,158 @@ const DRIVER_PASSCODE = 'kyuem';
   return { isSystemOpen, nextOpenTime, malaysiaTime };
 };
 
+// Replace your scrollToTop function and related useEffects with these fixed versions:
+
+const scrollToTop = useCallback(() => {
+  // Use window.history instead of just 'history' to avoid ESLint no-restricted-globals
+  if ('scrollRestoration' in window.history) {
+    window.history.scrollRestoration = 'manual';
+  }
+  
+  // Multiple methods to ensure scroll to top works across all devices
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  
+  // For iOS Safari
+  if (document.body.scrollIntoView) {
+    document.body.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }
+  
+  // Force reflow to ensure scroll happens - FIXED: Use void operator
+  void document.documentElement.offsetHeight;
+  
+  // Additional fallback for mobile devices
+  requestAnimationFrame(() => {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  });
+}, []);
+
+// Enhanced navigation effect
+useEffect(() => {
+  scrollToTop();
+  
+  // Additional timeout for stubborn cases
+  const timeoutId = setTimeout(() => {
+    scrollToTop();
+  }, 50);
+  
+  return () => clearTimeout(timeoutId);
+}, [activeTab, showMainApp, scrollToTop]);
+
+// Enhanced order confirmation effect
+useEffect(() => {
+  if (orderConfirmed) {
+    scrollToTop();
+    
+    // Extra timeout for order confirmation
+    const timeoutId = setTimeout(() => {
+      scrollToTop();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }
+}, [orderConfirmed, scrollToTop]);
+
+// Handle route changes and prevent scroll restoration - FIXED
+useEffect(() => {
+  // Use window.history instead of just 'history'
+  if ('scrollRestoration' in window.history) {
+    window.history.scrollRestoration = 'manual';
+  }
+  
+  // Force scroll to top on any state change that could affect layout
+  const handleStateChange = () => {
+    scrollToTop();
+  };
+  
+  // Listen for any potential scroll-affecting events
+  window.addEventListener('beforeunload', handleStateChange);
+  window.addEventListener('pagehide', handleStateChange);
+  
+  return () => {
+    window.removeEventListener('beforeunload', handleStateChange);
+    window.removeEventListener('pagehide', handleStateChange);
+  };
+}, [scrollToTop]);
+
+// Handle viewport changes (orientation, resize)
+useEffect(() => {
+  const handleViewportChange = () => {
+    // Small delay to let the viewport settle
+    setTimeout(() => {
+      scrollToTop();
+    }, 100);
+  };
+  
+  window.addEventListener('orientationchange', handleViewportChange);
+  window.addEventListener('resize', handleViewportChange);
+  
+  return () => {
+    window.removeEventListener('orientationchange', handleViewportChange);
+    window.removeEventListener('resize', handleViewportChange);
+  };
+}, [scrollToTop]);
+
+// 6. Enhanced navigation functions - update your existing ones
+const handleTabNavigation = (tabName) => {
+  if (tabName === 'student' && !selectedVendor) {
+    handleNavigationHome();
+    return;
+  }
+  
+  // Force scroll before state change
+  scrollToTop();
+  
+  setActiveTab(tabName);
+  
+  // Force scroll after state change
+  setTimeout(() => {
+    scrollToTop();
+  }, 0);
+};
+
+const handleNavigationHome = useCallback(() => {
+  const homeConfig = { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' };
+  
+  // Scroll to top immediately
+  scrollToTop();
+  
+  handleNavigateWithTransition(homeConfig, () => {
+    setShowLandingPage(true);
+    setShowMainApp(false);
+    setActiveTab('student');
+    if (resetStudentForm) {
+      resetStudentForm();
+    }
+    
+    // Ensure scroll after transition
+    setTimeout(() => {
+      scrollToTop();
+    }, 50);
+  });
+}, [resetStudentForm, scrollToTop]);
+
+// 7. Enhanced transition handler
+const handleNavigateWithTransition = (config, navigationAction) => {
+  scrollToTop();
+  
+  setTransitionConfig(config);
+  setTimeout(() => {
+    scrollToTop();
+    navigationAction();
+    setTransitionConfig(null);
+    
+    // Final scroll after transition completes
+    setTimeout(() => {
+      scrollToTop();
+    }, 50);
+  }, 1600);
+};
+
 const fetchAllData = useCallback(async () => {
   try {
     setLoadingUsers(true);
@@ -200,14 +329,6 @@ const handleMultipleImages = (images) => {
   if (step === 'completed') return "Order Confirmed";
   return "Registered";
 };
-
-  const handleNavigateWithTransition = (config, navigationAction) => {
-    setTransitionConfig(config);
-    setTimeout(() => {
-      navigationAction();
-      setTransitionConfig(null);
-    }, 1600);
-  };
 
   const showSuccessAnimation = useCallback((title, message, additionalInfo = null, duration = 2000, showOkButton = true, onCloseCallback = null) => {
   setSuccessConfig({ title, message, additionalInfo, duration, showOkButton, onClose: onCloseCallback });
@@ -318,25 +439,6 @@ const handleStartNewSession = () => {
     });
   };
 
-    const handleNavigationHome = useCallback(() => {
-    const homeConfig = { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' };
-    handleNavigateWithTransition(homeConfig, () => {
-      setShowLandingPage(true);
-      setShowMainApp(false);
-      setActiveTab('student');
-      if (resetStudentForm) {
-        resetStudentForm();
-      }
-    });
-  }, [resetStudentForm]);
-
-  const handleTabNavigation = (tabName) => {
-    if (tabName === 'student' && !selectedVendor) {
-      handleNavigationHome();
-      return;
-    }
-    setActiveTab(tabName);
-  };
 
   const handleCloseWaitingPage = () => {
   // ✅ FIX: Keep the session in 'completed' state - DON'T clear it
@@ -518,13 +620,6 @@ useEffect(() => {
     // Cleanup function to stop the timer when the component unmounts
     return () => clearInterval(dailyResetInterval);
   }, [currentDate, showSuccessAnimation, handleNavigationHome]); // Dependencies for the hook
-
-  useEffect(() => {
-  // Immediate scroll to top on any navigation
-  window.scrollTo({ top: 0, behavior: 'instant' });
-  document.body.scrollTop = 0;
-  document.documentElement.scrollTop = 0;
-}, [activeTab, showMainApp]);
 
     useEffect(() => {
     const fetchEligibilityForRestoredSession = async () => {

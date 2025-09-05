@@ -105,18 +105,28 @@ img {
     }
 }
 
-/* Add smooth scrolling to the entire app */
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
-/* Ensure all transitions are smooth */
-* {
-  transition: all 0.3s ease;
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
 }
 
-/* Specific styles for the main content area */
-#main-content {
-  min-height: 100vh;
-  padding-top: 20px;
+#root {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Prevent iOS bounce scroll and ensure top positioning */
+.app-container {
+  position: relative;
+  top: 0;
+  left: 0;
 }

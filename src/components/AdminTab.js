@@ -38,6 +38,11 @@ const AdminTab = ({
 }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  const VENDOR_MAP = {
+  'mixue': { name: 'Mixue', icon: '🧋' },
+  'dominos': { name: 'Dominos', icon: '🍕' },
+  'ayam_gepuk': { name: 'Ayam Gepuk', icon: '🍗' },
+};
 
   const styles = {
     card: { 
@@ -498,26 +503,42 @@ const AdminTab = ({
                 marginTop: '16px',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))'
               }}>
-                {todayUsers.filter(user => user.commitmentPaid && !user.orderSubmitted).map(user => (
-                  <div key={user.id} style={{ 
-                    padding: '12px', 
-                    backgroundColor: '#fffbeb', 
-                    border: '1px solid #fef3c7', 
-                    borderRadius: '8px' 
-                  }}>
-                    <p style={{ margin: 0, fontWeight: '600', color: '#92400e' }}>{user.name}</p>
-                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#b45309' }}>{user.studentId}</p>
-                    <p style={{ 
-  margin: '4px 0 0', 
-  fontSize: windowWidth <= 480 ? '10px' : '11px', 
-  color: '#b45309', 
-  fontWeight: '600',
-  textTransform: 'uppercase'
-}}>
-  {user.vendor || 'No vendor'}
-</p>
-                  </div>
-                ))}
+                {todayUsers.filter(user => user.commitmentPaid && !user.orderSubmitted).map(user => {
+  const vendorInfo = VENDOR_MAP[user.vendor] || { name: user.vendor || 'No vendor', icon: '🏪' };
+  
+  return (
+    <div key={user.id} style={{ 
+      padding: '12px', 
+      backgroundColor: '#fffbeb', 
+      border: '1px solid #fef3c7', 
+      borderRadius: '8px',
+      position: 'relative'
+    }}>
+      <p style={{ margin: 0, fontWeight: '600', color: '#92400e' }}>{user.name}</p>
+      <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#b45309' }}>{user.studentId}</p>
+      
+      {/* Vendor badge */}
+      <div style={{
+        position: 'absolute',
+        top: '8px',
+        right: '8px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '4px 8px',
+        backgroundColor: '#eef2ff',
+        color: '#4338ca',
+        borderRadius: '9999px',
+        fontSize: '11px',
+        fontWeight: '600',
+        border: '1px solid #c7d2fe'
+      }}>
+        <span>{vendorInfo.icon}</span>
+        <span>{windowWidth <= 480 ? vendorInfo.name.substring(0, 10) : vendorInfo.name}</span>
+      </div>
+    </div>
+  );
+})}
               </div>
             ) : (
               <p style={{ marginTop: '20px', color: '#64748b', textAlign: 'center' }}>

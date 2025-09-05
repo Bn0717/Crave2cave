@@ -434,7 +434,7 @@ const handlePrebook = async () => {
           registrationOrder: currentUserPosition,
           hasOrdered: false,
           orderTotal: 0,
-          vendor: selectedVendor
+          vendor: selectedVendor,
         };
 
         const nextStep = currentPaidUsersCount >= 3 ? 3 : 2;
