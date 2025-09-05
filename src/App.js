@@ -124,171 +124,53 @@ const DRIVER_PASSCODE = 'kyuem';
   return { isSystemOpen, nextOpenTime, malaysiaTime };
 };
 
-// 1. Enhanced scrollToTop function specifically for iOS
+// Replace ALL your navigation functions with these clean versions:
+
 const scrollToTop = useCallback(() => {
-  // Use window.history instead of just 'history' to avoid ESLint no-restricted-globals
-  if ('scrollRestoration' in window.history) {
-    window.history.scrollRestoration = 'manual';
-  }
-  
-  // Reset zoom first (for mobile devices)
-  if (window.visualViewport) {
-    // Modern approach for devices that support it
-    document.querySelector('meta[name="viewport"]')?.setAttribute(
-      'content', 
-      'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'
-    );
-  }
-  
-  // Multiple scroll methods with iOS-specific handling
-  window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  // Simple, reliable scroll to top
   window.scrollTo(0, 0);
   document.documentElement.scrollTop = 0;
   document.body.scrollTop = 0;
   
-  // iOS Safari specific fixes
-  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-    // Force scroll for iOS
-    document.body.style.transform = 'translateY(0)';
-    document.documentElement.style.transform = 'translateY(0)';
-    
-    // iOS specific scroll methods
-    if (document.body.scrollIntoView) {
-      document.body.scrollIntoView({ block: 'start', behavior: 'instant' });
-    }
-    
-    // Additional iOS fix - use negative margin trick
-    document.body.style.marginTop = '0';
-    document.documentElement.style.marginTop = '0';
-  }
-  
-  // Force reflow to ensure scroll happens
-  void document.documentElement.offsetHeight;
-  
-  // Multiple animation frames for iOS
-  requestAnimationFrame(() => {
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-    
-    requestAnimationFrame(() => {
-      window.scrollTo(0, 0);
-      // Final iOS fix
-      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-        document.body.scrollIntoView({ block: 'start', behavior: 'instant' });
-      }
-    });
-  });
-}, []);
-
-// 2. Add a function to reset zoom
-const resetZoom = useCallback(() => {
-  // Reset viewport meta tag to original scale
-  const viewportMeta = document.querySelector('meta[name="viewport"]');
-  if (viewportMeta) {
-    viewportMeta.setAttribute(
-      'content', 
-      'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes'
-    );
-    
-    // Force re-render after a tiny delay
-    setTimeout(() => {
-      viewportMeta.setAttribute(
-        'content', 
-        'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'
-      );
-    }, 50);
-  }
-  
-  // Additional zoom reset for iOS
-  if (window.visualViewport && window.visualViewport.scale !== 1) {
-    // Try to reset zoom programmatically
-    window.scrollTo(0, 0);
+  // For iOS devices specifically
+  if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+    document.body.scrollIntoView({ block: 'start', behavior: 'instant' });
   }
 }, []);
 
-// 3. Enhanced navigation effect with zoom reset
+// Simple navigation effect
 useEffect(() => {
-  // Reset zoom first, then scroll
-  resetZoom();
+  scrollToTop();
   
-  setTimeout(() => {
-    scrollToTop();
-  }, 10);
-  
-  // Additional timeout for stubborn cases
   const timeoutId = setTimeout(() => {
     scrollToTop();
   }, 100);
   
   return () => clearTimeout(timeoutId);
-}, [activeTab, showMainApp, scrollToTop, resetZoom]);
+}, [activeTab, showMainApp, scrollToTop]);
 
-// 4. Enhanced order confirmation effect
+// Order confirmation effect
 useEffect(() => {
   if (orderConfirmed) {
-    resetZoom();
     scrollToTop();
-    
-    // Extra timeout for order confirmation
-    const timeoutId = setTimeout(() => {
-      scrollToTop();
-    }, 150);
-    
-    return () => clearTimeout(timeoutId);
   }
-}, [orderConfirmed, scrollToTop, resetZoom]);
+}, [orderConfirmed, scrollToTop]);
 
-// 5. Add focus/blur handlers to manage zoom on form interactions
-useEffect(() => {
-  const handleFocusOut = () => {
-    // When user finishes typing (loses focus), reset zoom after navigation
-    setTimeout(() => {
-      resetZoom();
-    }, 100);
-  };
-  
-  // Add event listeners to all input elements
-  const inputs = document.querySelectorAll('input, textarea, select');
-  inputs.forEach(input => {
-    input.addEventListener('blur', handleFocusOut);
-  });
-  
-  // Cleanup
-  return () => {
-    inputs.forEach(input => {
-      input.removeEventListener('blur', handleFocusOut);
-    });
-  };
-}, [resetZoom]);
-
-// 6. Enhanced tab navigation with zoom reset
+// REPLACE your handleTabNavigation function with this:
 const handleTabNavigation = (tabName) => {
   if (tabName === 'student' && !selectedVendor) {
     handleNavigationHome();
     return;
   }
   
-  // Reset zoom and scroll before state change
-  resetZoom();
-  setTimeout(() => {
-    scrollToTop();
-  }, 10);
-  
+  scrollToTop();
   setActiveTab(tabName);
-  
-  // Force scroll after state change with longer delay for iOS
-  setTimeout(() => {
-    scrollToTop();
-  }, 100);
 };
 
-// 7. Enhanced navigation home with zoom reset
+// REPLACE your handleNavigationHome function with this:
 const handleNavigationHome = useCallback(() => {
   const homeConfig = { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' };
   
-  // Reset zoom and scroll immediately
-  resetZoom();
   scrollToTop();
   
   handleNavigateWithTransition(homeConfig, () => {
@@ -298,32 +180,18 @@ const handleNavigationHome = useCallback(() => {
     if (resetStudentForm) {
       resetStudentForm();
     }
-    
-    // Ensure zoom reset and scroll after transition
-    setTimeout(() => {
-      resetZoom();
-      scrollToTop();
-    }, 100);
   });
-}, [resetStudentForm, scrollToTop, resetZoom]);
+}, [resetStudentForm, scrollToTop]);
 
-// 8. Enhanced transition handler
+// REPLACE your handleNavigateWithTransition function with this:
 const handleNavigateWithTransition = (config, navigationAction) => {
-  resetZoom();
   scrollToTop();
   
   setTransitionConfig(config);
   setTimeout(() => {
-    resetZoom();
     scrollToTop();
     navigationAction();
     setTransitionConfig(null);
-    
-    // Final scroll and zoom reset after transition completes
-    setTimeout(() => {
-      resetZoom();
-      scrollToTop();
-    }, 100);
   }, 1600);
 };
 
@@ -814,7 +682,7 @@ useEffect(() => {
 
   if (showLandingPage) {
   return (
-    <div className="app-container ios-scroll-fix">
+     <>
       <style>{gateAnimationStyles}</style>
       <GateTransitionOverlay config={transitionConfig} />
         {sessionPrompt && (
@@ -877,7 +745,7 @@ useEffect(() => {
           onNavigateToPortal={handleNavigateToPortal} 
           windowWidth={windowWidth}
         />
-      </div>
+      </>
     );
   }
 
