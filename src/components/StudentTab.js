@@ -304,7 +304,8 @@ const StudentTab = ({
       borderRadius: '16px',
       overflow: 'hidden', // Ensures the iframe corners are rounded
       boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
-    }
+    },
+    
   };
 
   const showLocalLoading = (message) => {
@@ -378,6 +379,31 @@ const handleRemoveReceipt = (indexToRemove) => {
     setOrderError('');
     return true;
   };
+
+  const getValidationMessage = () => {
+  const missingFields = [];
+  
+  if (!orderNumber.trim()) {
+    missingFields.push('Order Number');
+  }
+  if (!orderTotal || isNaN(orderTotal) || Number(orderTotal) <= 0) {
+    missingFields.push('Order Total');
+  }
+  if (orderReceiptFiles.length === 0) {
+    missingFields.push('Order Receipt(s)');
+  }
+  if (actualDeliveryFee > 0 && !paymentProof) {
+    missingFields.push('Delivery Fee Payment Proof');
+  }
+  
+  if (missingFields.length === 0) return null;
+  
+  const fieldList = missingFields.length === 1 
+    ? missingFields[0]
+    : missingFields.slice(0, -1).join(', ') + ' and ' + missingFields[missingFields.length - 1];
+  
+  return `Please complete: ${fieldList}`;
+};
 
 const handlePrebook = async () => {
     if (!systemAvailability.isSystemOpen) {
@@ -1157,11 +1183,15 @@ const isSubmitDisabled =
             border: '1px solid #86efac', 
             display: 'flex', 
             alignItems: 'center',
-            gap: '8px'
+            gap: '8px',
           }}>
             <CheckCircle color="#16a34a" size={24} />
-            Payment confirmed! You can now submit your order.
-          </div>
+  <span style={{
+    fontSize: windowWidth <= 375 ? '13px' : windowWidth <= 480 ? '14px' : '16px',
+  }}>
+    Payment confirmed! You can now submit your order.
+  </span>
+</div>
 
           <div style={styles.sectionCard}>
             <h4 style={styles.sectionHeader}>
@@ -1237,8 +1267,8 @@ const isSubmitDisabled =
   }}
 />
             {orderError && <p style={styles.errorText}>{orderError}</p>}
-            <label style={{ display: 'block', marginBottom: '8px', marginTop: '16px', color: '#374151', fontWeight: '500' }}>
-  Upload Order Receipt(s) (At least one required)<span style={{ color: '#ef4444' }}>*</span>
+            <label style={{ display: 'block', marginBottom: '8px', marginTop: '16px', color: '#374151', fontWeight: '500'}}>
+  Upload Order Receipt(s)<span style={{ color: '#ef4444' }}>*</span>
 </label>
 
 <div style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1340,10 +1370,9 @@ const isSubmitDisabled =
             if (actualDeliveryFee > 0) {
               return (
                 <div style={styles.sectionCard}>
-                  <h4 style={styles.sectionHeader}>Delivery Fee Payment</h4>
                   <UnifiedQRCodeDisplay amount={actualDeliveryFee} />
-                  <p style={{ marginTop: '16px', marginBottom: '12px', color: '#64748b' }}>
-                    Please upload proof of payment for the delivery fee: <span style={{ color: '#ef4444' }}>*</span>
+                  <p style={{ marginTop: '16px', marginBottom: '12px', color: '#64748b', fontSize: windowWidth <= 375 ? '12px' : windowWidth <= 480 ? '13px' : '15px',}}>
+                    Upload proof of payment for the delivery fee: <span style={{ color: '#ef4444' }}>*</span>
                   </p>
                   <input 
                     type="file" 
@@ -1367,6 +1396,15 @@ const isSubmitDisabled =
             return null;
           })()}
           
+          {isSubmitDisabled && (
+  <BeautifulMessage 
+    type="warning" 
+    title="Required Fields Missing" 
+    message={getValidationMessage()} 
+    icon={<AlertCircle />} 
+  />
+)}
+
           <button 
   onClick={handleOrderSubmission} 
   disabled={isSubmitDisabled}

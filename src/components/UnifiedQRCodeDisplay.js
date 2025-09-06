@@ -90,7 +90,7 @@ const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false, userIndex = 0, 
                     }}
                 />
             </div>
-<a
+{/*<a
     href={qrImage}
     download="TNG-Payment-QR.png"
     style={{
@@ -115,6 +115,7 @@ const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false, userIndex = 0, 
 >
     💾 Download QR or Screenshot
 </a>
+*/}
 <div style={{
     marginTop: window.innerWidth <= 480 ? '16px' : '20px',
     padding: window.innerWidth <= 480 ? '12px 24px' : '16px 32px',
@@ -127,15 +128,6 @@ const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false, userIndex = 0, 
             }}>
                 Amount: RM{displayAmount.toFixed(2)}
             </div>
-            <p style={{
-                fontSize: window.innerWidth <= 480 ? '13px' : '15px',
-                color: '#64748b',
-                marginTop: '16px',
-                textAlign: 'center',
-                margin: '16px 0 0 0'
-            }}>
-                Scan to pay
-            </p>
         </div>
     );
 };

@@ -517,6 +517,7 @@ const AdminTab = ({
       <p style={{ margin: 0, fontWeight: '600', color: '#92400e' }}>{user.name}</p>
       <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#b45309' }}>{user.studentId}</p>
       
+      
       {/* Vendor badge */}
       <div style={{
         position: 'absolute',
@@ -527,7 +528,7 @@ const AdminTab = ({
         gap: '4px',
         padding: '4px 8px',
         backgroundColor: '#eef2ff',
-        color: '#4338ca',
+        color: '#b45309',
         borderRadius: '9999px',
         fontSize: '11px',
         fontWeight: '600',
