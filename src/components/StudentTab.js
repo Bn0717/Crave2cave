@@ -554,8 +554,15 @@ const handleCommitmentPayment = async () => {
   };
 
   const handleOrderSubmission = async () => {
-  // Use local variable to get the current selectedUserId value
-  const currentSelectedUserId = selectedUserId || (rememberedStudent && rememberedStudent.firestoreId);
+  // Use local variable to get the current selectedUserId value with better fallback logic
+  let currentSelectedUserId = selectedUserId;
+  
+  // If selectedUserId is empty but we have remembered student data, use that
+  if ((!currentSelectedUserId || currentSelectedUserId.trim() === '') && rememberedStudent?.firestoreId) {
+    currentSelectedUserId = rememberedStudent.firestoreId;
+    // Update the state with the recovered ID
+    setSelectedUserId(currentSelectedUserId);
+  }
   
   console.log('handleOrderSubmission called with:', {
     selectedUserId,
@@ -908,7 +915,15 @@ const loadFromSession = useCallback(async () => {
   const userName = rememberedStudent.name;
   const userStudentId = rememberedStudent.studentId;
 
-  // Set state synchronously
+  // Validate userFirestoreId before proceeding
+  if (!userFirestoreId || typeof userFirestoreId !== 'string' || userFirestoreId.trim() === '') {
+    console.error("Session restore failed: firestoreId is missing or invalid from rememberedStudent object.");
+    showSuccessAnimation("Session Restore Failed", "Your session data is incomplete. Please start over.", null, 4000, true);
+    resetForm(true);
+    return;
+  }
+
+  // Set all state synchronously using the local variables
   setStudentName(userName);
   setStudentId(userStudentId);
   setSelectedUserId(userFirestoreId);
@@ -923,11 +938,7 @@ const loadFromSession = useCallback(async () => {
 
   if (sessionStep === 3) {
     try {
-      if (!userFirestoreId) {
-        console.error("Session restore failed: firestoreId is missing from rememberedStudent object.");
-        throw new Error("Your session data is incomplete. Please start over.");
-      }
-
+      // Use the local variable instead of state
       const existingOrder = await firebaseService.getTodaysOrderByUserId(userFirestoreId);
 
       if (existingOrder) {
@@ -963,7 +974,7 @@ const loadFromSession = useCallback(async () => {
       }
     } catch (error) {
       console.error("Error verifying order during session restore:", error);
-      showSuccessAnimation("Session Restore Failed", error.message, null, 4000, true);
+      showSuccessAnimation("Session Restore Failed", "Failed to restore your session. Please retrieve your registration again.", null, 4000, true);
       resetForm(true);
     } finally {
       hideLocalLoading();
@@ -972,15 +983,15 @@ const loadFromSession = useCallback(async () => {
     setUserStep(sessionStep);
     hideLocalLoading();
   }
-}, [rememberedStudent, prebookUsers, selectedVendor, showSuccessAnimation, resetForm]);
+}, [rememberedStudent, prebookUsers, selectedVendor, showSuccessAnimation, resetForm, hideLocalLoading]);
 
 useEffect(() => {
   setResetStudentForm(() => resetForm);
 }, [resetForm, setResetStudentForm]);
 
 useEffect(() => {
-  if (rememberedStudent && prebookUsers.length > 0 && !selectedUserId) {
-    console.log('Missing selectedUserId, attempting to restore from session...');
+  if (rememberedStudent && prebookUsers.length > 0 && (!selectedUserId || selectedUserId.trim() === '')) {
+    console.log('Missing or invalid selectedUserId, attempting to restore from session...');
     loadFromSession();
   }
 }, [rememberedStudent, prebookUsers, selectedUserId, loadFromSession]);
@@ -1441,7 +1452,7 @@ const isSubmitDisabled =
                 <div style={styles.sectionCard}>
                   <UnifiedQRCodeDisplay amount={actualDeliveryFee} />
                   <p style={{ marginTop: '16px', marginBottom: '12px', color: '#64748b', fontSize: windowWidth <= 375 ? '12px' : windowWidth <= 480 ? '13px' : '15px',}}>
-                    Upload proof of payment for the delivery fee: <span style={{ color: '#ef4444' }}>*</span>
+                    Upload payment proof for the delivery fee: <span style={{ color: '#ef4444' }}>*</span>
                   </p>
                   <input 
                     type="file" 
