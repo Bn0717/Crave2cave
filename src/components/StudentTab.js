@@ -554,6 +554,28 @@ const handleCommitmentPayment = async () => {
   };
 
   const handleOrderSubmission = async () => {
+  // Use local variable to get the current selectedUserId value
+  const currentSelectedUserId = selectedUserId || (rememberedStudent && rememberedStudent.firestoreId);
+  
+  console.log('handleOrderSubmission called with:', {
+    selectedUserId,
+    rememberedStudent: rememberedStudent ? rememberedStudent.firestoreId : 'none',
+    currentSelectedUserId
+  });
+
+  if (!currentSelectedUserId || typeof currentSelectedUserId !== 'string' || currentSelectedUserId.trim() === '') {
+    console.error('No valid selectedUserId found');
+    showSuccessAnimation(
+      'Session Error',
+      'Your session data is invalid. Please retrieve your registration again.',
+      null,
+      3000,
+      true
+    );
+    return;
+  }
+
+  // Use the currentSelectedUserId for all operations
   if (orderReceiptFiles.length === 0) {
     setOrderError('missingFile');
     return;
@@ -572,9 +594,8 @@ const handleCommitmentPayment = async () => {
 
   const totalAmount = parseFloat(orderTotal);
   const deliveryFee = calculateDeliveryFee(totalAmount);
-  const user = prebookUsers.find(u => u.firestoreId === selectedUserId);
+  const user = prebookUsers.find(u => u.firestoreId === currentSelectedUserId);
 
-  // Use the eligibleForDeduction flag set during payment
   const commitmentFeeDeducted = (user?.eligibleForDeduction && deliveryFee > 0) ? 10 : 0;
   const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
 
@@ -589,7 +610,13 @@ const handleCommitmentPayment = async () => {
     return;
   }
 
-  showLocalLoading('Processing order...'); // Changed to local function
+  showLocalLoading('Processing order...');
+
+  // Save form state with the reliable ID
+  localStorage.setItem(`formState-${currentSelectedUserId}`, JSON.stringify({
+    orderNumber: orderNumber.trim(),
+    orderTotal: totalAmount
+  }));
 
   try {
     let paymentProofURL = null;
@@ -609,7 +636,7 @@ const handleCommitmentPayment = async () => {
     const orderImageURLs = await Promise.all(uploadPromises);
 
     const orderData = {
-      userId: selectedUserId,
+      userId: currentSelectedUserId, // Use the reliable ID
       userName: studentName,
       studentId,
       orderTotal: totalAmount,
@@ -630,18 +657,18 @@ const handleCommitmentPayment = async () => {
     const orderId = await firebaseService.saveOrder(orderData);
     const completeOrder = { ...orderData, orderId };
 
-    await firebaseService.updatePrebookUser(selectedUserId, {
+    await firebaseService.updatePrebookUser(currentSelectedUserId, {
       orderTotal: orderData.orderTotal,
       orderSubmitted: true,
       hasOrdered: true,
       lastOrderDate: new Date().toISOString(),
     });
 
-    hideLocalLoading(); // Changed to local function
+    hideLocalLoading();
 
-    // Update session to 'order_submitted' state (awaiting email)
-    updateSession('order_submitted', { name: studentName, studentId, firestoreId: selectedUserId }, selectedVendor);
+    updateSession('order_submitted', { name: studentName, studentId, firestoreId: currentSelectedUserId }, selectedVendor);
     localStorage.setItem('pendingOrderDetails', JSON.stringify(completeOrder));
+    localStorage.removeItem(`formState-${currentSelectedUserId}`);
 
     showSuccessAnimation(
       'Order Submitted!',
@@ -650,25 +677,13 @@ const handleCommitmentPayment = async () => {
       3000,
       true,
       () => {
-        if (!selectedUserId) {
-          console.error('selectedUserId is undefined');
-          showSuccessAnimation(
-            'Error',
-            'Unable to proceed: User ID is missing. Please try again.',
-            null,
-            3000,
-            true
-          );
-          return;
-        }
-
-        setUserForEmail({ firestoreId: selectedUserId, name: studentName });
+        setUserForEmail({ firestoreId: currentSelectedUserId, name: studentName });
         setShowEmailModal(true);
         setCurrentOrder(completeOrder);
       }
     );
   } catch (error) {
-    hideLocalLoading(); // Changed to local function
+    hideLocalLoading();
     showSuccessAnimation(
       'Order Submission Failed',
       `Failed to submit order: ${error.message}`,
@@ -719,26 +734,30 @@ const handleCommitmentPayment = async () => {
     return;
   }
 
+  setStudentName(foundUser.name);
+  setStudentId(foundUser.studentId);
+  setSelectedUserId(foundUser.firestoreId); // This is the most critical line to fix the error
+  setIsCurrentUserEligible(foundUser.eligibleForDeduction || false);
   // CRITICAL: Set the vendor FIRST before any other operations
   if (foundUser.vendor) {
     setSelectedVendor(foundUser.vendor);
   }
 
+  // This part of your logic for already COMPLETED orders is good and remains.
   if (foundUser.orderSubmitted && isToday(foundUser.lastOrderDate)) {
-    showLocalLoading('Retrieving your order...'); // Changed to local function
+    showLocalLoading('Retrieving your order...');
     try {
-      const order = await firebaseService.getOrderByUserId(foundUser.firestoreId);
+      // Note: You might consider using getTodaysOrderByUserId here too for consistency
+      const order = await firebaseService.getTodaysOrderByUserId(foundUser.firestoreId);
       if (order) {
         setShowRetrieve(false);
-        setCurrentOrder({
-          ...order,
-          orderReceiptURL: order.orderReceiptURL || null
-        });
+        setCurrentOrder(order);
         setOrderConfirmed(true);
-        hideLocalLoading(); // Changed to local function
+        hideLocalLoading();
         return;
       } else {
-        hideLocalLoading(); // Changed to local function
+        // This case handles data inconsistency, which is good to have.
+        hideLocalLoading();
         showSuccessAnimation(
           "Order Not Found",
           `No order details found for ${foundUser.name}.`,
@@ -755,38 +774,72 @@ const handleCommitmentPayment = async () => {
       }
     } catch (error) {
       console.error('Error retrieving order:', error);
-      hideLocalLoading(); // Changed to local function
+      hideLocalLoading();
       showSuccessAnimation(
-        "Error",
-        `Failed to retrieve order: ${error.message}`,
-        null,
-        3000,
-        true
+        "Error", `Failed to retrieve order: ${error.message}`, null, 3000, true
       );
       return;
     }
   }
 
-  setStudentName(foundUser.name);
-  setStudentId(foundUser.studentId);
-  setSelectedUserId(foundUser.firestoreId);
-  setShowRetrieve(false);
-
-  setIsCurrentUserEligible(foundUser.eligibleForDeduction || false);
-
-  // Check current system state for navigation
-  const usersFromRegistrationDay = prebookUsers.filter(u => 
-      new Date(u.timestamp).toLocaleDateString() === new Date(foundUser.timestamp).toLocaleDateString()
-    );
-
+  const usersFromRegistrationDay = prebookUsers.filter(u =>
+    new Date(u.timestamp).toLocaleDateString() === new Date(foundUser.timestamp).toLocaleDateString()
+  );
   const paidUsersOnRegistrationDay = usersFromRegistrationDay.filter(u => u.commitmentPaid).length;
   const wasSystemActiveOnRegistrationDay = paidUsersOnRegistrationDay >= 3;
 
   if (foundUser.commitmentPaid) {
-    updateSession(3, { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId }, foundUser.vendor);
-    setUserStep(3);
-    showSuccessAnimation(`Welcome back, ${foundUser.name}!`, 'You can now submit your order.', null, 2500, true);
-  } else if (wasSystemActiveOnRegistrationDay) {
+  showLocalLoading("Verifying your order status...");
+
+  setTimeout(async () => {
+    try {
+      const existingOrder = await firebaseService.getTodaysOrderByUserId(foundUser.firestoreId);
+
+      if (existingOrder) {
+        // Order exists - advance to email prompt
+        console.log("Found existing order during retrieval. Advancing to email prompt.");
+        updateSession('order_submitted', { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId }, foundUser.vendor);
+        localStorage.setItem('pendingOrderDetails', JSON.stringify(existingOrder));
+        setUserForEmail({ firestoreId: foundUser.firestoreId, name: foundUser.name });
+        setShowEmailModal(true);
+        setCurrentOrder(existingOrder);
+      } else {
+        // No order found - go to order form with message about previous attempt
+        console.log("No existing order found during retrieval. User may have been interrupted.");
+        updateSession(3, { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId }, foundUser.vendor);
+        setUserStep(3);
+        
+        // Check if there's saved form data indicating a previous attempt
+        const savedFormStateJSON = localStorage.getItem(`formState-${foundUser.firestoreId}`);
+        if (savedFormStateJSON) {
+          const savedFormState = JSON.parse(savedFormStateJSON);
+          setOrderNumber(savedFormState.orderNumber || '');
+          setOrderTotal(savedFormState.orderTotal || '');
+          
+          showSuccessAnimation(
+            `Welcome back, ${foundUser.name}!`, 
+            'It looks like your previous order submission was interrupted. Please re-enter your order details.', 
+            <BeautifulMessage 
+              type="warning" 
+              message="Your previous order was not completed. Please fill in the form again." 
+              icon={<AlertCircle />} 
+            />, 
+            5000, 
+            true
+          );
+        } else {
+          const deductionMessage = foundUser.eligibleForDeduction ? 'You will get RM10 deduction on delivery fee!' : 'No RM10 deduction applies.';
+          showSuccessAnimation(`Welcome back, ${foundUser.name}!`, `System is active! You can submit your order directly. ${deductionMessage}`, null, 4000, true);
+        }
+      }
+    } catch (error) {
+      console.error("Error verifying order during retrieval:", error);
+      showSuccessAnimation("Verification Failed", "Could not check your order status. Please try again.", null, 3000, true);
+    } finally {
+      hideLocalLoading();
+    }
+  }, 50);
+} else if (wasSystemActiveOnRegistrationDay) {
     updateSession(3, { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId }, foundUser.vendor);
     setUserStep(3);
     const deductionMessage = foundUser.eligibleForDeduction ? 'You will get RM10 deduction on delivery fee!' : 'No RM10 deduction applies.';
@@ -797,7 +850,7 @@ const handleCommitmentPayment = async () => {
     setUserStep(2);
     showSuccessAnimation(`Welcome back, ${foundUser.name}!`, 'Please complete your base delivery fee payment.', <p>We need {Math.max(0, 3 - currentPaidUsersCount)} more paid users today to activate the system.</p>, 5000, true);
   }
-};
+}; 
 
 
 const updateSession = (step, studentData, vendor) => {
@@ -815,65 +868,13 @@ const updateSession = (step, studentData, vendor) => {
   localStorage.setItem(`userSession-${todayKey}`, JSON.stringify(sessionData));
 };
 
-// Clear student session
-const clearStudentSession = () => {
+const clearStudentSession = useCallback(() => {
   localStorage.removeItem('rememberedStudent');
   setRememberedStudent(null);
-};
+}, [setRememberedStudent]);
 
-const loadFromSession = async () => {
-  if (rememberedStudent) {
-    setStudentName(rememberedStudent.name);
-    setStudentId(rememberedStudent.studentId);
-    setSelectedUserId(rememberedStudent.firestoreId);
-    
-    // Find user in today's data
-    const foundUser = prebookUsers.find(u => u.firestoreId === rememberedStudent.firestoreId);
-    if (foundUser) {
-      const userOrder = registrationOrder.find(order => order.userId === foundUser.firestoreId);
-      const userIndex = userOrder ? userOrder.order - 1 : prebookUsers.findIndex(u => u.firestoreId === foundUser.firestoreId);
-      setCurrentUserIndex(userIndex);
-      
-      // Check if user already has an order today
-      if (foundUser.orderSubmitted && isToday(foundUser.lastOrderDate)) {
-        try {
-          showLocalLoading('Loading your order...'); // Changed to local function
-          const order = await firebaseService.getOrderByUserId(foundUser.firestoreId);
-          if (order) {
-            setCurrentOrder(order);
-            setOrderConfirmed(true);
-            hideLocalLoading(); // Changed to local function
-            return;
-          }
-        } catch (error) {
-          console.error('Error loading order:', error);
-          hideLocalLoading(); // Changed to local function
-        }
-      }
-      
-      // Get the saved session step and vendor
-      const todayKey = new Date().toLocaleDateString('en-CA');
-      const sessionJSON = localStorage.getItem(`userSession-${todayKey}`);
-      
-      if (sessionJSON) {
-        try {
-          const sessionData = JSON.parse(sessionJSON);
-          if (sessionData.vendor) {
-            setSelectedVendor(sessionData.vendor); // Update the vendor
-          }
-          if (typeof sessionData.step === 'number') {
-            setUserStep(sessionData.step);
-            return;
-          }
-        } catch (e) {
-          console.error('Error parsing session data in loadFromSession:', e);
-        }
-      }
-    }
-  }
-};
-
-  const resetForm = useCallback((clearSession = false) => {
+// 2. Define this second, as it depends on clearStudentSession.
+const resetForm = useCallback((clearSession = false) => {
   setUserStep(1);
   setStudentName('');
   setStudentId('');
@@ -888,40 +889,101 @@ const loadFromSession = async () => {
   setIdError('');
   setOrderError('');
   
-  // ADD THIS: Clear session if requested
+  if (selectedUserId) {
+    localStorage.removeItem(`formState-${selectedUserId}`);
+  }
+
   if (clearSession) {
     clearStudentSession();
   }
-}, []);
+}, [clearStudentSession, selectedUserId]); // Added selectedUserId to dependencies
 
-    useEffect(() => {
-  const handleSessionRestore = () => {
-    const isRestoringAndLoading = rememberedStudent && prebookUsers.length === 0;
+const loadFromSession = useCallback(async () => {
+  if (!rememberedStudent || prebookUsers.length === 0) {
+    return;
+  }
 
-    if (isRestoringAndLoading) {
-      showLocalLoading("Restoring your session..."); // Changed to local function
-    } else {
-      hideLocalLoading(); // Changed to local function
-      
-      if (rememberedStudent) {
-        const user = prebookUsers.find(u => u.firestoreId === rememberedStudent.firestoreId);
-        if (user) {
-          setIsCurrentUserEligible(user.eligibleForDeduction || false);
-        }
+  // CRITICAL: Use local variables to avoid state timing issues
+  const userFirestoreId = rememberedStudent.firestoreId;
+  const userName = rememberedStudent.name;
+  const userStudentId = rememberedStudent.studentId;
+
+  // Set state synchronously
+  setStudentName(userName);
+  setStudentId(userStudentId);
+  setSelectedUserId(userFirestoreId);
+  
+  const foundUser = prebookUsers.find(u => u.firestoreId === userFirestoreId);
+  if (foundUser) {
+    setIsCurrentUserEligible(foundUser.eligibleForDeduction || false);
+  }
+
+  showLocalLoading("Restoring your session...");
+  const sessionStep = rememberedStudent.sessionStep;
+
+  if (sessionStep === 3) {
+    try {
+      if (!userFirestoreId) {
+        console.error("Session restore failed: firestoreId is missing from rememberedStudent object.");
+        throw new Error("Your session data is incomplete. Please start over.");
       }
+
+      const existingOrder = await firebaseService.getTodaysOrderByUserId(userFirestoreId);
+
+      if (existingOrder) {
+        console.log("Session restore detected existing order. Advancing to email prompt.");
+        updateSession('order_submitted', { name: userName, studentId: userStudentId, firestoreId: userFirestoreId }, selectedVendor);
+        localStorage.setItem('pendingOrderDetails', JSON.stringify(existingOrder));
+        setUserForEmail({ firestoreId: userFirestoreId, name: userName });
+        setShowEmailModal(true);
+        setCurrentOrder(existingOrder);
+      } else {
+        console.log("No existing order found. Checking for interrupted submission.");
+        const savedFormStateJSON = localStorage.getItem(`formState-${userFirestoreId}`);
+        if (savedFormStateJSON) {
+          const savedFormState = JSON.parse(savedFormStateJSON);
+          setOrderNumber(savedFormState.orderNumber || '');
+          setOrderTotal(savedFormState.orderTotal || '');
+          
+          setTimeout(() => {
+            showSuccessAnimation(
+              'Submission Interrupted', 
+              'Your previous order submission was not completed successfully.', 
+              <BeautifulMessage 
+                type="warning" 
+                message="Please review and re-submit your order details below." 
+                icon={<AlertCircle />} 
+              />, 
+              5000, 
+              true
+            );
+          }, 500);
+        }
+        setUserStep(3);
+      }
+    } catch (error) {
+      console.error("Error verifying order during session restore:", error);
+      showSuccessAnimation("Session Restore Failed", error.message, null, 4000, true);
+      resetForm(true);
+    } finally {
+      hideLocalLoading();
     }
-  };
-
-  handleSessionRestore();
-
-  return () => {
-    hideLocalLoading(); // Changed to local function
-  };
-}, [rememberedStudent, prebookUsers, setIsCurrentUserEligible]);
+  } else {
+    setUserStep(sessionStep);
+    hideLocalLoading();
+  }
+}, [rememberedStudent, prebookUsers, selectedVendor, showSuccessAnimation, resetForm]);
 
 useEffect(() => {
   setResetStudentForm(() => resetForm);
 }, [resetForm, setResetStudentForm]);
+
+useEffect(() => {
+  if (rememberedStudent && prebookUsers.length > 0 && !selectedUserId) {
+    console.log('Missing selectedUserId, attempting to restore from session...');
+    loadFromSession();
+  }
+}, [rememberedStudent, prebookUsers, selectedUserId, loadFromSession]);
 
 useEffect(() => {
     // This effect runs whenever the user's step changes.
@@ -1205,6 +1267,7 @@ const isSubmitDisabled =
               type="text" 
               placeholder="Enter order number" 
               value={orderNumber} 
+              maxLength={10}
               onChange={(e) => { 
                 setOrderNumber(e.target.value); 
                 setOrderError(''); 
@@ -1226,6 +1289,12 @@ const isSubmitDisabled =
   value={orderTotal}
   onChange={(e) => {
     const value = e.target.value;
+    const [intPart, decimalPart] = value.split('.');
+
+    // Prevent typing more than 4 digits before decimal
+    if (intPart && intPart.length > 4) {
+      return;
+    }
     // Only allow positive numbers
     if (value === '' || (parseFloat(value) > 0 && !isNaN(parseFloat(value)))) {
       setOrderTotal(value);

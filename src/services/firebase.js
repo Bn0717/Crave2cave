@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, addDoc, query, where, Timestamp, writeBatch, doc, updateDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, addDoc, query, where, Timestamp, writeBatch, doc, updateDoc, limit, orderBy } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { isToday } from '../utils/isToday';
 import { getFunctions, httpsCallable } from 'firebase/functions'; // Add this import
@@ -65,6 +65,10 @@ export const uploadFileToStorage = async (file) => {
 
 export const updatePrebookUser = async (userId, updates) => {
   try {
+    console.log('updatePrebookUser called with userId:', userId, 'type:', typeof userId);
+    if (!userId || typeof userId !== 'string') {
+      throw new Error(`Invalid userId: ${userId} (type: ${typeof userId})`);
+    }
     const userRef = doc(db, 'prebookUsers', userId);
     await updateDoc(userRef, updates);
   } catch (e) {
@@ -314,5 +318,38 @@ export const sendDeliveryEmail = async ({ userId, userEmail, orderNumber, orderT
       error: error.code || 'unknown-error',
       details: error.details || null
     };
+  }
+};
+
+/**
+ * Gets the most recent order for a specific user ID for the current day.
+ * @param {string} userId The user's Firestore ID.
+ * @returns {Promise<object|null>} The order object or null if not found.
+ */
+export const getTodaysOrderByUserId = async (userId) => {
+  const today = new Date();
+  const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+  const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+
+  try {
+    const q = query(
+      collection(db, 'orders'),
+      where('userId', '==', userId),
+      where('timestamp', '>=', startOfDay),
+      where('timestamp', '<=', endOfDay),
+      orderBy('timestamp', 'desc'), // Get the latest one in case of duplicates
+      limit(1)
+    );
+
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const doc = querySnapshot.docs[0];
+      console.log("Found an existing order for today:", doc.id);
+      return { orderId: doc.id, ...doc.data() };
+    }
+    return null; // No order found for today
+  } catch (error) {
+    console.error("Error fetching today's order by user ID:", error);
+    throw error; // Propagate the error to be handled by the caller
   }
 };

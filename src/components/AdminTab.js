@@ -493,7 +493,7 @@ const AdminTab = ({
           <div style={styles.card}>
             <div style={styles.cardHeader}>
               <UserCheck color="#f59e0b" size={28} />
-              <h2 style={styles.cardTitle}>Awaiting Order Submission</h2>
+              <h2 style={styles.cardTitle}>Awaiting Order Submission (First three users only)</h2>
             </div>
             
             {todayUsers.filter(user => user.commitmentPaid && !user.orderSubmitted).length > 0 ? (
@@ -512,11 +512,15 @@ const AdminTab = ({
       backgroundColor: '#fffbeb', 
       border: '1px solid #fef3c7', 
       borderRadius: '8px',
-      position: 'relative'
+      display: 'flex',                    // ADD THIS
+  justifyContent: 'space-between',    // ADD THIS
+  alignItems: 'center'
     }}>
+      <div>
       <p style={{ margin: 0, fontWeight: '600', color: '#92400e' }}>{user.name}</p>
       <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#b45309' }}>{user.studentId}</p>
-      
+      <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#78350f', textTransform: 'uppercase' }}>{user.vendor || 'No vendor'}</p>
+      </div>
       
       {/* Vendor badge */}
       <div style={{
@@ -532,7 +536,8 @@ const AdminTab = ({
         borderRadius: '9999px',
         fontSize: '11px',
         fontWeight: '600',
-        border: '1px solid #c7d2fe'
+        border: '1px solid #c7d2fe',
+        flexShrink: 0
       }}>
         <span>{vendorInfo.icon}</span>
         <span>{windowWidth <= 480 ? vendorInfo.name.substring(0, 10) : vendorInfo.name}</span>
