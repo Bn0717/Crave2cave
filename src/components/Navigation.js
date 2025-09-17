@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Truck, BarChart3, Menu, X, Home, BookOpen } from 'lucide-react';
+import { Users, Truck, BarChart3, Menu, X, Home, BookOpen, Heart } from 'lucide-react';
 import logo from '../assets/logo(1).png';
 
 // --- THIS IS THE CRITICAL FIX ---
@@ -34,7 +34,8 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
         { id: 'student', label: 'Student Portal', icon: Users },
         { id: 'driver', label: 'Driver Portal', icon: Truck },
         { id: 'admin', label: 'Admin Portal', icon: BarChart3 },
-        { id: 'guide', label: 'User Guide', icon: BookOpen }
+        { id: 'guide', label: 'User Guide', icon: BookOpen },
+        { id: 'feedback', label: 'Feedback', icon: Heart }
     ];
 
     const navStyles = {
@@ -137,7 +138,7 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
         <>
             <style>
                 {`
-                @media (max-width: 1040px) {
+                @media (max-width: 1161px) {
                     .desktop-menu { display: none !important; }
                     .mobile-menu-button { display: block !important; }
                 }

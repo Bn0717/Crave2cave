@@ -437,7 +437,7 @@ const handlePrebook = async () => {
           message="Please try again tomorrow or retrieve your registration." 
           icon={<AlertCircle />} 
         />, 
-        3000, 
+        0, 
         true
       );
       return;
@@ -476,13 +476,13 @@ const handlePrebook = async () => {
 
         const message = currentPaidUsersCount >= 3
           ? 'System is already activated! You can submit your order directly.'
-          : 'Please proceed to pay the RM10 base delivery fee to help activate the system.';
+          : 'Please proceed to pay the RM10 base delivery fee to activate the system.';
 
         showSuccessAnimation(
           'Registration Successful!', 
           message,
           null,
-          3000,
+          0,
           true
         );
 
@@ -496,7 +496,7 @@ const handlePrebook = async () => {
 
 const handleCommitmentPayment = async () => {
     if (!receiptFile) {
-      showSuccessAnimation('Missing Receipt', 'Please upload a payment receipt.', null, 3000, true);
+      showSuccessAnimation('Missing Receipt', 'Please upload a payment receipt.', null, 0, true);
       return;
     }
 
@@ -532,7 +532,7 @@ const handleCommitmentPayment = async () => {
           showSuccessAnimation(
             'Payment Confirmed!',
             'You can now submit your order!',
-            null, 2500, true,
+            null, 0, true,
             () => setUserStep(3)
           );
         } else {
@@ -547,7 +547,7 @@ const handleCommitmentPayment = async () => {
         }
       } catch (error) {
         hideLocalLoading();
-        showSuccessAnimation('Upload Failed', `Error: ${error.message}`, null, 3000, true);
+        showSuccessAnimation('Upload Failed', `Error: ${error.message}`, null, 0, true);
         console.error('Payment error:', error);
       }
     }, 50);
@@ -576,7 +576,7 @@ const handleCommitmentPayment = async () => {
       'Session Error',
       'Your session data is invalid. Please retrieve your registration again.',
       null,
-      3000,
+      0,
       true
     );
     return;
@@ -593,7 +593,7 @@ const handleCommitmentPayment = async () => {
       'Missing Fields',
       orderError,
       null,
-      3000,
+      0,
       true
     );
     return;
@@ -611,7 +611,7 @@ const handleCommitmentPayment = async () => {
       'Payment Receipt Required',
       'Please upload your payment receipt for the delivery fee.',
       null,
-      3000,
+      0,
       true
     );
     return;
@@ -681,7 +681,7 @@ const handleCommitmentPayment = async () => {
       'Order Submitted!',
       'Please provide your email to receive order updates.',
       null,
-      3000,
+      0,
       true,
       () => {
         setUserForEmail({ firestoreId: currentSelectedUserId, name: studentName });
@@ -695,7 +695,7 @@ const handleCommitmentPayment = async () => {
       'Order Submission Failed',
       `Failed to submit order: ${error.message}`,
       null,
-      3000,
+      0,
       true
     );
     console.error('Order submission error:', error);
@@ -774,7 +774,7 @@ const handleCommitmentPayment = async () => {
             message="Please contact support if you believe this is an error."
             icon={<AlertCircle />}
           />,
-          3000,
+          0,
           true
         );
         return;
@@ -783,7 +783,7 @@ const handleCommitmentPayment = async () => {
       console.error('Error retrieving order:', error);
       hideLocalLoading();
       showSuccessAnimation(
-        "Error", `Failed to retrieve order: ${error.message}`, null, 3000, true
+        "Error", `Failed to retrieve order: ${error.message}`, null, 0, true
       );
       return;
     }
@@ -831,17 +831,17 @@ const handleCommitmentPayment = async () => {
               message="Your previous order was not completed. Please fill in the form again." 
               icon={<AlertCircle />} 
             />, 
-            5000, 
+            0, 
             true
           );
         } else {
           const deductionMessage = foundUser.eligibleForDeduction ? 'You will get RM10 deduction on delivery fee!' : 'No RM10 deduction applies.';
-          showSuccessAnimation(`Welcome back, ${foundUser.name}!`, `System is active! You can submit your order directly. ${deductionMessage}`, null, 4000, true);
+          showSuccessAnimation(`Welcome back, ${foundUser.name}!`, `System is active! You can submit your order directly. ${deductionMessage}`, null, 0, true);
         }
       }
     } catch (error) {
       console.error("Error verifying order during retrieval:", error);
-      showSuccessAnimation("Verification Failed", "Could not check your order status. Please try again.", null, 3000, true);
+      showSuccessAnimation("Verification Failed", "Could not check your order status. Please try again.", null, 0, true);
     } finally {
       hideLocalLoading();
     }
@@ -850,12 +850,12 @@ const handleCommitmentPayment = async () => {
     updateSession(3, { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId }, foundUser.vendor);
     setUserStep(3);
     const deductionMessage = foundUser.eligibleForDeduction ? 'You will get RM10 deduction on delivery fee!' : 'No RM10 deduction applies.';
-    showSuccessAnimation(`Welcome back, ${foundUser.name}!`, `System is active! You can submit your order directly. ${deductionMessage}`, null, 4000, true);
+    showSuccessAnimation(`Welcome back, ${foundUser.name}!`, `System is active! You can submit your order directly. ${deductionMessage}`, null, 0, true);
   } else {
     const currentPaidUsersCount = todayUsers.filter(u => u.commitmentPaid).length;
     updateSession(2, { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId }, foundUser.vendor);
     setUserStep(2);
-    showSuccessAnimation(`Welcome back, ${foundUser.name}!`, 'Please complete your base delivery fee payment.', <p>We need {Math.max(0, 3 - currentPaidUsersCount)} more paid users today to activate the system.</p>, 5000, true);
+    showSuccessAnimation(`Welcome back, ${foundUser.name}!`, 'Please complete your base delivery fee payment.', <p>We need {Math.max(0, 3 - currentPaidUsersCount)} more paid users today to activate the system.</p>, 0, true);
   }
 }; 
 
@@ -895,6 +895,7 @@ const resetForm = useCallback((clearSession = false) => {
   setNameError('');
   setIdError('');
   setOrderError('');
+  setIsCurrentUserEligible(false);
   
   if (selectedUserId) {
     localStorage.removeItem(`formState-${selectedUserId}`);
@@ -918,7 +919,7 @@ const loadFromSession = useCallback(async () => {
   // Validate userFirestoreId before proceeding
   if (!userFirestoreId || typeof userFirestoreId !== 'string' || userFirestoreId.trim() === '') {
     console.error("Session restore failed: firestoreId is missing or invalid from rememberedStudent object.");
-    showSuccessAnimation("Session Restore Failed", "Your session data is incomplete. Please start over.", null, 4000, true);
+    showSuccessAnimation("Session Restore Failed", "Your session data is incomplete. Please start over.", null, 0, true);
     resetForm(true);
     return;
   }
@@ -965,7 +966,7 @@ const loadFromSession = useCallback(async () => {
                 message="Please review and re-submit your order details below." 
                 icon={<AlertCircle />} 
               />, 
-              5000, 
+              0, 
               true
             );
           }, 500);
@@ -974,7 +975,7 @@ const loadFromSession = useCallback(async () => {
       }
     } catch (error) {
       console.error("Error verifying order during session restore:", error);
-      showSuccessAnimation("Session Restore Failed", "Failed to restore your session. Please retrieve your registration again.", null, 4000, true);
+      showSuccessAnimation("Session Restore Failed", "Failed to restore your session. Please retrieve your registration again.", null, 0, true);
       resetForm(true);
     } finally {
       hideLocalLoading();
@@ -1517,8 +1518,10 @@ const isSubmitDisabled =
             icon={<AlertCircle />}
           >
             <p style={{ margin: '0', fontSize: '14px', color: '#92400e' }}>
-              You'll be able to submit your order once we reach the minimum requirement. Please check back later!
-            </p>
+  You'll be able to submit your order once we reach the minimum requirement. 
+  Please check back later <strong>before 6pm!</strong>
+</p>
+
           </BeautifulMessage>
           <button 
             onClick={resetForm} 

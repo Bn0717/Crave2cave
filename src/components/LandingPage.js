@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ChevronRight, Truck, UserCog, Shield } from 'lucide-react';
+// 1. IMPORTED NEW ICONS
+import { ChevronRight, Truck, UserCog, Shield, HelpCircle, MessageSquare } from 'lucide-react';
 import logo from '../assets/logo(1).png';
 
 const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
@@ -214,6 +215,30 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
           >
             <UserCog size={20} />
             <span>Admin Portal</span>
+          </button>
+
+          {/* 2. ADDED THE NEW MENU ITEMS HERE */}
+          <button
+            className="staff-menu-item"
+            style={styles.staffMenuItem}
+            onClick={() => {
+              onNavigateToPortal('guide');
+              setIsStaffMenuOpen(false);
+            }}
+          >
+            <HelpCircle size={20} />
+            <span>User Guide</span>
+          </button>
+          <button
+            className="staff-menu-item"
+            style={styles.staffMenuItem}
+            onClick={() => {
+              onNavigateToPortal('feedback');
+              setIsStaffMenuOpen(false);
+            }}
+          >
+            <MessageSquare size={20} />
+            <span>Feedback</span>
           </button>
         </div>
       </div>

@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, addDoc, query, where, Timestamp, writeBatch, doc, updateDoc, limit, orderBy } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { isToday } from '../utils/isToday';
-import { getFunctions, httpsCallable } from 'firebase/functions'; // Add this import
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -17,11 +17,11 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+export const db = getFirestore(app); // Export db for direct use
 const storage = getStorage(app);
-const functions = getFunctions(app); // Initialize Functions
+const functions = getFunctions(app);
 
-// Existing functions (unchanged)
+// --- All your existing functions remain unchanged ---
 export const savePrebookUser = async (user) => {
   try {
     const now = new Date();
@@ -145,14 +145,12 @@ export const getHistoryData = async () => {
   }
 };
 
-// In firebase.js (add this function)
 export const getOrderByUserId = async (userId) => {
   try {
     const ordersQuery = query(collection(db, 'orders'), where('userId', '==', userId));
     const querySnapshot = await getDocs(ordersQuery);
     if (!querySnapshot.empty) {
       const orders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Return the most recent order based on timestamp
       return orders.reduce((latest, current) =>
         latest.timestamp > current.timestamp ? latest : current
       );
@@ -221,7 +219,6 @@ export const updateDailyHistory = async () => {
   }
 };
 
-// New functions for App.js
 export const uploadOrderImage = async (orderId, file) => {
   if (!file || !(file instanceof File)) {
     console.error('Invalid file: File object is required');
@@ -254,102 +251,83 @@ export const updateOrderDetails = async (orderId, updates) => {
   }
 };
 
-// Updated sendDeliveryEmail function with enhanced error handling and validation
 export const sendDeliveryEmail = async ({ userId, userEmail, orderNumber, orderTotal, studentName }) => {
   try {
-    console.log('🔍 Starting sendDeliveryEmail with parameters:', {
-      userId: userId ? `${userId} (${typeof userId})` : 'MISSING',
-      userEmail: userEmail ? `${userEmail} (${typeof userEmail})` : 'MISSING',
-      orderNumber: orderNumber ? `${orderNumber} (${typeof orderNumber})` : 'MISSING',
-      orderTotal: `${orderTotal} (${typeof orderTotal})`,
-      studentName: studentName ? `${studentName} (${typeof studentName})` : 'MISSING'
-    });
-
-    // Validate parameters before sending
+    console.log('🔍 Starting sendDeliveryEmail with parameters:', { userId: userId ? `${userId} (${typeof userId})` : 'MISSING', userEmail: userEmail ? `${userEmail} (${typeof userEmail})` : 'MISSING', orderNumber: orderNumber ? `${orderNumber} (${typeof orderNumber})` : 'MISSING', orderTotal: `${orderTotal} (${typeof orderTotal})`, studentName: studentName ? `${studentName} (${typeof studentName})` : 'MISSING' });
     const missingParams = [];
     if (!userId || typeof userId !== 'string' || userId.trim() === '') missingParams.push('userId');
     if (!userEmail || typeof userEmail !== 'string' || userEmail.trim() === '') missingParams.push('userEmail');
     if (!orderNumber || typeof orderNumber !== 'string' || orderNumber.trim() === '') missingParams.push('orderNumber');
     if (!studentName || typeof studentName !== 'string' || studentName.trim() === '') missingParams.push('studentName');
-
-    if (missingParams.length > 0) {
-      const errorMsg = `❌ Missing or invalid required parameters: ${missingParams.join(', ')}`;
-      console.error(errorMsg);
-      throw new Error(errorMsg);
-    }
-
-    // Validate email format
+    if (missingParams.length > 0) { const errorMsg = `❌ Missing or invalid required parameters: ${missingParams.join(', ')}`; console.error(errorMsg); throw new Error(errorMsg); }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(userEmail.trim())) {
-      const errorMsg = `❌ Invalid email format: ${userEmail}`;
-      console.error(errorMsg);
-      throw new Error(errorMsg);
-    }
-
-    // Prepare the payload with proper type conversion
-    const emailPayload = {
-      userId: String(userId).trim(),
-      userEmail: String(userEmail).trim(),
-      orderNumber: String(orderNumber).trim(),
-      orderTotal: Number(orderTotal) || 0,
-      studentName: String(studentName).trim()
-    };
-
+    if (!emailRegex.test(userEmail.trim())) { const errorMsg = `❌ Invalid email format: ${userEmail}`; console.error(errorMsg); throw new Error(errorMsg); }
+    const emailPayload = { userId: String(userId).trim(), userEmail: String(userEmail).trim(), orderNumber: String(orderNumber).trim(), orderTotal: Number(orderTotal) || 0, studentName: String(studentName).trim() };
     console.log('📧 Calling Firebase function with payload:', emailPayload);
-
     const sendEmailFunction = httpsCallable(functions, 'sendDeliveryEmail');
     const result = await sendEmailFunction(emailPayload);
-    
     console.log('✅ Email function result:', result.data);
     return result.data;
-
   } catch (error) {
-    console.error('❌ Error in sendDeliveryEmail:', {
-      message: error.message,
-      code: error.code,
-      details: error.details,
-      stack: error.stack
-    });
-    
-    // Return a structured error response instead of throwing
-    return { 
-      success: false, 
-      message: error.message || 'Failed to send email',
-      error: error.code || 'unknown-error',
-      details: error.details || null
-    };
+    console.error('❌ Error in sendDeliveryEmail:', { message: error.message, code: error.code, details: error.details, stack: error.stack });
+    return { success: false, message: error.message || 'Failed to send email', error: error.code || 'unknown-error', details: error.details || null };
   }
 };
 
-/**
- * Gets the most recent order for a specific user ID for the current day.
- * @param {string} userId The user's Firestore ID.
- * @returns {Promise<object|null>} The order object or null if not found.
- */
 export const getTodaysOrderByUserId = async (userId) => {
   const today = new Date();
   const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
   const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
 
   try {
-    const q = query(
-      collection(db, 'orders'),
-      where('userId', '==', userId),
-      where('timestamp', '>=', startOfDay),
-      where('timestamp', '<=', endOfDay),
-      orderBy('timestamp', 'desc'), // Get the latest one in case of duplicates
-      limit(1)
-    );
-
+    const q = query(collection(db, 'orders'), where('userId', '==', userId), where('timestamp', '>=', startOfDay), where('timestamp', '<=', endOfDay), orderBy('timestamp', 'desc'), limit(1));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
       const doc = querySnapshot.docs[0];
       console.log("Found an existing order for today:", doc.id);
       return { orderId: doc.id, ...doc.data() };
     }
-    return null; // No order found for today
+    return null;
   } catch (error) {
     console.error("Error fetching today's order by user ID:", error);
-    throw error; // Propagate the error to be handled by the caller
+    throw error;
+  }
+};
+
+// --- NEW FUNCTIONS FOR FEEDBACK TAB ---
+
+/**
+ * Adds a new feedback document to the 'feedbacks' collection.
+ * @param {object} feedbackData - The feedback object { rating, comment }.
+ * @returns {Promise<DocumentReference>} A reference to the newly created document.
+ */
+export const addFeedback = async (feedbackData) => {
+  try {
+    const feedbackWithTimestamp = {
+      ...feedbackData,
+      timestamp: Date.now(), // Use a numeric timestamp for easier sorting
+    };
+    const docRef = await addDoc(collection(db, 'feedbacks'), feedbackWithTimestamp);
+    return docRef;
+  } catch (e) {
+    console.error("Error adding feedback: ", e);
+    throw e;
+  }
+};
+
+/**
+ * Fetches the 20 most recent feedback entries from Firestore.
+ * @returns {Promise<Array<object>>} An array of feedback objects.
+ */
+export const getFeedbacks = async () => {
+  try {
+    const feedbackCollection = collection(db, 'feedbacks');
+    const q = query(feedbackCollection, orderBy('timestamp', 'desc'), limit(20));
+    const feedbackSnapshot = await getDocs(q);
+    const feedbackList = feedbackSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return feedbackList;
+  } catch (error) {
+    console.error("Error fetching feedbacks: ", error);
+    return []; // Return empty array on error
   }
 };

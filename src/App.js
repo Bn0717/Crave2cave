@@ -15,6 +15,7 @@ import AdminTab from './components/AdminTab';
 import DriverTab from './components/DriverTab';
 import ImageCarousel from './components/ImageCarousel';
 import UserGuideTab from './components/UserGuideTab';
+import FeedbackTab from './components/FeedbackTab';
 
 function App() {
   const [activeTab, setActiveTab] = useState('student');
@@ -730,7 +731,7 @@ useEffect(() => {
           {sessionPrompt.step === 'order_submitted' 
             ? 'Add Email' 
             : sessionPrompt.step === 'completed'
-            ? 'View Timer'
+            ? 'View Order Details'
             : 'Yes, Continue'
           }
         </button>
@@ -797,6 +798,7 @@ useEffect(() => {
         {activeTab === 'admin' && <AdminTab {...sharedProps} showSuccessAnimation={showSuccessAnimation} showLoadingAnimation={showLoadingAnimation}  hideLoadingAnimation={hideLoadingAnimation} isAuthenticated={isAdminAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'admin')} resetAuth={resetAuth} />}
 {activeTab === 'driver' && <DriverTab {...sharedProps} isAuthenticated={isDriverAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'driver')} resetAuth={resetAuth} />}
   {activeTab === 'guide' && <UserGuideTab />}
+  {activeTab === 'feedback' && <FeedbackTab showSuccessAnimation={showSuccessAnimation} windowWidth={windowWidth} />}
       </div>
     </div>
   );
