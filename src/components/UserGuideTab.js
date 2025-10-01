@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { HelpCircle, Smartphone, ShoppingBag, MessageSquare } from 'lucide-react';
 import GuidePhoto from '../assets/receipt.jpg';
+import FoodPanda from '../assets/foodpandareceipt.jpg';
 
 // Helper function for fluid typography
 const fluidSize = (minSize, maxSize, minVw = 375, maxVw = 1440) => {
@@ -40,26 +41,211 @@ const OrderGuide = ({ topic }) => {
     );
 };
 
-// FAQ Components
+// FAQ Components - UPDATED
 const QASection = () => (
-  // ... (This component remains unchanged)
   <div>
-    <h2 style={{ fontSize: fluidSize(20, 26), color: '#1e293b', marginBottom: '24px' }}>Frequently Asked Questions</h2>
-    <QAItem question="How do I register for a delivery?"><p>Navigate to the "Student Portal", enter your full name and student ID in the format "0000/00", and click "Register for Delivery".</p></QAItem>
-    <QAItem question="Why do I need to pay a RM10 Base Fee?"><p>The RM10 base fee is required from the first 3 users to activate the delivery system for the day. If you are one of the first 3 to pay, this amount will be automatically deducted from your final delivery fee.</p></QAItem>
-    <QAItem question="When can I submit my order?"><p>You can submit your order after paying the base fee and once the system is activated (minimum 3 paid users). The system is available on Tuesday and Friday from 12:00 AM to 6:00 PM Malaysia Time.</p></QAItem>
-    <QAItem question="How is the delivery fee calculated?"><p>Delivery fees are calculated based on your order total:</p><ul style={{ marginTop: '8px', paddingLeft: '20px', listStyleType: 'disc' }}><li>RM0.01 - RM15.00: RM8 delivery fee</li><li>RM15.01 - RM30.00: RM10 delivery fee</li><li>RM30.01 and above: RM12 delivery fee</li></ul><p style={{ marginTop: '8px' }}>If you're among the first 3 users, RM10 will be automatically deducted from your delivery fee.</p></QAItem>
+    <h2
+      style={{
+        fontSize: fluidSize(20, 26),
+        color: '#1e293b',
+        marginBottom: fluidSize(20, 24),
+        fontWeight: '700',
+      }}
+    >
+      Frequently Asked Questions
+    </h2>
+
+    <QAItem question="What is Crave 2 Cave (C2C)?">
+      <p>
+        Crave 2 Cave is a delivery service that brings food from Tanjung Malim
+        restaurants directly to students of Kolej Yayasan UEM.
+      </p>
+    </QAItem>
+
+    <QAItem question="What do we do?">
+      <p>
+        We make it simple and convenient for KYUEM students to enjoy meals from
+        local restaurants without leaving campus.
+      </p>
+    </QAItem>
+
+    <QAItem question="How much is the delivery fee?">
+      <div style={{ overflowX: 'auto', marginTop: '12px' }}>
+        <table
+          style={{
+            width: '100%',
+            minWidth: '280px',
+            borderCollapse: 'collapse',
+            fontSize: fluidSize(13, 15),
+          }}
+        >
+          <thead>
+            <tr style={{ backgroundColor: '#f1f5f9' }}>
+              <th style={{ 
+                border: '1px solid #cbd5e1', 
+                padding: fluidSize(10, 12),
+                textAlign: 'left',
+                fontWeight: '600',
+                color: '#334155',
+              }}>
+                Order Amount
+              </th>
+              <th style={{ 
+                border: '1px solid #cbd5e1', 
+                padding: fluidSize(10, 12),
+                textAlign: 'left',
+                fontWeight: '600',
+                color: '#334155',
+              }}>
+                Delivery Fee
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12) }}>RM0.01 – RM50</td>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600' }}>RM10</td>
+            </tr>
+            <tr style={{ backgroundColor: '#f8fafc' }}>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12) }}>RM51 – RM100</td>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600' }}>RM17</td>
+            </tr>
+            <tr>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12) }}>RM101 – RM150</td>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600' }}>RM25</td>
+            </tr>
+            <tr style={{ backgroundColor: '#f8fafc' }}>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12) }}>RM151 – RM200</td>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600' }}>RM30</td>
+            </tr>
+            <tr>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12) }}>RM201 – RM300</td>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600' }}>RM45</td>
+            </tr>
+            <tr style={{ backgroundColor: '#f8fafc' }}>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12) }}>Above RM300</td>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600' }}>RM60</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </QAItem>
+
+    <QAItem question="What is the order timeline?">
+      <div style={{ overflowX: 'auto', marginTop: '12px' }}>
+        <table
+          style={{
+            width: '100%',
+            minWidth: '280px',
+            borderCollapse: 'collapse',
+            fontSize: fluidSize(13, 15),
+          }}
+        >
+          <thead>
+            <tr style={{ backgroundColor: '#f1f5f9' }}>
+              <th style={{ 
+                border: '1px solid #cbd5e1', 
+                padding: fluidSize(10, 12),
+                textAlign: 'left',
+                fontWeight: '600',
+                color: '#334155',
+              }}>
+                Time
+              </th>
+              <th style={{ 
+                border: '1px solid #cbd5e1', 
+                padding: fluidSize(10, 12),
+                textAlign: 'left',
+                fontWeight: '600',
+                color: '#334155',
+              }}>
+                Activity
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600', whiteSpace: 'nowrap' }}>3:00 PM</td>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12) }}>Orders close</td>
+            </tr>
+            <tr style={{ backgroundColor: '#f8fafc' }}>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600', whiteSpace: 'nowrap' }}>6:10 – 6:30 PM</td>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12) }}>Driver picks up food</td>
+            </tr>
+            <tr>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600', whiteSpace: 'nowrap' }}>6:30 PM</td>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12) }}>Delivery begins</td>
+            </tr>
+            <tr style={{ backgroundColor: '#f8fafc' }}>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600', whiteSpace: 'nowrap' }}>7:00 PM</td>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12) }}>Collect orders at the guardhouse</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </QAItem>
+
+    <QAItem question="What is the base delivery fee for?">
+      <p>
+        The base fee helps prevent misuse of the ordering system (e.g., creating
+        multiple accounts to bypass the daily quota).
+      </p>
+    </QAItem>
+
+    <QAItem question="Where can I order from?">
+      <p>Only restaurants listed on our website are available for delivery.</p>
+    </QAItem>
+
+    <QAItem question="What is the refund policy?">
+      <p>For any refund requests, please contact the admin-on-duty.</p>
+    </QAItem>
   </div>
 );
 
+
 const QAItem = ({ question, children }) => {
-  // ... (This component remains unchanged)
   const styles = {
-    item: { marginBottom: '20px' },
-    question: { fontSize: fluidSize(16, 19), fontWeight: '600', color: '#334155', marginBottom: '8px', lineHeight: '1.4' },
-    answer: { fontSize: fluidSize(14, 16), color: '#475569', lineHeight: '1.7', textAlign: 'justify' },
+    item: { 
+      marginBottom: fluidSize(20, 24),
+      padding: fluidSize(16, 20),
+      backgroundColor: '#ffffff',
+      borderRadius: '12px',
+      border: '2px solid #e2e8f0',
+      transition: 'all 0.3s ease',
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.02)',
+    },
+    question: { 
+      fontSize: fluidSize(16, 19), 
+      fontWeight: '700', 
+      color: '#1e293b',
+      marginBottom: fluidSize(10, 12), 
+      lineHeight: '1.4',
+    },
+    answer: { 
+      fontSize: fluidSize(14, 16), 
+      color: '#475569', 
+      lineHeight: '1.7',
+    },
   };
-  return (<div style={styles.item}><h3 style={styles.question}>{question}</h3><div style={styles.answer}>{children}</div></div>);
+
+  return (
+    <div 
+      style={styles.item}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = '#3b82f6';
+        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = '#e2e8f0';
+        e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.02)';
+      }}
+    >
+      <h3 style={styles.question}>
+        {question}
+      </h3>
+      <div style={styles.answer}>{children}</div>
+    </div>
+  );
 };
 
 
@@ -84,11 +270,49 @@ const UserGuideTab = () => {
   }, []);
 
   const guideTopics = {
-    // ... (This object remains unchanged)
-    appOrder: { name: 'Order via app', shortName: 'App', icon: <Smartphone />, title: 'How to Order via Our App', image: GuidePhoto, steps: [ 'Download our official application from the App Store or Google Play.', 'Create an account or log in.', 'Browse our menu and add your desired items to the cart.', 'Proceed to checkout and confirm your delivery details.', 'Take a screenshot of the order confirmation screen.', 'Upload the screenshot in the Student Portal when submitting your order.' ] },
-    foodpandaOrder: { name: 'Order via FoodPanda', shortName: 'FoodPanda', icon: <ShoppingBag />, title: 'How to Order via FoodPanda', image: GuidePhoto, steps: [ 'Open the FoodPanda app or visit their website.', 'Search for our store name in the search bar.', 'Select items from our menu listed on FoodPanda.', 'Add them to your cart and complete the checkout process on their platform.', 'Save a screenshot of your final order receipt.', 'Return to our Student Portal and upload the receipt screenshot.' ] },
-    faq: { name: 'FAQs', shortName: 'FAQs', icon: <MessageSquare /> },
-  };
+  // ... (This object remains unchanged)
+  appOrder: { 
+    name: 'Submitting App Orders via Website', 
+    shortName: 'Website', 
+    icon: <Smartphone />, 
+    title: 'How to Submit Orders via Our Website', 
+    image: GuidePhoto, 
+    steps: [ 
+      'Order food via merchant\'s app (e.g. Domino\'s Pizza).',
+      "Select 'Scheduled' pick up option and set time to 17:45 - 18:00.",
+      'Take a screenshot of your order (include order number and total amount).',
+      'Register our website using your FULL NAME and STUDENT ID.', 
+      'Pay a base delivery fee of RM10 and upload proof of payment (only applies to the first 3 users).', 
+      'If minimum quota is reached, log onto your account and submit order details (e.g. total amount, order number).', 
+      'Pay amount as indicated.', 
+      'Enter your email address to track the order.' 
+    ] 
+  },
+  foodpandaOrder: { 
+    name: 'Order via FoodPanda', 
+    shortName: 'FoodPanda', 
+    icon: <ShoppingBag />, 
+    title: 'How to Order via FoodPanda', 
+    image: FoodPanda, 
+    steps: [ 
+      'Ensure FoodPanda\'s address chosen is in Tanjung Malim (highly recommended).', 
+      'Choose your orders. Ensure pick up option is chosen at the checkout page.', 
+      "Select 'Scheduled' pick up option and set time to 17:45 - 18:00.", 
+      'Take a screenshot of your order (include order number and total amount) and submit to our website when required.',
+      'Register our website using your FULL NAME and STUDENT ID.', 
+      'Pay a base delivery fee of RM10 and upload proof of payment (only applies to the first 3 users).', 
+      'If minimum quota is reached, log onto your account and submit order details (e.g. total amount, order number).', 
+      'Pay amount as indicated.', 
+      'Enter your email address to track the order.' 
+    ] 
+  },
+  faq: { 
+    name: 'FAQs', 
+    shortName: 'FAQs', 
+    icon: <MessageSquare /> 
+  },
+};
+
 
   const useShortNames = screenWidth <= 640;
   const hideIcon = screenWidth <= 380;

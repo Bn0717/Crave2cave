@@ -5,13 +5,15 @@ import { Star, Users, ChevronLeft, ChevronRight, Calendar, Send } from 'lucide-r
 import { getFeedbacks, addFeedback } from '../services/firebase'; // Make sure this path is correct
 import ShengZe from '../assets/Shengze.jpg';
 import Charmaine from '../assets/cy.jpg';
+import Bryan from '../assets/Bryanjpg.jpg';
+import SiewHao from '../assets/siewhao.jpg';
 
 // Team data remains the same
 const TEAM_MEMBERS = [
   {
     id: 1,
     name: "Yiek Siew Hao",
-    photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face",
+    photo: SiewHao,
     school: "Kolej Yayasan UEM",
     course: "Mechanical Engineering",
     sponsor: "Shell Scholar"
@@ -19,7 +21,7 @@ const TEAM_MEMBERS = [
   {
     id: 2,
     name: "Bryan Ngu Zhu Kiet", 
-    photo: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face",
+    photo: Bryan,
     school: "Kolej Yayasan UEM",
     course: "Data Science",
     sponsor: "Yayasan UEM Scholar"
