@@ -418,16 +418,29 @@ const handleStartNewSession = () => {
 
     // ✅ FIX: Show success message THEN navigate to timer
     showSuccessAnimation(
-      'Order Confirmed!',
-      'Your order has been submitted successfully. You will receive a confirmation email once the driver starts delivering your order.',
-      null,
-      4000,
-      true,
-      () => {
-        // ✅ Show the timer countdown page after success message
-        setOrderConfirmed(true);
-      }
-    );
+  'Order Confirmed!',
+  'Your order has been submitted successfully. You will receive a confirmation email once the driver starts delivering your order.',
+  <a 
+    href="https://chat.whatsapp.com/CUZ0DJ698Sp2A5vTxzwZ3I" 
+    target="_blank" 
+    rel="noopener noreferrer"
+    style={{
+      display: 'block',
+      marginTop: '12px',
+      color: '#25D366',
+      textDecoration: 'underline',
+      fontWeight: '500',
+      fontSize: '15px'
+    }}
+  >
+    📱 Join our WhatsApp group for live updates
+  </a>,
+  0,
+  true,
+  () => {
+    setOrderConfirmed(true);
+  }
+);
   } catch (error) {
     hideLoadingAnimation();
     console.error('Failed to save email:', error);

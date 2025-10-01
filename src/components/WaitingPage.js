@@ -240,7 +240,7 @@ const WaitingPage = ({
                         />
                     </div>
                     <h2 style={styles.title}>Your Order is Being Prepared</h2>
-                    <CountdownTimer targetTime="19:15" />
+                    <CountdownTimer targetTime="19:00" />
                     <div 
                         style={styles.locationInfo} 
                         className={window.innerWidth < 480 ? "location-info-mobile" : ""}
@@ -291,10 +291,10 @@ const WaitingPage = ({
                                         RM{currentOrder.totalWithDelivery}
                                     </p>
                                 </div>
-                                <div>
-                                    <p style={styles.orderLabel}>Student ID</p>
-                                    <p style={styles.orderValue}>{currentOrder.studentId}</p>
-                                </div>
+<div>
+    <p style={styles.orderLabel}>Contact Number</p>
+    <p style={styles.orderValue}>{currentOrder.contactNumber}</p>
+</div>
                             </div>
                             {currentOrder.orderImageURLs && currentOrder.orderImageURLs.length > 0 && (
                                 <button 

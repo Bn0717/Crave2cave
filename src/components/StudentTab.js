@@ -41,7 +41,7 @@ const StudentTab = ({
   return rememberedStudent?.sessionStep || 1;
 });
   const [studentName, setStudentName] = useState('');
-  const [studentId, setStudentId] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [receiptFile, setReceiptFile] = useState(null); // Commitment fee receipt
   const [orderNumber, setOrderNumber] = useState('');
@@ -51,7 +51,7 @@ const StudentTab = ({
   const [currentUserIndex, setCurrentUserIndex] = useState(0);
   const [showRetrieve, setShowRetrieve] = useState(false);
   const [nameError, setNameError] = useState('');
-  const [idError, setIdError] = useState('');
+  const [contactError, setContactError] = useState('');
   const [orderError, setOrderError] = useState('');
   const [isVideoVisible, setIsVideoVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -350,22 +350,19 @@ const handleRemoveReceipt = (indexToRemove) => {
   setOrderReceiptFiles(prevFiles => prevFiles.filter((_, index) => index !== indexToRemove));
 };
 
-  const validateStudentId = (id) => {
-    if (!id.trim()) { 
-      setIdError('Student ID is required'); 
-      return false; 
-    }
-    if (id.length < 4) { 
-      setIdError('Student ID must be at least 4 characters'); 
-      return false; 
-    }
-    if (!/\d{4}\/\d{2}$/.test(id)) { 
-      setIdError('Student ID format should be like 0469/24'); 
-      return false; 
-    }
-    setIdError(''); 
-    return true;
-  };
+  const validateContactNumber = (number) => {
+  if (!number.trim()) { 
+    setContactError('Contact number is required'); 
+    return false; 
+  }
+  const digits = number.replace(/\D/g, '');
+  if (digits.length < 10 || digits.length > 11) { 
+    setContactError('Contact number must be 10-11 digits'); 
+    return false; 
+  }
+  setContactError(''); 
+  return true;
+};
 
   const validateOrderDetails = () => {
     if (!orderNumber.trim()) {
@@ -409,7 +406,7 @@ const handlePrebook = async () => {
     if (!systemAvailability.isSystemOpen) {
       showSuccessAnimation(
         'System Closed',
-        'The food delivery system is only available on Tuesday and Friday from 12:00 AM to 6:00 PM (Malaysia Time).',
+        'The food delivery system is only available on Tuesday and Friday from 12:00 AM to 4:30 PM (Malaysia Time).',
         <div>
           <p style={{ margin: '8px 0', color: '#92400e', fontWeight: '600' }}>
             Next available: {systemAvailability.nextOpenTime}
@@ -421,17 +418,18 @@ const handlePrebook = async () => {
       return;
     }
 
-    if (!validateName(studentName) || !validateStudentId(studentId)) return;
+    
+if (!validateName(studentName) || !validateContactNumber(contactNumber)) return;
     
     const existingUser = prebookUsers.find(user => 
-      isToday(user.timestamp) && 
-      (user.studentId === studentId || user.name.toLowerCase() === studentName.toLowerCase())
-    );
+  isToday(user.timestamp) && 
+  (user.contactNumber === contactNumber || user.name.toLowerCase() === studentName.toLowerCase())
+);
     
     if (existingUser) {
       showSuccessAnimation(
         'Registration Already Exists', 
-        `This name or Student ID has already been registered today.`, 
+        `This name or Contact Number has already been registered today.`, 
         <BeautifulMessage 
           type="error" 
           message="Please try again tomorrow or retrieve your registration." 
@@ -453,7 +451,7 @@ const handlePrebook = async () => {
 
         const newUser = {
           name: studentName,
-          studentId,
+          contactNumber,
           timestamp: new Date().toISOString(),
           commitmentPaid: false,
           orderSubmitted: false,
@@ -466,7 +464,7 @@ const handlePrebook = async () => {
         const nextStep = currentPaidUsersCount >= 3 ? 3 : 2;
         const newUserId = await firebaseService.savePrebookUser(newUser);
         
-        updateSession(nextStep, { name: studentName, studentId, firestoreId: newUserId }, selectedVendor);
+        updateSession(nextStep, { name: studentName, contactNumber, firestoreId: newUserId }, selectedVendor);
         
         setSelectedUserId(newUserId);
         fetchAllData();
@@ -522,7 +520,7 @@ const handleCommitmentPayment = async () => {
           eligibleForDeduction: isEligibleForDeduction,
         });
 
-        updateSession(3, { name: studentName, studentId, firestoreId: selectedUserId }, selectedVendor);
+        updateSession(3, { name: studentName, contactNumber, firestoreId: selectedUserId }, selectedVendor);
         
         fetchAllData();
         hideLocalLoading();
@@ -645,7 +643,7 @@ const handleCommitmentPayment = async () => {
     const orderData = {
       userId: currentSelectedUserId, // Use the reliable ID
       userName: studentName,
-      studentId,
+      contactNumber,
       orderTotal: totalAmount,
       originalDeliveryFee: deliveryFee,
       deliveryFee: actualDeliveryFee,
@@ -673,7 +671,7 @@ const handleCommitmentPayment = async () => {
 
     hideLocalLoading();
 
-    updateSession('order_submitted', { name: studentName, studentId, firestoreId: currentSelectedUserId }, selectedVendor);
+    updateSession('order_submitted', { name: studentName, contactNumber, firestoreId: currentSelectedUserId }, selectedVendor);
     localStorage.setItem('pendingOrderDetails', JSON.stringify(completeOrder));
     localStorage.removeItem(`formState-${currentSelectedUserId}`);
 
@@ -703,11 +701,11 @@ const handleCommitmentPayment = async () => {
 };
 
 
-  const handleRetrieveRegistration = async (name, id) => {
+  const handleRetrieveRegistration = async (name, retrievedContact) => {
   if (!systemAvailability.isSystemOpen) {
     showSuccessAnimation(
       'System Closed',
-      'The food delivery system is only available on Tuesday and Friday from 12:00 AM to 6:00 PM (Malaysia Time).',
+      'The food delivery system is only available on Tuesday and Friday from 12:00 AM to 4:30 PM (Malaysia Time).',
       <div>
         <p style={{ margin: '8px 0', color: '#92400e', fontWeight: '600' }}>
           Next available: {systemAvailability.nextOpenTime}
@@ -721,9 +719,9 @@ const handleCommitmentPayment = async () => {
 
   const foundUser = prebookUsers.find(user =>
     user.name?.toLowerCase() === name.toLowerCase() &&
-    user.studentId === id &&
+    user.contactNumber === retrievedContact &&
     isToday(user.timestamp)
-  );
+);
 
   if (!foundUser) {
     showSuccessAnimation(
@@ -742,7 +740,7 @@ const handleCommitmentPayment = async () => {
   }
 
   setStudentName(foundUser.name);
-  setStudentId(foundUser.studentId);
+  setContactNumber(foundUser.contactNumber);
   setSelectedUserId(foundUser.firestoreId); // This is the most critical line to fix the error
   setIsCurrentUserEligible(foundUser.eligibleForDeduction || false);
   // CRITICAL: Set the vendor FIRST before any other operations
@@ -805,7 +803,7 @@ const handleCommitmentPayment = async () => {
       if (existingOrder) {
         // Order exists - advance to email prompt
         console.log("Found existing order during retrieval. Advancing to email prompt.");
-        updateSession('order_submitted', { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId }, foundUser.vendor);
+        updateSession('order_submitted', { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
         localStorage.setItem('pendingOrderDetails', JSON.stringify(existingOrder));
         setUserForEmail({ firestoreId: foundUser.firestoreId, name: foundUser.name });
         setShowEmailModal(true);
@@ -813,7 +811,7 @@ const handleCommitmentPayment = async () => {
       } else {
         // No order found - go to order form with message about previous attempt
         console.log("No existing order found during retrieval. User may have been interrupted.");
-        updateSession(3, { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId }, foundUser.vendor);
+        updateSession(3, { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
         setUserStep(3);
         
         // Check if there's saved form data indicating a previous attempt
@@ -847,13 +845,13 @@ const handleCommitmentPayment = async () => {
     }
   }, 50);
 } else if (wasSystemActiveOnRegistrationDay) {
-    updateSession(3, { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId }, foundUser.vendor);
+    updateSession(3, { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
     setUserStep(3);
     const deductionMessage = foundUser.eligibleForDeduction ? 'You will get RM10 deduction on delivery fee!' : 'No RM10 deduction applies.';
     showSuccessAnimation(`Welcome back, ${foundUser.name}!`, `System is active! You can submit your order directly. ${deductionMessage}`, null, 0, true);
   } else {
     const currentPaidUsersCount = todayUsers.filter(u => u.commitmentPaid).length;
-    updateSession(2, { name: foundUser.name, studentId: foundUser.studentId, firestoreId: foundUser.firestoreId }, foundUser.vendor);
+    updateSession(2, { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
     setUserStep(2);
     showSuccessAnimation(`Welcome back, ${foundUser.name}!`, 'Please complete your base delivery fee payment.', <p>We need {Math.max(0, 3 - currentPaidUsersCount)} more paid users today to activate the system.</p>, 0, true);
   }
@@ -867,7 +865,7 @@ const updateSession = (step, studentData, vendor) => {
     step: step,
     student: {
       name: studentData.name,
-      studentId: studentData.studentId,
+      contactNumber: studentData.contactNumber,
       firestoreId: studentData.firestoreId
     },
     savedAt: new Date().toISOString()
@@ -884,7 +882,7 @@ const clearStudentSession = useCallback(() => {
 const resetForm = useCallback((clearSession = false) => {
   setUserStep(1);
   setStudentName('');
-  setStudentId('');
+  setContactNumber('');
   setSelectedUserId('');
   setReceiptFile(null);
   setOrderNumber('');
@@ -893,9 +891,9 @@ const resetForm = useCallback((clearSession = false) => {
   setOrderReceiptFiles([]);
   setCurrentUserIndex(0);
   setNameError('');
-  setIdError('');
   setOrderError('');
   setIsCurrentUserEligible(false);
+  setContactError('');
   
   if (selectedUserId) {
     localStorage.removeItem(`formState-${selectedUserId}`);
@@ -914,7 +912,7 @@ const loadFromSession = useCallback(async () => {
   // CRITICAL: Use local variables to avoid state timing issues
   const userFirestoreId = rememberedStudent.firestoreId;
   const userName = rememberedStudent.name;
-  const userStudentId = rememberedStudent.studentId;
+  const userContactNumber = rememberedStudent.contactNumber;
 
   // Validate userFirestoreId before proceeding
   if (!userFirestoreId || typeof userFirestoreId !== 'string' || userFirestoreId.trim() === '') {
@@ -926,7 +924,7 @@ const loadFromSession = useCallback(async () => {
 
   // Set all state synchronously using the local variables
   setStudentName(userName);
-  setStudentId(userStudentId);
+  setContactNumber(userContactNumber);
   setSelectedUserId(userFirestoreId);
   
   const foundUser = prebookUsers.find(u => u.firestoreId === userFirestoreId);
@@ -944,7 +942,7 @@ const loadFromSession = useCallback(async () => {
 
       if (existingOrder) {
         console.log("Session restore detected existing order. Advancing to email prompt.");
-        updateSession('order_submitted', { name: userName, studentId: userStudentId, firestoreId: userFirestoreId }, selectedVendor);
+        updateSession('order_submitted', { name: userName, contactNumber: userContactNumber, firestoreId: userFirestoreId }, selectedVendor);
         localStorage.setItem('pendingOrderDetails', JSON.stringify(existingOrder));
         setUserForEmail({ firestoreId: userFirestoreId, name: userName });
         setShowEmailModal(true);
@@ -1033,8 +1031,8 @@ const isSubmitDisabled =
         <div style={styles.banner}>
           <span style={styles.bannerText}>
             {windowWidth <= 430
-              ? "New? Watch our 2-min guide!"
-              : "First time here? Watch a 2-min guide to see how it works!"
+              ? "New? Watch our 1-min guide!"
+              : "First time here? Watch a 1-min guide to see how it works!"
             }
           </span>
           <div style={styles.bannerActions}>
@@ -1061,7 +1059,7 @@ const isSubmitDisabled =
                 <iframe
                   width="100%"
                   height="100%"
-                  src="https://www.youtube.com/embed/CDzYM5_5nxc?rel=0&cc_load_policy=1&autoplay=1"
+                  src="https://www.youtube.com/embed/LLSWWeqVEaY?rel=0&cc_load_policy=1&autoplay=1"
                   title="Tutorial Video"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
@@ -1125,19 +1123,19 @@ const isSubmitDisabled =
           {nameError && <p style={styles.errorText}>{nameError}</p>}
           
           <input 
-            type="text" 
-            placeholder="Enter your student ID (e.g., 0469/24)" 
-            value={studentId} 
-            onChange={(e) => { 
-              setStudentId(e.target.value); 
-              validateStudentId(e.target.value); 
-            }} 
-            style={{ 
-              ...styles.input, 
-              ...(idError && styles.inputError) 
-            }} 
-          />
-          {idError && <p style={styles.errorText}>{idError}</p>}
+  type="tel" 
+  placeholder="Enter your contact number (0123456789)" 
+  value={contactNumber} 
+  onChange={(e) => { 
+    setContactNumber(e.target.value); 
+    validateContactNumber(e.target.value); 
+  }} 
+  style={{ 
+    ...styles.input, 
+    ...(contactError && styles.inputError) 
+  }} 
+/>
+{contactError && <p style={styles.errorText}>{contactError}</p>}
 
           <button 
             onClick={handlePrebook} 
@@ -1180,7 +1178,7 @@ const isSubmitDisabled =
     
     <div style={styles.infoCard}>
       <p style={{ margin: '0 0 8px 0' }}><strong>Name:</strong> {studentName}</p>
-      <p style={{ margin: '0 0 8px 0' }}><strong>Student ID:</strong> {studentId}</p>
+      <p style={{ margin: '0 0 8px 0' }}><strong>Contact:</strong> {contactNumber}</p>
       <p style={{ margin: 0 }}>
         <strong>Base Delivery Fee:</strong> RM10
       </p>
@@ -1519,7 +1517,7 @@ const isSubmitDisabled =
           >
             <p style={{ margin: '0', fontSize: '14px', color: '#92400e' }}>
   You'll be able to submit your order once we reach the minimum requirement. 
-  Please check back later <strong>before 6pm!</strong>
+  Please check back later <strong>before 4:30pm!</strong>
 </p>
 
           </BeautifulMessage>

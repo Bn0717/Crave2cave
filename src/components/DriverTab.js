@@ -573,7 +573,7 @@ const getOrdersByVendor = () => {
                   color: '#1e293b',
                   fontWeight: 'bold'
               }}>
-                  🕕 6:30 PM
+                  🕕 6:10 PM
               </p>
           </div>
         </div>
@@ -899,7 +899,7 @@ const getOrdersByVendor = () => {
                           fontSize: windowWidth <= 480 ? '10px' : '12px', 
                           color: '#64748b' 
                         }}>
-                          {order.studentId}
+                          {order.contactNumber}
                         </p>
                       </div>
                     </div>
