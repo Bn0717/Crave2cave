@@ -90,8 +90,8 @@ const DRIVER_PASSCODE = 'kyuem';
   const minute = malaysiaTime.getMinutes();
   const currentTime = hour + (minute / 60);
   
-  const isAllowedDay = dayOfWeek === 3 || dayOfWeek === 5 || dayOfWeek === 0 || dayOfWeek === 1 || dayOfWeek === 2 || dayOfWeek === 4 || dayOfWeek === 6 ; // Tuesday or Friday
-  const isAllowedTime = currentTime >= 0 && currentTime <24; // 12 AM to 6 PM
+  const isAllowedDay = dayOfWeek === 2 || dayOfWeek === 5; // Tuesday or Friday
+  const isAllowedTime = currentTime >= 0 && currentTime <= 16.5; // 12 AM to 4:30 PM
   
   const isSystemOpen = isAllowedDay && isAllowedTime;
   
