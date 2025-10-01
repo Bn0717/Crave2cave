@@ -39,7 +39,7 @@ const TEAM_MEMBERS = [
     name: "Charmaine Yong Yuen Yii",
     photo: Charmaine,
     school: "Kolej Yayasan UEM",
-    course: "Electrical Engineering",
+    course: "Electrical & Electronics Engineering",
     sponsor: "Shell Scholar"
   }
 ];

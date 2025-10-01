@@ -1167,7 +1167,7 @@ const isSubmitDisabled =
     }}>
       Step 2: Pay Base Delivery Fee 
     </h3>
-    <p>RM10 base delivery fee applies to the first 3 users but will be waived automatically during order submission. (Please check back before 6pm!!)</p>
+    <p>RM10 base delivery fee applies to the first 3 users but will be waived automatically during order submission. (Please check back before 4:30pm!!)</p>
 
     <UnifiedQRCodeDisplay 
       isCommitmentFee={true} 
