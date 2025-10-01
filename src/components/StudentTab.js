@@ -1246,7 +1246,7 @@ const isSubmitDisabled =
             color: '#1e293b', 
             fontSize: windowWidth <= 480 ? '18px' : '20px' 
           }}>
-            Step 3: Submit Your Order (Please submit before 6pm)
+            Step 3: Submit Your Order (Please submit before 4:30pm)
           </h3>
           
           <div style={{ 

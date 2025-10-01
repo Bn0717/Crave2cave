@@ -319,7 +319,7 @@ const WaitingPage = ({
                         </div>
                     )}
                     <p style={styles.message}>
-                        Please arrive at the KY main gate at around 7:15 PM to receive your order
+                        Please arrive at the KY main gate at around 7:00 PM to receive your order
                     </p>
                     <p style={{ ...styles.message, fontWeight: 'bold' }}>
                         (Check your spam email for the confirmation email)

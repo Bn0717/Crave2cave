@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, CheckCircle, MapPin, Image as ImageIcon } from 'lucide-react'; // Added ImageIcon
 
 const CountdownTimer = ({ 
-  targetTime = "19:15", 
+  targetTime = "19:00", 
   currentOrder = null,
   onViewImage = null
 }) => {
@@ -173,7 +173,7 @@ const CountdownTimer = ({
                     gap: '6px'
                 }}>
                     <MapPin size={16} color="#64748b" />
-                    Please arrive at the main gate by 7:15 PM
+                    Please arrive at the main gate by 7:00 PM
                 </p>
             )}
         </div>

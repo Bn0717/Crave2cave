@@ -165,7 +165,7 @@ const QASection = () => (
           </thead>
           <tbody>
             <tr>
-              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600', whiteSpace: 'nowrap' }}>3:00 PM</td>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600', whiteSpace: 'nowrap' }}>4:30 PM</td>
               <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12) }}>Orders close</td>
             </tr>
             <tr style={{ backgroundColor: '#f8fafc' }}>
@@ -198,6 +198,7 @@ const QASection = () => (
 
     <QAItem question="What is the refund policy?">
       <p>For any refund requests, please contact the admin-on-duty.</p>
+      <strong>Tee Chun Shan (01116169431)</strong>
     </QAItem>
   </div>
 );

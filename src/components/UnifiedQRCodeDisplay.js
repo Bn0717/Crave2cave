@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle, QrCode } from 'lucide-react';
-import qrImage from '../assets/qrtng.jpg';
+import qrImage from '../assets/Adminqr.jpg';
 
 const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false, userIndex = 0, registrationOrder = [], selectedUserId = '' }) => {
     const userOrder = registrationOrder.find(order => order.userId === selectedUserId);
