@@ -1059,7 +1059,7 @@ const isSubmitDisabled =
                 <iframe
                   width="100%"
                   height="100%"
-                  src="https://www.youtube.com/embed/LLSWWeqVEaY?rel=0&cc_load_policy=1&autoplay=1"
+                  src="https://www.youtube.com/embed/_EHiPn9uRMM?rel=0&cc_load_policy=1&autoplay=1"
                   title="Tutorial Video"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
