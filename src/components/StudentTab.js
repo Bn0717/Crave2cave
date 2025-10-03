@@ -1059,7 +1059,7 @@ const isSubmitDisabled =
                 <iframe
                   width="100%"
                   height="100%"
-                  src="https://www.youtube.com/embed/_EHiPn9uRMM?rel=0&cc_load_policy=1&autoplay=1"
+                  src="https://www.youtube.com/embed/y2lzqtyPAco?rel=0&cc_load_policy=1&autoplay=1"
                   title="Tutorial Video"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
@@ -1089,12 +1089,23 @@ const isSubmitDisabled =
   <span>Minimum 3 official users required</span>
   <span>{todayUsers.filter(u => u.commitmentPaid).length}/3</span>
 </div>
+
+
         <div style={styles.progressTrack}>
           <div style={{
   ...styles.progressFill,
   width: `${Math.min((todayUsers.filter(u => u.commitmentPaid).length / 3) * 100, 100)}%`
 }}></div>
         </div>
+        
+        <p style={{ 
+          fontSize: windowWidth <= 480 ? '12px' : '13px', 
+          color: '#64748b', 
+          marginTop: '8px',
+          lineHeight: '1.5'
+        }}>
+          <strong>Note:</strong> Official users are those who have registered and paid the RM10 deposit, which will be deducted from their total delivery fee when you submit your order.
+        </p>
       </div>
 
       {userStep === 1 && (
@@ -1165,9 +1176,9 @@ const isSubmitDisabled =
       color: '#1e293b',
       fontSize: windowWidth <= 480 ? '16px' : '18px'
     }}>
-      Step 2: Pay Base Delivery Fee 
+      Step 2: Pay Base Delivery Fee (Deposit)
     </h3>
-    <p>RM10 base delivery fee applies to the first 3 users but will be waived automatically during order submission. (Please check back before 4:30pm!!)</p>
+    <p>RM10 base delivery fee applies to the first 3 users but will be deducted from their total delivery fee during order submission. (Please check back before 4:30pm!!)</p>
 
     <UnifiedQRCodeDisplay 
       isCommitmentFee={true} 
