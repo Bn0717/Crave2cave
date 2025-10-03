@@ -91,7 +91,7 @@ const DRIVER_PASSCODE = 'kyuem';
   const currentTime = hour + (minute / 60);
   
   const isAllowedDay = dayOfWeek === 2 || dayOfWeek === 5; // Tuesday or Friday
-  const isAllowedTime = currentTime >= 0 && currentTime <= 16.5; // 12 AM to 4:30 PM
+  const isAllowedTime = currentTime >= 0 && currentTime <= 17; // 12 AM to 4:30 PM
   
   const isSystemOpen = isAllowedDay && isAllowedTime;
   
