@@ -80,7 +80,7 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
       background: 'rgba(255, 255, 255, 0.95)', borderRadius: '24px',
       padding: windowWidth <= 768 ? '20px' : '32px', textAlign: 'center',
       cursor: 'pointer', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-      border: '2px solid transparent', position: 'relative', overflow: 'hidden',
+      border: '5px solid transparent', position: 'relative', overflow: 'hidden',
       backdropFilter: 'blur(20px)', boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
     },
     vendorCardSelected: {
@@ -278,17 +278,36 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
       </div>
 
       <div style={styles.vendorContainer}>
-        {vendors.map((vendor) => (
-          <div
-            key={vendor.id}
-            style={{ ...styles.vendorCard, ...(selectedVendor === vendor.id ? styles.vendorCardSelected : {}), borderColor: selectedVendor === vendor.id ? vendor.color : 'transparent' }}
-            onClick={() => setSelectedVendor(vendor.id)}
-          >
-            {selectedVendor === vendor.id && <div style={styles.shimmer} />}
-            <div style={styles.vendorLogo}>{vendor.logo}</div>
-            <h3 style={styles.vendorName}>{vendor.name}</h3>
-          </div>
-        ))}
+        {vendors.map((vendor) => {
+          const isSelected = selectedVendor === vendor.id;
+          const hasSelection = selectedVendor !== '';
+
+          // Define dynamic styles here for clarity
+          const dynamicStyles = {
+            borderColor: isSelected ? vendor.color : 'transparent',
+            opacity: hasSelection && !isSelected ? 0.6 : 1, // Fade if another card is selected
+            ... (isSelected && {
+              // Apply a colored glow ONLY when selected
+              boxShadow: `0 0 30px -5px ${vendor.color}, 0 10px 30px -10px rgba(0,0,0,0.3)`
+            })
+          };
+
+          return (
+            <div
+              key={vendor.id}
+              style={{
+                ...styles.vendorCard,
+                ...(isSelected ? styles.vendorCardSelected : {}),
+                ...dynamicStyles
+              }}
+              onClick={() => setSelectedVendor(vendor.id)}
+            >
+              {isSelected && <div style={styles.shimmer} />}
+              <div style={styles.vendorLogo}>{vendor.logo}</div>
+              <h3 style={styles.vendorName}>{vendor.name}</h3>
+            </div>
+          );
+        })}
       </div>
 
       <button

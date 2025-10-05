@@ -357,7 +357,7 @@ const UserGuideTab = () => {
         <div style={styles.videoWrapper}>
           <iframe
             style={styles.iframe}
-            src="https://www.youtube.com/embed/y2lzqtyPAco?rel=0&cc_load_policy=1&autoplay=0"
+            src="https://www.youtube.com/embed/D4tE5oGe7ng?rel=0&cc_load_policy=1&autoplay=0"
             title="YouTube video player"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen

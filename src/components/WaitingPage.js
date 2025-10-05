@@ -240,11 +240,43 @@ const WaitingPage = ({
                         />
                     </div>
                     <h2 style={styles.title}>Your Order is Being Prepared</h2>
-                    <CountdownTimer targetTime="19:00" />
-                    <div 
-                        style={styles.locationInfo} 
-                        className={window.innerWidth < 480 ? "location-info-mobile" : ""}
-                    >
+
+{/* NEW: Delivery Date Display */}
+{currentOrder?.deliveryDate && (
+    <div style={{
+        backgroundColor: '#eef2ff',
+        padding: 'clamp(12px, 3vw, 16px)',
+        borderRadius: 'clamp(8px, 2vw, 12px)',
+        margin: 'clamp(12px, 3vw, 16px) 0',
+        border: '2px solid #c7d2fe',
+    }}>
+        <p style={{
+            margin: 0,
+            fontSize: 'clamp(13px, 3.5vw, 15px)',
+            color: '#4338ca',
+            fontWeight: '600'
+        }}>
+            Delivery Date: {new Date(currentOrder.deliveryDate + 'T00:00:00').toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric'
+            })}
+        </p>
+    </div>
+)}
+
+<CountdownTimer 
+    targetTime="19:00" 
+    deliveryDate={currentOrder?.deliveryDate}
+    currentOrder={currentOrder}
+    // The onViewImage prop has been removed to hide the receipt button inside the timer.
+/>
+
+<div 
+    style={styles.locationInfo} 
+    className={window.innerWidth < 480 ? "location-info-mobile" : ""}
+>
                         <MapPin size={window.innerWidth < 480 ? 18 : 20} color="#3b82f6" />
                         <span style={{ 
                             fontWeight: '600', 
@@ -319,14 +351,43 @@ const WaitingPage = ({
                         </div>
                     )}
                     <p style={styles.message}>
-                        Please arrive at the KY main gate at around 7:00 PM to receive your order
-                    </p>
-                    <p style={{ ...styles.message, fontWeight: 'bold' }}>
-                        (Check your spam email for the confirmation email)
-                    </p>
-                    <button style={styles.button} onClick={onClose}>
-                        Close
-                    </button>
+    Please wait for the admin to update in the group before picking up your order. (Around 7:30 PM)
+</p>
+<p style={{ ...styles.message, fontWeight: 'bold' }}>
+    (Check your spam email for the confirmation email)
+</p>
+
+{/* NEW: WhatsApp Group Link */}
+<a 
+    href="https://chat.whatsapp.com/CUZ0DJ698Sp2A5vTxzwZ3I" 
+    target="_blank" 
+    rel="noopener noreferrer"
+    style={{
+        display: 'block',
+        padding: 'clamp(12px, 3vw, 14px) clamp(20px, 5vw, 28px)',
+        backgroundColor: '#25D366',
+        color: 'white',
+        border: 'none',
+        borderRadius: 'clamp(8px, 2vw, 12px)',
+        textDecoration: 'none',
+        fontSize: 'clamp(14px, 3.5vw, 16px)',
+        fontWeight: '600',
+        margin: 'clamp(16px, 4vw, 20px) auto',
+        width: '100%',
+        maxWidth: '300px',
+        textAlign: 'center',
+        boxShadow: '0 4px 14px rgba(37, 211, 102, 0.3)',
+        transition: 'all 0.2s ease'
+    }}
+    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1faa52'}
+    onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#25D366'}
+>
+    📱 Join WhatsApp Group for Live Updates
+</a>
+
+<button style={styles.button} onClick={onClose}>
+    Close
+</button>
                 </div>
                 {showImage && currentOrder?.orderImageURLs && currentOrder.orderImageURLs.length > 0 && (
                     <ImageModal

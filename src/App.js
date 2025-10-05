@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
 import logoForAnimation from './assets/logo(1).png';
 import * as firebaseService from './services/firebase';
+import { db } from './services/firebase'; // We need direct db access
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { isToday } from './utils/isToday';
 import Navigation from './components/Navigation';
 import LoadingAnimation from './components/LoadingAnimation';
@@ -65,7 +67,7 @@ useEffect(() => {
 
 
   const ADMIN_PASSCODE = 'byyc';
-const DRIVER_PASSCODE = 'kyuem';
+const DRIVER_PASSCODE = 'ky';
 
   const styles = {
     container: { 
@@ -82,50 +84,83 @@ const DRIVER_PASSCODE = 'kyuem';
   };
 
   const getSystemAvailability = () => {
-  const now = new Date();
-  const malaysiaTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"}));
-  
-  const dayOfWeek = malaysiaTime.getDay(); // 0=Sunday, 2=Tuesday, 5=Friday
-  const hour = malaysiaTime.getHours();
-  const minute = malaysiaTime.getMinutes();
-  const currentTime = hour + (minute / 60);
-  
-  const isAllowedDay = dayOfWeek === 2 || dayOfWeek === 5; // Tuesday or Friday
-  const isAllowedTime = currentTime >= 0 && currentTime <= 17; // 12 AM to 4:30 PM
-  
-  const isSystemOpen = isAllowedDay && isAllowedTime;
-  
-  let nextOpenTime = '';
-  if (!isAllowedDay) {
-    // Find next Tuesday or Friday
-    const daysUntilTuesday = (2 - dayOfWeek + 7) % 7;
-    const daysUntilFriday = (5 - dayOfWeek + 7) % 7;
-    const nextDay = daysUntilTuesday <= daysUntilFriday ? daysUntilTuesday : daysUntilFriday;
-    const nextDate = new Date(malaysiaTime);
-    nextDate.setDate(nextDate.getDate() + (nextDay === 0 ? 7 : nextDay));
-    nextOpenTime = nextDate.toLocaleDateString('en-MY', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    }) + ' at 12:00 AM';
-  } else if (currentTime >= 18) {
-    // Next allowed day (Tuesday or Friday)
-    const daysUntilNext = dayOfWeek === 2 ? 3 : 4; // Friday if Tuesday, Tuesday if Friday
-    const nextDate = new Date(malaysiaTime);
-    nextDate.setDate(nextDate.getDate() + daysUntilNext);
-    nextOpenTime = nextDate.toLocaleDateString('en-MY', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    }) + ' at 12:00 AM';
-  }
-  
-  return { isSystemOpen, nextOpenTime, malaysiaTime };
-};
+  // =================================================================
+  // =================== YOUR MASTER SCHEDULE CONTROL ==================
+  const DELIVERY_DAYS = [2, 5]; // Monday=1, Wednesday=3, Friday=5
+  const CUTOFF_HOUR = 14; // 2 PM
+  const CUTOFF_MINUTE = 0; // 2:00 PM
+  // =================================================================
 
-// Replace ALL your navigation functions with these clean versions:
+  const now = new Date();
+  const malaysiaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" }));
+  const currentHour = malaysiaTime.getHours();
+  const currentMinute = malaysiaTime.getMinutes();
+  const currentDay = malaysiaTime.getDay();
+
+  // ✅ NEW: If it's a delivery day and past cutoff (4:30 PM - 11:59 PM), close the system
+  if (DELIVERY_DAYS.includes(currentDay)) {
+    if (currentHour > CUTOFF_HOUR || (currentHour === CUTOFF_HOUR && currentMinute >= CUTOFF_MINUTE)) {
+      // It's after 4:30 PM on a delivery day - system is CLOSED until midnight
+      const nextDeliveryDate = new Date(malaysiaTime);
+      nextDeliveryDate.setDate(nextDeliveryDate.getDate() + 1);
+      nextDeliveryDate.setHours(0, 0, 0, 0);
+      
+      // Find the next delivery day after today
+      for (let i = 1; i <= 14; i++) {
+        const checkingDate = new Date(malaysiaTime);
+        checkingDate.setDate(checkingDate.getDate() + i);
+        const checkingDay = checkingDate.getDay();
+        
+        if (DELIVERY_DAYS.includes(checkingDay)) {
+          return {
+          isSystemOpen: false,
+          deliveryDate: checkingDate.toLocaleDateString('en-CA'),  // ← Show next delivery date
+          nextOpenTime: `Midnight tonight (opens for ${checkingDate.toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            month: 'long', 
+            day: 'numeric' 
+          })} delivery)`,
+          malaysiaTime,
+        };
+        }
+      }
+      
+      // If no delivery day found after cutoff
+      return {
+        isSystemOpen: false,
+        deliveryDate: null,
+        nextOpenTime: 'No delivery dates scheduled in the next 2 weeks',
+        malaysiaTime,
+      };
+    }
+  }
+
+  // Check the next 14 days to find a valid delivery date
+  for (let i = 0; i <= 14; i++) {
+    const checkingDate = new Date(malaysiaTime);
+    checkingDate.setDate(checkingDate.getDate() + i);
+    checkingDate.setHours(0, 0, 0, 0);
+    const checkingDay = checkingDate.getDay();
+
+    if (DELIVERY_DAYS.includes(checkingDay)) {
+      // If this is today (i === 0), we already checked cutoff above
+      // So if we reach here for today, it means we're before cutoff
+      return {
+        isSystemOpen: true,
+        deliveryDate: checkingDate.toLocaleDateString('en-CA'),
+        malaysiaTime,
+      };
+    }
+  }
+
+  // No delivery date found in the next 14 days
+  return {
+    isSystemOpen: false,
+    deliveryDate: null,
+    nextOpenTime: 'No delivery dates scheduled',
+    malaysiaTime,
+  };
+};
 
 const scrollToTop = useCallback(() => {
   // Simple, reliable scroll to top
@@ -196,29 +231,77 @@ const handleNavigateWithTransition = (config, navigationAction) => {
   }, 1600);
 };
 
-const fetchAllData = useCallback(async () => {
-  try {
-    setLoadingUsers(true);
-    setLoadingOrders(true);
-    setLoadingHistory(true);
-    const [users, ordersData, history] = await Promise.all([
-      firebaseService.getPrebookUsers(),
-      firebaseService.getOrders(),
-      firebaseService.getHistoryData()
-    ]);
-    setPrebookUsers(users);
-    setAllOrders(ordersData); // <-- Store all orders here
-    setHistoryData(history);
-    const orderArray = users.map((user, index) => ({ userId: user.firestoreId, order: index + 1 }));
-    setRegistrationOrder(orderArray);
-  } catch (error) {
-    console.error('Error fetching data:', error);
-  } finally {
+useEffect(() => {
+  if (!showMainApp) return;
+  
+  // Get the actual delivery date the system is operating on
+  const targetDeliveryDate = systemAvailability.deliveryDate;
+  
+  if (!targetDeliveryDate) {
+    // System is closed, no delivery date available
     setLoadingUsers(false);
     setLoadingOrders(false);
     setLoadingHistory(false);
+    return;
   }
-}, []);
+
+  setLoadingUsers(true);
+  setLoadingOrders(true);
+  setLoadingHistory(true);
+
+  // --- Listener for Users for Target Delivery Date ---
+  const usersQuery = query(
+    collection(db, "prebookUsers"),
+    where("deliveryDate", "==", targetDeliveryDate)  // ✅ Use the actual delivery date
+  );
+  const unsubscribeUsers = onSnapshot(usersQuery, (querySnapshot) => {
+    const users = querySnapshot.docs
+      .map((doc) => ({ id: doc.id, firestoreId: doc.id, ...doc.data() }))
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    
+    setPrebookUsers(users);
+    const orderArray = users.map((user, index) => ({ userId: user.firestoreId, order: index + 1 }));
+    setRegistrationOrder(orderArray);
+    setLoadingUsers(false);
+    console.log("Real-time user data updated:", users);
+  }, (error) => {
+    console.error("Error listening to user data:", error);
+    setLoadingUsers(false);
+  });
+
+  // --- Listener for All Orders ---
+  const ordersQuery = query(collection(db, "orders"));
+  const unsubscribeOrders = onSnapshot(ordersQuery, (querySnapshot) => {
+    const ordersData = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    setAllOrders(ordersData);
+    setLoadingOrders(false);
+  }, (error) => {
+    console.error("Error listening to order data:", error);
+    setLoadingOrders(false);
+  });
+  
+  // --- Listener for History ---
+  const historyQuery = query(collection(db, "history"));
+   const unsubscribeHistory = onSnapshot(historyQuery, (querySnapshot) => {
+    const history = querySnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+    setHistoryData(history);
+    setLoadingHistory(false);
+  }, (error) => {
+    console.error("Error listening to history data:", error);
+    setLoadingHistory(false);
+  });
+
+  // Cleanup function: This is crucial to prevent memory leaks
+  return () => {
+    unsubscribeUsers();
+    unsubscribeOrders();
+    unsubscribeHistory();
+  };
+  
+}, [systemAvailability.deliveryDate, showMainApp]); // Re-run this effect if the date or app visibility changes
+
 
 const handleMultipleImages = (images) => {
   if (Array.isArray(images) && images.length > 0) {
@@ -228,19 +311,33 @@ const handleMultipleImages = (images) => {
   }
 };
 
-  const filterTodayData = useCallback((ordersData = [], users = []) => {
-  const todayOrdersFiltered = ordersData.filter(order => isToday(order.timestamp));
-  const todayUsersFiltered = users.filter(user => isToday(user.registrationDate) || isToday(user.timestamp));
-  setTodayOrders(todayOrdersFiltered);
-  setTodayUsers(todayUsersFiltered);
+  const filterTodayData = useCallback(() => {
+  const targetDeliveryDate = systemAvailability.deliveryDate;
   
-  // Count only users who paid the commitment fee
-  const paidUsersCount = todayUsersFiltered.filter(u => u.commitmentPaid).length;
+  if (!targetDeliveryDate) {
+    setTodayOrders([]);
+    setTodayUsers([]);
+    setMinOrderReached(false);
+    setSystemActivatedToday(false);
+    return;
+  }
+  
+  const todayOrdersFiltered = allOrders.filter(order => order.deliveryDate === targetDeliveryDate);
+  
+  setTodayOrders(todayOrdersFiltered);
+  setTodayUsers(prebookUsers);  // prebookUsers is already filtered by the listener
+  
+  const paidUsersCount = prebookUsers.filter(u => u.commitmentPaid).length;
   
   const isActivatedToday = paidUsersCount >= 3;
   setMinOrderReached(isActivatedToday);
   setSystemActivatedToday(isActivatedToday);
-}, []);
+}, [allOrders, prebookUsers, systemAvailability.deliveryDate]);
+
+// ADD this useEffect right below filterTodayData
+useEffect(() => {
+  filterTodayData();
+}, [allOrders, prebookUsers, filterTodayData]);
 
   const getProgressText = (step) => {
   if (step === 2) return "Awaiting Base Delivery Fee for first 3 users";
@@ -371,7 +468,6 @@ const handleStartNewSession = () => {
   if (resetStudentForm) {
     resetStudentForm(false); // Pass false to NOT clear session
   }
-  fetchAllData();
 
   // ✅ KEEP the session data so user can return to timer
   // Don't clear userSession or activeOrderDetails
@@ -505,11 +601,6 @@ useEffect(() => {
   return () => window.removeEventListener('resize', handleResize);
 }, []);
 
-  useEffect(() => {
-    if (showMainApp) {
-      fetchAllData();
-    }
-  }, [fetchAllData, showMainApp]);
 
 useEffect(() => {
     const dailyResetInterval = setInterval(() => {
@@ -595,7 +686,6 @@ useEffect(() => {
     showSuccessAnimation,
     showLoadingAnimation,
     hideLoadingAnimation,
-    fetchAllData,
     setSelectedImage,
     setOrderConfirmed,
     setCurrentOrder,

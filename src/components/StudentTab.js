@@ -8,6 +8,7 @@ import BeautifulMessage from './BeautifulMessage';
 import FeeBreakdown from './FeeBreakdown';
 import UnifiedQRCodeDisplay from './UnifiedQRCodeDisplay';
 import CountdownTimer from './CountdownTimer';
+import imageCompression from 'browser-image-compression';
 import LoadingAnimation from './LoadingAnimation';
 
 const StudentTab = ({
@@ -21,7 +22,6 @@ const StudentTab = ({
   showSuccessAnimation,
   showLoadingAnimation,
   hideLoadingAnimation,
-  fetchAllData,
   setSelectedImage,
   setOrderConfirmed,
   setCurrentOrder,
@@ -57,6 +57,7 @@ const StudentTab = ({
   const [isProcessing, setIsProcessing] = useState(false);
    const [isLoading, setIsLoading] = useState(false); // Add local loading state
   const [loadingMessage, setLoadingMessage] = useState(''); 
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
 
   const styles = {
@@ -332,17 +333,17 @@ const StudentTab = ({
     return true;
   };
 
-const handleAddReceipt = (event) => {
-  // Prevent adding more than 3 files.
+const handleAddReceipt = async (event) => { // <--- MAKE THIS ASYNC
   if (orderReceiptFiles.length >= 3) {
     alert("You can only upload a maximum of 3 receipts.");
     return;
   }
   
   if (event.target.files && event.target.files[0]) {
-    const newFile = event.target.files[0];
-    setOrderReceiptFiles(prevFiles => [...prevFiles, newFile]);
-    event.target.value = null; // Important: allows re-adding the same file if removed
+    const originalFile = event.target.files[0];
+    const compressedFile = await handleImageCompression(originalFile); // Compress the file
+    setOrderReceiptFiles(prevFiles => [...prevFiles, compressedFile]); // Add the compressed file
+    event.target.value = null;
   }
 };
 
@@ -402,6 +403,34 @@ const handleRemoveReceipt = (indexToRemove) => {
   return `Please complete: ${fieldList}`;
 };
 
+const handleImageCompression = async (file) => {
+    const options = {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1024,
+      useWebWorker: true,
+    };
+
+    try {
+      console.log(`Original file size: ${file.size / 1024 / 1024} MB`);
+      // 1. Compress the file into a Blob
+      const compressedBlob = await imageCompression(file, options);
+      console.log(`Compressed file size: ${compressedBlob.size / 1024 / 1024} MB`);
+
+      // 2. THIS IS THE CRITICAL FIX: Convert the Blob back into a File object
+      const compressedFileAsFile = new File([compressedBlob], file.name, {
+        type: compressedBlob.type,
+        lastModified: Date.now(),
+      });
+
+      return compressedFileAsFile; // <-- NOW RETURNS A FILE, NOT A BLOB
+
+    } catch (error) {
+      console.error("Image compression failed:", error);
+      // Fallback to the original file if compression fails
+      return file;
+    }
+  };
+
 const handlePrebook = async () => {
     if (!systemAvailability.isSystemOpen) {
       showSuccessAnimation(
@@ -421,10 +450,18 @@ const handlePrebook = async () => {
     
 if (!validateName(studentName) || !validateContactNumber(contactNumber)) return;
     
-    const existingUser = prebookUsers.find(user => 
-  isToday(user.timestamp) && 
-  (user.contactNumber === contactNumber || user.name.toLowerCase() === studentName.toLowerCase())
-);
+    // Normalize the current user's input
+    const normalizedName = studentName.trim().replace(/\s+/g, ' ').toLowerCase();
+    const normalizedContact = contactNumber.replace(/\D/g, ''); // Removes all non-digits
+
+    const targetDeliveryDate = systemAvailability.deliveryDate;
+
+const existingUser = todayUsers.find(user => {
+  const dbName = user.name?.trim().replace(/\s+/g, ' ').toLowerCase();
+  const dbContact = user.contactNumber?.replace(/\D/g, '');
+  
+  return user.deliveryDate === targetDeliveryDate && (dbContact === normalizedContact || dbName === normalizedName);
+});
     
     if (existingUser) {
       showSuccessAnimation(
@@ -450,14 +487,15 @@ if (!validateName(studentName) || !validateContactNumber(contactNumber)) return;
         const currentUserPosition = todayUsers.length + 1;
 
         const newUser = {
-          name: studentName,
-          contactNumber,
+          name: studentName.trim().replace(/\s+/g, ' '), // Save with proper spacing and case
+          contactNumber: contactNumber.replace(/\D/g, ''), // Save only digits
           timestamp: new Date().toISOString(),
           commitmentPaid: false,
           orderSubmitted: false,
           registrationOrder: currentUserPosition,
           hasOrdered: false,
           orderTotal: 0,
+          deliveryDate: systemAvailability.deliveryDate,
           vendor: selectedVendor,
         };
 
@@ -467,7 +505,6 @@ if (!validateName(studentName) || !validateContactNumber(contactNumber)) return;
         updateSession(nextStep, { name: studentName, contactNumber, firestoreId: newUserId }, selectedVendor);
         
         setSelectedUserId(newUserId);
-        fetchAllData();
         setUserStep(nextStep);
 
         hideLocalLoading();
@@ -493,6 +530,21 @@ if (!validateName(studentName) || !validateContactNumber(contactNumber)) return;
   };
 
 const handleCommitmentPayment = async () => {
+  if (!systemAvailability.isSystemOpen) {
+      showSuccessAnimation(
+        'System Closed',
+        'The system is currently closed and cannot accept new payments.',
+        <div>
+          <p style={{ margin: '8px 0', color: '#92400e', fontWeight: '600' }}>
+            Next available: {systemAvailability.nextOpenTime}
+          </p>
+        </div>,
+        0,
+        true
+      );
+      return;
+    }
+
     if (!receiptFile) {
       showSuccessAnimation('Missing Receipt', 'Please upload a payment receipt.', null, 0, true);
       return;
@@ -521,8 +573,6 @@ const handleCommitmentPayment = async () => {
         });
 
         updateSession(3, { name: studentName, contactNumber, firestoreId: selectedUserId }, selectedVendor);
-        
-        fetchAllData();
         hideLocalLoading();
 
         const newPaidCount = currentPaidCount + 1;
@@ -552,6 +602,20 @@ const handleCommitmentPayment = async () => {
   };
 
   const handleOrderSubmission = async () => {
+  if (!systemAvailability.isSystemOpen) {
+      showSuccessAnimation(
+        'System Closed',
+        'The system is currently closed and cannot accept new order submissions.',
+        <div>
+          <p style={{ margin: '8px 0', color: '#92400e', fontWeight: '600' }}>
+            Next available: {systemAvailability.nextOpenTime}
+          </p>
+        </div>,
+        0,
+        true
+      );
+      return;
+    }
   // Use local variable to get the current selectedUserId value with better fallback logic
   let currentSelectedUserId = selectedUserId;
   
@@ -626,18 +690,19 @@ const handleCommitmentPayment = async () => {
   try {
     let paymentProofURL = null;
     if (paymentProof) {
-      if (!(paymentProof instanceof File)) {
+      if (!(paymentProof instanceof File)) { // <-- CORRECTED LINE
         throw new Error('Invalid payment proof file: Please select a valid image');
       }
       paymentProofURL = await firebaseService.uploadFileToStorage(paymentProof);
     }
 
     const uploadPromises = orderReceiptFiles.map(file => {
-      if (!(file instanceof File)) {
+      if (!(file instanceof File)) { // <-- CORRECTED LINE
         throw new Error('Invalid order receipt file found.');
       }
       return firebaseService.uploadFileToStorage(file);
     });
+
     const orderImageURLs = await Promise.all(uploadPromises);
 
     const orderData = {
@@ -657,6 +722,7 @@ const handleCommitmentPayment = async () => {
       wasFourthUser: currentUserIndex >= 3,
       timestamp: new Date().toISOString(),
       vendor: selectedVendor,
+      deliveryDate: systemAvailability.deliveryDate,
     };
 
     const orderId = await firebaseService.saveOrder(orderData);
@@ -701,161 +767,98 @@ const handleCommitmentPayment = async () => {
 };
 
 
-  const handleRetrieveRegistration = async (name, retrievedContact) => {
-  if (!systemAvailability.isSystemOpen) {
-    showSuccessAnimation(
-      'System Closed',
-      'The food delivery system is only available on Tuesday and Friday from 12:00 AM to 4:30 PM (Malaysia Time).',
-      <div>
-        <p style={{ margin: '8px 0', color: '#92400e', fontWeight: '600' }}>
-          Next available: {systemAvailability.nextOpenTime}
-        </p>
-      </div>,
-      0,
-      true
-    );
-    return;
-  }
+const handleRetrieveRegistration = async (name, retrievedContact) => {
+    // 1. Normalize the user's input immediately
+    const normalizedNameInput = name.trim().replace(/\s+/g, ' ').toLowerCase();
+    const normalizedContactInput = retrievedContact.replace(/\D/g, ''); // Removes all non-digits
 
-  const foundUser = prebookUsers.find(user =>
-    user.name?.toLowerCase() === name.toLowerCase() &&
-    user.contactNumber === retrievedContact &&
-    isToday(user.timestamp)
-);
+    const foundUser = prebookUsers.find(user => {
+      // 2. Normalize the data from the database for a perfect comparison
+      const dbName = user.name?.trim().replace(/\s+/g, ' ').toLowerCase();
+      const dbContact = user.contactNumber?.replace(/\D/g, '');
 
-  if (!foundUser) {
-    showSuccessAnimation(
-      "Registration Not Found",
-      `We couldn't find your registration details for today.`,
-      <BeautifulMessage
-        type="warning"
-        title="Daily Registration Required"
-        message="Registrations are only valid for the current day. Please register again for today's delivery."
-        icon={<AlertCircle />}
-      />,
-      0,
-      true
-    );
-    return;
-  }
+      return isToday(user.timestamp) && dbName === normalizedNameInput && dbContact === normalizedContactInput;
+    });
 
-  setStudentName(foundUser.name);
-  setContactNumber(foundUser.contactNumber);
-  setSelectedUserId(foundUser.firestoreId); // This is the most critical line to fix the error
-  setIsCurrentUserEligible(foundUser.eligibleForDeduction || false);
-  // CRITICAL: Set the vendor FIRST before any other operations
-  if (foundUser.vendor) {
-    setSelectedVendor(foundUser.vendor);
-  }
+    if (!foundUser) {
+      showSuccessAnimation("Registration Not Found", `We couldn't find your registration for today. Please check your details or register again.`, null, 0, true);
+      return;
+    }
 
-  // This part of your logic for already COMPLETED orders is good and remains.
-  if (foundUser.orderSubmitted && isToday(foundUser.lastOrderDate)) {
-    showLocalLoading('Retrieving your order...');
-    try {
-      // Note: You might consider using getTodaysOrderByUserId here too for consistency
+    if (foundUser.orderSubmitted && isToday(foundUser.lastOrderDate)) {
+      showLocalLoading('Retrieving your order...');
       const order = await firebaseService.getTodaysOrderByUserId(foundUser.firestoreId);
+      hideLocalLoading();
       if (order) {
         setShowRetrieve(false);
         setCurrentOrder(order);
         setOrderConfirmed(true);
-        hideLocalLoading();
-        return;
       } else {
-        // This case handles data inconsistency, which is good to have.
-        hideLocalLoading();
-        showSuccessAnimation(
-          "Order Not Found",
-          `No order details found for ${foundUser.name}.`,
-          <BeautifulMessage
-            type="info"
-            title="Order Issue"
-            message="Please contact support if you believe this is an error."
-            icon={<AlertCircle />}
-          />,
-          0,
-          true
-        );
-        return;
+        showSuccessAnimation("Order Not Found", `No order details found for ${foundUser.name}.`, null, 0, true);
       }
-    } catch (error) {
-      console.error('Error retrieving order:', error);
-      hideLocalLoading();
+      return;
+    }
+
+    if (!systemAvailability.isSystemOpen) {
       showSuccessAnimation(
-        "Error", `Failed to retrieve order: ${error.message}`, null, 0, true
+        'System Closed',
+        'The system is currently closed. You can only retrieve a completed order.',
+        <div><p style={{ margin: '8px 0', color: '#92400e', fontWeight: '600' }}>Next available: {systemAvailability.nextOpenTime}</p></div>,
+        0, true
       );
       return;
     }
-  }
 
-  const usersFromRegistrationDay = prebookUsers.filter(u =>
-    new Date(u.timestamp).toLocaleDateString() === new Date(foundUser.timestamp).toLocaleDateString()
-  );
-  const paidUsersOnRegistrationDay = usersFromRegistrationDay.filter(u => u.commitmentPaid).length;
-  const wasSystemActiveOnRegistrationDay = paidUsersOnRegistrationDay >= 3;
-
-  if (foundUser.commitmentPaid) {
-  showLocalLoading("Verifying your order status...");
-
-  setTimeout(async () => {
-    try {
-      const existingOrder = await firebaseService.getTodaysOrderByUserId(foundUser.firestoreId);
-
-      if (existingOrder) {
-        // Order exists - advance to email prompt
-        console.log("Found existing order during retrieval. Advancing to email prompt.");
-        updateSession('order_submitted', { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
-        localStorage.setItem('pendingOrderDetails', JSON.stringify(existingOrder));
-        setUserForEmail({ firestoreId: foundUser.firestoreId, name: foundUser.name });
-        setShowEmailModal(true);
-        setCurrentOrder(existingOrder);
-      } else {
-        // No order found - go to order form with message about previous attempt
-        console.log("No existing order found during retrieval. User may have been interrupted.");
-        updateSession(3, { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
-        setUserStep(3);
-        
-        // Check if there's saved form data indicating a previous attempt
-        const savedFormStateJSON = localStorage.getItem(`formState-${foundUser.firestoreId}`);
-        if (savedFormStateJSON) {
-          const savedFormState = JSON.parse(savedFormStateJSON);
-          setOrderNumber(savedFormState.orderNumber || '');
-          setOrderTotal(savedFormState.orderTotal || '');
-          
-          showSuccessAnimation(
-            `Welcome back, ${foundUser.name}!`, 
-            'It looks like your previous order submission was interrupted. Please re-enter your order details.', 
-            <BeautifulMessage 
-              type="warning" 
-              message="Your previous order was not completed. Please fill in the form again." 
-              icon={<AlertCircle />} 
-            />, 
-            0, 
-            true
-          );
-        } else {
-          const deductionMessage = foundUser.eligibleForDeduction ? 'You will get RM10 deduction on delivery fee!' : 'No RM10 deduction applies.';
-          showSuccessAnimation(`Welcome back, ${foundUser.name}!`, `System is active! You can submit your order directly. ${deductionMessage}`, null, 0, true);
-        }
-      }
-    } catch (error) {
-      console.error("Error verifying order during retrieval:", error);
-      showSuccessAnimation("Verification Failed", "Could not check your order status. Please try again.", null, 0, true);
-    } finally {
-      hideLocalLoading();
+    setStudentName(foundUser.name);
+    setContactNumber(foundUser.contactNumber);
+    setSelectedUserId(foundUser.firestoreId);
+    setIsCurrentUserEligible(foundUser.eligibleForDeduction || false);
+    if (foundUser.vendor) {
+      setSelectedVendor(foundUser.vendor);
     }
-  }, 50);
-} else if (wasSystemActiveOnRegistrationDay) {
-    updateSession(3, { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
-    setUserStep(3);
-    const deductionMessage = foundUser.eligibleForDeduction ? 'You will get RM10 deduction on delivery fee!' : 'No RM10 deduction applies.';
-    showSuccessAnimation(`Welcome back, ${foundUser.name}!`, `System is active! You can submit your order directly. ${deductionMessage}`, null, 0, true);
-  } else {
-    const currentPaidUsersCount = todayUsers.filter(u => u.commitmentPaid).length;
-    updateSession(2, { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
-    setUserStep(2);
-    showSuccessAnimation(`Welcome back, ${foundUser.name}!`, 'Please complete your base delivery fee payment.', <p>We need {Math.max(0, 3 - currentPaidUsersCount)} more paid users today to activate the system.</p>, 0, true);
-  }
-}; 
+
+    // --- START OF THE CORRECTED LOGIC BLOCK ---
+    if (foundUser.commitmentPaid) {
+      // A paid user should always be at Step 3.
+      updateSession(3, { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
+      setUserStep(3);
+
+      // NOW, CHECK IF THE SYSTEM IS ACTUALLY ACTIVATED BEFORE SHOWING THE MESSAGE
+      if (minOrderReached) {
+        // If 3+ users have paid, the system is active.
+        showSuccessAnimation(
+          `Welcome back, ${foundUser.name}!`,
+          'The system is active. You can now submit your order.',
+          null, 0, true
+        );
+      } else {
+        // If <3 users have paid, the system is NOT active yet. Tell them to wait.
+        const currentPaidUsersCount = todayUsers.filter(u => u.commitmentPaid).length;
+        const remaining = Math.max(0, 3 - currentPaidUsersCount);
+        showSuccessAnimation(
+          `Welcome back, ${foundUser.name}!`,
+          'Thank you for your payment. The system is waiting for more users to activate.',
+          <p>We need {remaining} more paid user{remaining !== 1 ? 's' : ''} to open order submissions. Please check back later!</p>,
+          0, true
+        );
+      }
+    } else {
+      // If user has NOT paid, they MUST go to Step 2. (This part was already correct)
+      const currentPaidUsersCount = todayUsers.filter(u => u.commitmentPaid).length;
+      const remaining = Math.max(0, 3 - currentPaidUsersCount);
+      
+      updateSession(2, { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
+      setUserStep(2);
+      
+      showSuccessAnimation(
+        `Welcome back, ${foundUser.name}!`,
+        'Please complete your base delivery fee payment to proceed.',
+        <p>We need {remaining} more paid user{remaining !== 1 ? 's' : ''} to activate the system for ordering.</p>,
+        0, true
+      );
+    }
+    // --- END OF THE CORRECTED LOGIC BLOCK ---
+  };
 
 
 const updateSession = (step, studentData, vendor) => {
@@ -909,70 +912,57 @@ const loadFromSession = useCallback(async () => {
     return;
   }
 
-  // CRITICAL: Use local variables to avoid state timing issues
   const userFirestoreId = rememberedStudent.firestoreId;
-  const userName = rememberedStudent.name;
-  const userContactNumber = rememberedStudent.contactNumber;
+  const foundUser = prebookUsers.find(u => u.firestoreId === userFirestoreId);
 
-  // Validate userFirestoreId before proceeding
-  if (!userFirestoreId || typeof userFirestoreId !== 'string' || userFirestoreId.trim() === '') {
-    console.error("Session restore failed: firestoreId is missing or invalid from rememberedStudent object.");
-    showSuccessAnimation("Session Restore Failed", "Your session data is incomplete. Please start over.", null, 0, true);
-    resetForm(true);
+  if (!foundUser) {
+    showSuccessAnimation("Session Invalid", "Could not find your registration. Please start over.", null, 0, true);
+    resetForm(true); // Clear the bad session data
     return;
   }
 
-  // Set all state synchronously using the local variables
-  setStudentName(userName);
-  setContactNumber(userContactNumber);
-  setSelectedUserId(userFirestoreId);
-  
-  const foundUser = prebookUsers.find(u => u.firestoreId === userFirestoreId);
-  if (foundUser) {
-    setIsCurrentUserEligible(foundUser.eligibleForDeduction || false);
+  // --- START OF NEW GATEKEEPER LOGIC ---
+  // If the user's order is NOT submitted and the system is now CLOSED, stop them.
+  if (!foundUser.orderSubmitted && !systemAvailability.isSystemOpen) {
+    showSuccessAnimation(
+      'System Closed',
+      'Your session could not be restored because the system is now closed for new orders.',
+      <div><p style={{ margin: '8px 0', color: '#92400e', fontWeight: '600' }}>Next available: {systemAvailability.nextOpenTime}</p></div>,
+      0, true
+    );
+    resetForm(true); // Clear the session so it doesn't try to restore again
+    return;
   }
+  // --- END OF NEW GATEKEEPER LOGIC ---
+
+  // If we pass the gatekeeper, proceed with session restoration as before.
+  setStudentName(rememberedStudent.name);
+  setContactNumber(rememberedStudent.contactNumber);
+  setSelectedUserId(userFirestoreId);
+  setIsCurrentUserEligible(foundUser.eligibleForDeduction || false);
 
   showLocalLoading("Restoring your session...");
   const sessionStep = rememberedStudent.sessionStep;
 
   if (sessionStep === 3) {
     try {
-      // Use the local variable instead of state
       const existingOrder = await firebaseService.getTodaysOrderByUserId(userFirestoreId);
-
       if (existingOrder) {
-        console.log("Session restore detected existing order. Advancing to email prompt.");
-        updateSession('order_submitted', { name: userName, contactNumber: userContactNumber, firestoreId: userFirestoreId }, selectedVendor);
+        updateSession('order_submitted', { name: rememberedStudent.name, contactNumber: rememberedStudent.contactNumber, firestoreId: userFirestoreId }, selectedVendor);
         localStorage.setItem('pendingOrderDetails', JSON.stringify(existingOrder));
-        setUserForEmail({ firestoreId: userFirestoreId, name: userName });
+        setUserForEmail({ firestoreId: userFirestoreId, name: rememberedStudent.name });
         setShowEmailModal(true);
         setCurrentOrder(existingOrder);
       } else {
-        console.log("No existing order found. Checking for interrupted submission.");
         const savedFormStateJSON = localStorage.getItem(`formState-${userFirestoreId}`);
         if (savedFormStateJSON) {
           const savedFormState = JSON.parse(savedFormStateJSON);
           setOrderNumber(savedFormState.orderNumber || '');
           setOrderTotal(savedFormState.orderTotal || '');
-          
-          setTimeout(() => {
-            showSuccessAnimation(
-              'Submission Interrupted', 
-              'Your previous order submission was not completed successfully.', 
-              <BeautifulMessage 
-                type="warning" 
-                message="Please review and re-submit your order details below." 
-                icon={<AlertCircle />} 
-              />, 
-              0, 
-              true
-            );
-          }, 500);
         }
         setUserStep(3);
       }
     } catch (error) {
-      console.error("Error verifying order during session restore:", error);
       showSuccessAnimation("Session Restore Failed", "Failed to restore your session. Please retrieve your registration again.", null, 0, true);
       resetForm(true);
     } finally {
@@ -982,7 +972,7 @@ const loadFromSession = useCallback(async () => {
     setUserStep(sessionStep);
     hideLocalLoading();
   }
-}, [rememberedStudent, prebookUsers, selectedVendor, showSuccessAnimation, resetForm, hideLocalLoading]);
+}, [rememberedStudent, prebookUsers, selectedVendor, systemAvailability.isSystemOpen, showSuccessAnimation, resetForm, hideLocalLoading, setOrderConfirmed, setCurrentOrder, setShowEmailModal, setUserForEmail]);
 
 useEffect(() => {
   setResetStudentForm(() => resetForm);
@@ -994,17 +984,6 @@ useEffect(() => {
     loadFromSession();
   }
 }, [rememberedStudent, prebookUsers, selectedUserId, loadFromSession]);
-
-useEffect(() => {
-    // This effect runs whenever the user's step changes.
-    // When the user first lands on the order submission step (Step 3),
-    // we force a final data refresh. This guarantees that their
-    // eligibility status, which was just set during payment, is up-to-date.
-    if (userStep === 3) {
-      console.log("Entering Step 3, ensuring data is fresh...");
-      fetchAllData();
-    }
-  }, [userStep, fetchAllData]); // Re-run this effect only when userStep changes.
 
   const parsedOrderTotal = parseFloat(orderTotal) || 0;
 const deliveryFee = calculateDeliveryFee(parsedOrderTotal);
@@ -1018,11 +997,13 @@ const isSubmitDisabled =
   isNaN(orderTotal) ||
   Number(orderTotal) <= 0 ||
   orderReceiptFiles.length === 0 ||
-  (actualDeliveryFee > 0 && !paymentProof); // ✅ ONLY require paymentProof if actual fee > 0
+  (actualDeliveryFee > 0 && !paymentProof) ||
+  !selectedVendor;
 
 
 
   return (
+    <>
     <div style={styles.card}>
       {/* Add LoadingAnimation component */}
       {isLoading && <LoadingAnimation message={loadingMessage} />}
@@ -1059,7 +1040,7 @@ const isSubmitDisabled =
                 <iframe
                   width="100%"
                   height="100%"
-                  src="https://www.youtube.com/embed/y2lzqtyPAco?rel=0&cc_load_policy=1&autoplay=1"
+                  src="https://www.youtube.com/embed/D4tE5oGe7ng?rel=0&cc_load_policy=1&autoplay=1"
                   title="Tutorial Video"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
@@ -1077,6 +1058,41 @@ const isSubmitDisabled =
         <h2 style={styles.cardTitle}>Food Delivery Registration</h2>
       </div>
 
+        {/* 1. ADD THIS ENTIRE DIV BLOCK */}
+      <div style={{
+        backgroundColor: '#eef2ff',
+        border: '2px solid #818cf8',
+        borderRadius: '16px',
+        padding: '20px',
+        textAlign: 'center',
+        marginBottom: '24px',
+      }}>
+        <h3 style={{
+          margin: '0 0 8px 0',
+          color: '#4338ca',
+          fontSize: windowWidth <= 480 ? '16px' : '20px'
+        }}>
+          You are ordering for delivery on:
+        </h3>
+        <p style={{
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '20px' : '24px',
+          fontWeight: 'bold',
+          color: '#3730a3',
+          background: 'white',
+          padding: '8px 16px',
+          borderRadius: '12px',
+          display: 'inline-block'
+        }}>
+          {new Date(systemAvailability.deliveryDate + 'T00:00:00').toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}
+        </p>
+      </div>
+      
       <RetrieveRegistration 
         onRetrieve={handleRetrieveRegistration} 
         isVisible={showRetrieve} 
@@ -1085,10 +1101,10 @@ const isSubmitDisabled =
       />
 
       <div style={styles.progressBar}>
-        <div style={styles.progressText}>
-  <span>Minimum 3 official users required</span>
-  <span>{todayUsers.filter(u => u.commitmentPaid).length}/3</span>
-</div>
+  <div style={styles.progressText}>
+    <span>Minimum 3 official users</span>
+    <span>{todayUsers.filter(u => u.commitmentPaid).length}/3</span>
+  </div>
 
 
         <div style={styles.progressTrack}>
@@ -1191,19 +1207,25 @@ const isSubmitDisabled =
       <p style={{ margin: '0 0 8px 0' }}><strong>Name:</strong> {studentName}</p>
       <p style={{ margin: '0 0 8px 0' }}><strong>Contact:</strong> {contactNumber}</p>
       <p style={{ margin: 0 }}>
-        <strong>Base Delivery Fee:</strong> RM10
+        <strong>Base Delivery Fee (Deposit):</strong> RM10
       </p>
     </div>
     
     <p style={{ marginBottom: '16px', color: '#64748b' }}>
       Upload proof of payment (RM10 base delivery fee):
     </p>
-    <input 
-      type="file" 
-      accept="image/*" 
-      onChange={(e) => setReceiptFile(e.target.files[0])} 
-      style={styles.input} 
-    />
+    <input
+  type="file"
+  accept="image/*"
+  onChange={async (e) => { // <--- MAKE THIS ASYNC
+    if (e.target.files && e.target.files[0]) {
+      const originalFile = e.target.files[0];
+      const compressedFile = await handleImageCompression(originalFile);
+      setReceiptFile(compressedFile);
+    }
+  }}
+  style={styles.input}
+/>
     {receiptFile && (
       <div style={styles.imagePreview}>
         <img 
@@ -1253,9 +1275,9 @@ const isSubmitDisabled =
           <h3 style={{ 
             marginBottom: '20px', 
             color: '#1e293b', 
-            fontSize: windowWidth <= 480 ? '18px' : '20px' 
+            fontSize: windowWidth <= 480 ? '15px' : '20px' 
           }}>
-            Step 3: Submit Your Order (Please submit before 4:30pm)
+            Step 3: Submit Your Order (Please submit before 4:30pm on the delivery date)
           </h3>
           
           <div style={{ 
@@ -1448,7 +1470,75 @@ const isSubmitDisabled =
 )}
           </div>
 
-<FeeBreakdown 
+<div style={styles.sectionCard}>
+            <h4 style={styles.sectionHeader}>
+              <span style={styles.stepNumber}>2</span>
+              Confirm Merchant (One Only!!!)
+            </h4>
+            <p style={{ 
+              marginBottom: '16px', 
+              color: '#64748b',
+              fontSize: windowWidth <= 480 ? '13px' : '14px' 
+            }}>
+              Please confirm which merchant you're ordering from:
+            </p>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: windowWidth <= 480 ? '1fr' : 'repeat(3, 1fr)',
+              gap: '12px',
+              marginBottom: '8px'
+            }}>
+              {[
+                { id: 'dominos', name: "Domino's Pizza", emoji: '🍕', color: '#0078d4' },
+                { id: 'ayam_gepuk', name: "Ayam Gepuk Pak Gembus", emoji: '🍗', color: '#ffcc02' },
+                { id: 'mixue', name: 'MIXUE', emoji: '🧋', color: '#ff69b4' }
+              ].map((vendor) => (
+                <div
+                  key={vendor.id}
+                  onClick={() => setSelectedVendor(vendor.id)}
+                  style={{
+                    padding: windowWidth <= 480 ? '16px' : '20px',
+                    borderRadius: '12px',
+                    border: selectedVendor === vendor.id 
+                      ? `3px solid ${vendor.color}` 
+                      : '2px solid #e2e8f0',
+                    backgroundColor: selectedVendor === vendor.id 
+                      ? `${vendor.color}15` 
+                      : '#fff',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    textAlign: 'center',
+                    boxShadow: selectedVendor === vendor.id 
+                      ? `0 4px 12px ${vendor.color}40` 
+                      : 'none'
+                  }}
+                >
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>
+                    {vendor.emoji}
+                  </div>
+                  <div style={{ 
+                    fontSize: windowWidth <= 480 ? '13px' : '14px',
+                    fontWeight: '600',
+                    color: '#1e293b'
+                  }}>
+                    {vendor.name}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {!selectedVendor && (
+              <p style={{ 
+                color: '#ef4444', 
+                fontSize: '13px', 
+                marginTop: '8px',
+                fontWeight: '500'
+              }}>
+                ⚠️ Please select a merchant before submitting
+              </p>
+            )}
+          </div>
+
+<FeeBreakdown
   orderTotal={parseFloat(orderTotal) || 0}
   // ✅ Pass the reliable local state directly to the component
   isEligibleForDeduction={isCurrentUserEligible}
@@ -1464,12 +1554,18 @@ const isSubmitDisabled =
                   <p style={{ marginTop: '16px', marginBottom: '12px', color: '#64748b', fontSize: windowWidth <= 375 ? '12px' : windowWidth <= 480 ? '13px' : '15px',}}>
                     Upload payment proof for the delivery fee: <span style={{ color: '#ef4444' }}>*</span>
                   </p>
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={(e) => setPaymentProof(e.target.files[0])} 
-                    style={styles.input} 
-                  />
+                  <input
+  type="file"
+  accept="image/*"
+  onChange={async (e) => { // <--- MAKE THIS ASYNC
+    if (e.target.files && e.target.files[0]) {
+      const originalFile = e.target.files[0];
+      const compressedFile = await handleImageCompression(originalFile);
+      setPaymentProof(compressedFile);
+    }
+  }}
+  style={styles.input}
+/>
                   {paymentProof && (
                     <div style={styles.imagePreview}>
                       <img 
@@ -1496,7 +1592,7 @@ const isSubmitDisabled =
 )}
 
           <button 
-  onClick={handleOrderSubmission} 
+  onClick={() => setShowConfirmModal(true)} 
   disabled={isSubmitDisabled}
   style={{ 
     ...styles.button, 
@@ -1545,6 +1641,370 @@ const isSubmitDisabled =
         </div>
       )}
     </div>
+
+    {/* Order Confirmation Modal */}
+      {showConfirmModal && (
+  <div 
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.85)',
+      backdropFilter: 'blur(10px)',
+      zIndex: 3000,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '16px',
+      animation: 'fadeIn 0.3s ease'
+    }}
+    onClick={(e) => { if (e.target === e.currentTarget) setShowConfirmModal(false); }}
+  >
+    <style>{`
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    `}</style>
+    
+    <div style={{
+      backgroundColor: 'white',
+      borderRadius: '24px',
+      maxWidth: '650px',
+      width: '100%',
+      maxHeight: '90vh',
+      overflow: 'hidden',
+      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
+      animation: 'slideUp 0.4s ease',
+      border: '3px solid #3b82f6'
+    }}>
+      {/* Header with gradient */}
+      <div style={{
+        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+        padding: windowWidth <= 480 ? '24px 20px' : '32px 28px',
+        borderBottom: '3px solid #2563eb'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          marginBottom: '8px'
+        }}>
+          <div style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            borderRadius: '50%',
+            padding: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <AlertCircle color="white" size={32} />
+          </div>
+          <h2 style={{
+            fontSize: windowWidth <= 480 ? '22px' : '26px',
+            fontWeight: '800',
+            color: 'white',
+            margin: 0,
+            textShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}>
+            Confirm Your Order
+          </h2>
+        </div>
+        <p style={{
+          color: 'rgba(255, 255, 255, 0.95)',
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '14px' : '15px',
+          fontWeight: '500'
+        }}>
+          Review your details carefully before submitting
+        </p>
+      </div>
+
+      {/* Scrollable Content */}
+      <div style={{
+        padding: windowWidth <= 480 ? '20px' : '28px',
+        maxHeight: 'calc(90vh - 250px)',
+        overflowY: 'auto'
+      }}>
+        {/* Order Summary Card */}
+        <div style={{
+          background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+          padding: windowWidth <= 480 ? '20px' : '24px',
+          borderRadius: '16px',
+          marginBottom: '20px',
+          border: '2px solid #e2e8f0',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
+        }}>
+          <h3 style={{
+            fontSize: windowWidth <= 480 ? '17px' : '19px',
+            fontWeight: '700',
+            color: '#1e293b',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <div style={{
+              width: '6px',
+              height: '24px',
+              backgroundColor: '#3b82f6',
+              borderRadius: '3px'
+            }}></div>
+            Order Summary
+          </h3>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Name */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '12px',
+              backgroundColor: 'white',
+              borderRadius: '10px',
+              border: '1px solid #e2e8f0'
+            }}>
+              <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Name</div>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b', textAlign: 'right' }}>{studentName}</div>
+            </div>
+            
+            {/* Contact */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '12px',
+              backgroundColor: 'white',
+              borderRadius: '10px',
+              border: '1px solid #e2e8f0'
+            }}>
+              <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Contact</div>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>{contactNumber}</div>
+            </div>
+            
+            {/* Merchant */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '12px',
+              backgroundColor: 'white',
+              borderRadius: '10px',
+              border: '1px solid #e2e8f0'
+            }}>
+              <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Merchant</div>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>
+                {selectedVendor === 'dominos' && "🍕 Domino's Pizza"}
+                {selectedVendor === 'ayam_gepuk' && "🍗 Ayam Gepuk"}
+                {selectedVendor === 'mixue' && "🧋 MIXUE"}
+              </div>
+            </div>
+            
+            {/* Delivery Date */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '12px',
+              backgroundColor: 'white',
+              borderRadius: '10px',
+              border: '1px solid #e2e8f0'
+            }}>
+              <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Delivery Date</div>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>
+                {new Date(systemAvailability.deliveryDate + 'T00:00:00').toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </div>
+            </div>
+
+            {/* Order Number */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '12px',
+              backgroundColor: 'white',
+              borderRadius: '10px',
+              border: '1px solid #e2e8f0'
+            }}>
+              <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Order #</div>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b', fontFamily: 'monospace' }}>{orderNumber}</div>
+            </div>
+            
+            {/* Order Total */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px',
+              background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+              borderRadius: '10px',
+              border: '2px solid #3b82f6'
+            }}>
+              <div style={{ fontSize: '14px', color: '#1e40af', fontWeight: '700' }}>Order Total</div>
+              <div style={{ fontSize: '20px', fontWeight: '900', color: '#1e40af' }}>RM {parseFloat(orderTotal).toFixed(2)}</div>
+            </div>
+
+            {/* Receipt Images */}
+            <div>
+              <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', marginBottom: '10px' }}>📸 Order Receipt(s)</div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
+                gap: '10px',
+              }}>
+                {orderReceiptFiles.map((file, index) => (
+                  <div key={index} style={{ position: 'relative' }}>
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={`Receipt ${index + 1}`}
+                      onClick={() => setSelectedImage(file)}
+                      style={{
+                        width: '100%',
+                        aspectRatio: '1',
+                        objectFit: 'cover',
+                        borderRadius: '10px',
+                        border: '2px solid #e2e8f0',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.15)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Warning Box */}
+        <div style={{
+          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+          padding: windowWidth <= 480 ? '18px' : '22px',
+          borderRadius: '16px',
+          border: '3px solid #fbbf24',
+          marginBottom: '24px',
+          boxShadow: '0 4px 12px rgba(251, 191, 36, 0.2)'
+        }}>
+          <h4 style={{
+            fontSize: windowWidth <= 480 ? '16px' : '17px',
+            fontWeight: '800',
+            color: '#92400e',
+            marginBottom: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <AlertCircle size={22} strokeWidth={3} />
+            Important Notice
+          </h4>
+          <p style={{
+            fontSize: windowWidth <= 480 ? '13px' : '14px',
+            color: '#92400e',
+            lineHeight: '1.7',
+            margin: '0 0 10px 0',
+            fontWeight: '500'
+          }}>
+            By confirming this order, you acknowledge that all details are correct. 
+            <strong style={{ display: 'block', marginTop: '8px' }}>
+              ⚠️ Crave2Cave (C2C) will NOT provide refunds for:
+            </strong>
+          </p>
+          <ul style={{
+            fontSize: windowWidth <= 480 ? '13px' : '14px',
+            color: '#92400e',
+            lineHeight: '1.7',
+            margin: 0,
+            paddingLeft: '20px',
+            fontWeight: '500'
+          }}>
+            <li>Incorrect pickup schedule/time</li>
+            <li>Wrong pickup location</li>
+            <li>Wrong merchant selection</li>
+            <li>Errors in order details or contact info</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* Footer Buttons */}
+      <div style={{
+        padding: windowWidth <= 480 ? '16px 20px' : '20px 28px',
+        borderTop: '2px solid #f1f5f9',
+        backgroundColor: '#fafafa',
+        display: 'flex',
+        gap: '12px',
+        flexDirection: windowWidth <= 480 ? 'column' : 'row'
+      }}>
+        <button
+          onClick={() => setShowConfirmModal(false)}
+          style={{
+            flex: 1,
+            padding: '15px 24px',
+            borderRadius: '12px',
+            border: '2px solid #e2e8f0',
+            backgroundColor: 'white',
+            color: '#64748b',
+            fontSize: '15px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.backgroundColor = '#f8fafc';
+            e.currentTarget.style.borderColor = '#cbd5e1';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.backgroundColor = 'white';
+            e.currentTarget.style.borderColor = '#e2e8f0';
+          }}
+        >
+          ← Review Again
+        </button>
+        <button
+          onClick={() => {
+            setShowConfirmModal(false);
+            handleOrderSubmission();
+          }}
+          style={{
+            flex: 1,
+            padding: '15px 24px',
+            borderRadius: '12px',
+            border: 'none',
+            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+            color: 'white',
+            fontSize: '15px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            boxShadow: '0 6px 20px rgba(59, 130, 246, 0.4)',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.5)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)';
+          }}
+        >
+          ✓ Confirm & Submit →
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+  </>
   );
 };
 

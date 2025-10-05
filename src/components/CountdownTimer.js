@@ -3,26 +3,35 @@ import { Clock, CheckCircle, MapPin, Image as ImageIcon } from 'lucide-react'; /
 
 const CountdownTimer = ({ 
   targetTime = "19:00", 
+  deliveryDate = null,
   currentOrder = null,
   onViewImage = null
 }) => {
     const calculateTimeLeft = useCallback(() => {
-        const now = new Date();
-        const target = new Date();
+    const now = new Date();
+    
+    // If deliveryDate is provided, use it as the target date
+    let target;
+    if (deliveryDate) {
+        target = new Date(deliveryDate + 'T' + targetTime + ':00');
+    } else {
+        // Fallback to today
+        target = new Date();
         const [targetHour, targetMinute] = targetTime.split(':');
         target.setHours(parseInt(targetHour), parseInt(targetMinute), 0, 0);
+    }
 
-        if (now > target) {
-            return { hours: 0, minutes: 0, seconds: 0, isReady: true };
-        }
+    if (now > target) {
+        return { hours: 0, minutes: 0, seconds: 0, isReady: true };
+    }
 
-        const diff = target - now;
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const minutes = Math.floor((diff / (1000 * 60)) % 60);
-        const seconds = Math.floor((diff / 1000) % 60);
+    const diff = target - now;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff / (1000 * 60)) % 60);
+    const seconds = Math.floor((diff / 1000) % 60);
 
-        return { hours, minutes, seconds, isReady: false };
-    }, [targetTime]);
+    return { hours, minutes, seconds, isReady: false };
+}, [targetTime, deliveryDate]);
 
     const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
 
@@ -91,77 +100,6 @@ const CountdownTimer = ({
                 ))}
             </div>
 
-            {/* START: NEW IMAGE CAROUSEL/DISPLAY SECTION */}
-            {orderImages.length > 0 && (
-              <div style={{ 
-                  marginTop: '20px', 
-                  paddingTop: '20px', 
-                  borderTop: '1px dashed #fcd34d' 
-              }}>
-                <p style={{
-                  margin: '0 0 12px 0',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  color: '#92400e',
-                }}>
-                  Your Submitted Receipt{orderImages.length > 1 ? 's' : ''}
-                </p>
-                <div 
-                  style={{ display: 'flex', justifyContent: 'center' }}
-                  onClick={() => onViewImage && onViewImage(orderImages)}
-                >
-                  <div style={{ position: 'relative', cursor: 'pointer' }}>
-                    <img
-                      src={orderImages[0]}
-                      alt="Order Receipt"
-                      style={{
-                        width: '100px', 
-                        height: '100px',
-                        borderRadius: '12px', 
-                        objectFit: 'cover',
-                        border: '3px solid white', 
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                      }}
-                    />
-                    {orderImages.length > 1 && (
-                      <div style={{
-                        position: 'absolute',
-                        bottom: '2px',
-                        right: '2px',
-                        backgroundColor: '#3b82f6',
-                        color: 'white',
-                        borderRadius: '50%',
-                        width: '24px',
-                        height: '24px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        border: '2px solid white'
-                      }}>
-                        +{orderImages.length - 1}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    gap: '6px', 
-                    fontSize: '13px', 
-                    color: '#b45309', 
-                    marginTop: '8px',
-                    fontWeight: '500'
-                  }}>
-                    <ImageIcon size={14} />
-                    <span>Click to view</span>
-                </div>
-              </div>
-            )}
-            {/* END: NEW IMAGE CAROUSEL/DISPLAY SECTION */}
-
             {!timeLeft.isReady && (
                 <p style={{
                     fontSize: '14px',
@@ -172,8 +110,7 @@ const CountdownTimer = ({
                     justifyContent: 'center',
                     gap: '6px'
                 }}>
-                    <MapPin size={16} color="#64748b" />
-                    Please arrive at the main gate by 7:00 PM
+                    Please wait for the admin to update in the group before picking up your order. (Around 7:30 PM)
                 </p>
             )}
         </div>

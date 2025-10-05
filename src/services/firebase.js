@@ -21,22 +21,16 @@ export const db = getFirestore(app); // Export db for direct use
 const storage = getStorage(app);
 const functions = getFunctions(app);
 
-// --- All your existing functions remain unchanged ---
 export const savePrebookUser = async (user) => {
   try {
-    const now = new Date();
-    const malaysiaDateStr = now.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" });
-    const malaysiaDate = new Date(malaysiaDateStr);
-    const todayString = malaysiaDate.toISOString().split('T')[0];
-
-    const userWithDate = {
+    // The user object passed in already contains the correct deliveryDate
+    const userToSave = {
       ...user,
       email: user.email || "no-email@crave2cave.com",
-      registrationDate: todayString,
       timestamp: new Date().toISOString(),
     };
 
-    const docRef = await addDoc(collection(db, 'prebookUsers'), userWithDate);
+    const docRef = await addDoc(collection(db, 'prebookUsers'), userToSave);
     return docRef.id;
   } catch (e) {
     console.error("Error adding document: ", e);
@@ -91,32 +85,30 @@ export const updateUserEmail = async (userId, email) => {
   }
 };
 
-export const getPrebookUsers = async () => {
+export const getPrebookUsers = async (dateString) => {
   try {
-    const now = new Date();
-    const malaysiaDateStr = now.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" });
-    const malaysiaDate = new Date(malaysiaDateStr);
-    const todayString = malaysiaDate.toISOString().split('T')[0];
-    const usersQuery = query(collection(db, 'prebookUsers'), where("registrationDate", "==", todayString));
+    // No longer generates its own date! It uses the one passed from App.js.
+    const usersQuery = query(collection(db, 'prebookUsers'), where("deliveryDate", "==", dateString));
+    
     const querySnapshot = await getDocs(usersQuery);
     const users = querySnapshot.docs.map(doc => ({ id: doc.id, firestoreId: doc.id, ...doc.data() }));
     return users.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
   } catch (e) {
-    console.error('Error getting users: ', e);
+    console.error(`Error getting users for delivery date ${dateString}: `, e);
     return [];
   }
 };
 
 export const saveOrder = async (order) => {
   try {
-    const orderWithTimestamp = {
+    // The order object passed in already has the correct deliveryDate
+    const orderToSave = {
       ...order,
       timestamp: new Date().toISOString(),
       status: 'pending',
-      orderDate: new Date().toLocaleDateString("en-US", { timeZone: "Asia/Kuala_Lumpur" })
     };
-    const docRef = await addDoc(collection(db, 'orders'), orderWithTimestamp);
-    await updateDailyHistory();
+    const docRef = await addDoc(collection(db, 'orders'), orderToSave);
+    await updateDailyHistory(order.deliveryDate); // ✅ Pass the actual delivery date
     return docRef.id;
   } catch (e) {
     console.error('Error saving order: ', e);
@@ -177,30 +169,44 @@ export const updateOrdersStatus = async (orderIds, status) => {
   }
 };
 
-export const updateDailyHistory = async () => {
+export const updateDailyHistory = async (targetDeliveryDate) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const usersSnapshot = await getDocs(collection(db, 'prebookUsers'));
-    const ordersSnapshot = await getDocs(collection(db, 'orders'));
-    const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, firestoreId: doc.id, ...doc.data() }));
-    const allOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    const todayOrdersTemp = allOrders.filter(order => isToday(order.timestamp));
-    const todayUserIds = new Set(todayOrdersTemp.map(order => order.userId));
-    const todayUsersTemp = allUsers.filter(user => isToday(user.timestamp) || todayUserIds.has(user.firestoreId));
+    // ✅ CHANGE: Accept the delivery date as a parameter instead of using "today"
+    // This ensures we only update history for actual delivery dates
+    if (!targetDeliveryDate) {
+      console.log('No delivery date provided, skipping history update');
+      return;
+    }
+
+    // Fetch only users and orders for the TARGET delivery date
+    const usersQuery = query(collection(db, 'prebookUsers'), where("deliveryDate", "==", targetDeliveryDate));
+    const ordersQuery = query(collection(db, 'orders'), where("deliveryDate", "==", targetDeliveryDate));
+
+    const [usersSnapshot, ordersSnapshot] = await Promise.all([
+      getDocs(usersQuery),
+      getDocs(ordersQuery)
+    ]);
+
+    const todayUsersTemp = usersSnapshot.docs.map(doc => ({ id: doc.id, firestoreId: doc.id, ...doc.data() }));
+    const todayOrdersTemp = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Now all calculations are correctly based on the delivery date
     const todayRevenue = todayUsersTemp.filter(u => u.commitmentPaid).length * 10 +
       todayOrdersTemp.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
     const driverCost = todayOrdersTemp.length > 0 ? 30 : 0;
     const todayProfit = todayRevenue - driverCost;
-    const historyQuery = query(collection(db, 'history'), where('date', '==', today));
+
+    const historyQuery = query(collection(db, 'history'), where('date', '==', targetDeliveryDate));
     const historySnapshot = await getDocs(historyQuery);
+
     const historyDataPayload = {
-      date: today,
+      date: targetDeliveryDate,
       timestamp: new Date().toISOString(),
-      orders: todayOrdersTemp,
-      users: todayUsersTemp,
+      orders: todayOrdersTemp, // Storing filtered orders
+      users: todayUsersTemp, // Storing filtered users
       totalOrders: todayOrdersTemp.length,
       totalUsers: todayUsersTemp.length,
-      registeredUsers: todayUsersTemp.filter(u => isToday(u.timestamp)).length,
+      registeredUsers: todayUsersTemp.length, // This is now correct
       paidUsers: todayUsersTemp.filter(u => u.commitmentPaid).length,
       totalRevenue: todayRevenue,
       driverCost: driverCost,
@@ -208,6 +214,7 @@ export const updateDailyHistory = async () => {
       commitmentFees: todayUsersTemp.filter(u => u.commitmentPaid).length * 10,
       deliveryFees: todayOrdersTemp.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)
     };
+
     if (historySnapshot.empty) {
       await addDoc(collection(db, 'history'), historyDataPayload);
     } else {
@@ -329,5 +336,26 @@ export const getFeedbacks = async () => {
   } catch (error) {
     console.error("Error fetching feedbacks: ", error);
     return []; // Return empty array on error
+  }
+};
+
+export const updateHistoryEntry = async (historyDocId, updates) => {
+  try {
+    if (!historyDocId || typeof historyDocId !== 'string') {
+      throw new Error('Invalid or missing history document ID');
+    }
+    const historyRef = doc(db, 'history', historyDocId);
+    // Make sure to convert numbers to numbers, as form inputs are strings
+    const numericUpdates = {
+      ...updates,
+      totalRevenue: Number(updates.totalRevenue) || 0,
+      profit: Number(updates.profit) || 0,
+      totalOrders: Number(updates.totalOrders) || 0,
+    };
+    await updateDoc(historyRef, numericUpdates);
+    console.log(`Successfully updated history entry: ${historyDocId}`);
+  } catch (e) {
+    console.error("Error updating history entry: ", e);
+    throw e;
   }
 };

@@ -28,19 +28,6 @@ const VENDOR_DATA = {
   default: { name: 'Unknown Store', color: '#475569', backgroundColor: '#F1F5F9', logoUrl: '' }
 };
 
-
-const nextPickup = new Date();
-nextPickup.setHours(19, 0, 0, 0);
-if (nextPickup < new Date()) nextPickup.setDate(nextPickup.getDate() + 1);
-const pickupTimeString = "19:00";
-const pickupDateTime = nextPickup.toLocaleDateString('en-US', { 
-  weekday: 'long', 
-  year: 'numeric', 
-  month: 'long', 
-  day: 'numeric',
-  timeZone: 'Asia/Kuala_Lumpur'
-});
-
 const VendorTag = ({ vendor }) => {
   const style = VENDOR_DATA[vendor?.toLowerCase()] || VENDOR_DATA.default;
   return (
@@ -77,6 +64,7 @@ const DriverTab = ({
   hideLoadingAnimation,
   setShowImageCarousel,
   setSelectedImages,
+  systemAvailability,
 }) => {
   const [deliveryStatus, setDeliveryStatus] = useState('pending');
   const [selectedOrders, setSelectedOrders] = useState([]);
@@ -200,6 +188,27 @@ statValue: {
   // Replace your handleStartDelivery function in DriverTab.jsx with this updated version:
 
 const handleStartDelivery = async () => {
+  // ✅ ADD THIS CHECK FIRST - Before anything else
+  const todayString = new Date().toLocaleDateString('en-CA', { timeZone: "Asia/Kuala_Lumpur" });
+  const deliveryDateString = systemAvailability.deliveryDate;
+  
+  if (todayString !== deliveryDateString) {
+    const deliveryDateFormatted = new Date(deliveryDateString + 'T00:00:00').toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric'
+    });
+    
+    showSuccessAnimation(
+      'Not Delivery Day',
+      `Today is not the scheduled delivery day. Deliveries can only be started on ${deliveryDateFormatted}.`,
+      null,
+      0,
+      true
+    );
+    return;
+  }
+  
   if (selectedOrders.length === 0) {
     showSuccessAnimation('No Orders Selected', 'Please select at least one order to start delivery.');
     return;
@@ -424,21 +433,25 @@ const getOrdersByVendor = () => {
   gap: '16px' 
 }}>
   <div>
-    <h2 style={{ 
-      margin: 0, 
-      fontSize: windowWidth <= 480 ? '24px' : windowWidth <= 768 ? '28px' : '32px', 
-      color: '#1e293b' 
-    }}>
-      Driver Dashboard
-    </h2>
-    <p style={{ 
-      margin: '8px 0 0 0', 
-      color: '#64748b', 
-      fontSize: windowWidth <= 480 ? '14px' : '16px' 
-    }}>
-      Today's Deliveries - {new Date().toLocaleDateString()}
-    </p>
-  </div>
+  <h2 style={{ 
+    margin: 0, 
+    fontSize: windowWidth <= 480 ? '24px' : windowWidth <= 768 ? '28px' : '32px', 
+    color: '#1e293b' 
+  }}>
+    Driver Dashboard
+  </h2>
+  <p style={{ 
+    margin: '8px 0 0 0', 
+    color: '#64748b', 
+    fontSize: windowWidth <= 480 ? '14px' : '16px' 
+  }}>
+    Delivery for: {new Date(systemAvailability.deliveryDate + 'T00:00:00').toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric'
+    })}
+  </p>
+</div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button 
             onClick={resetAuth} 
@@ -559,23 +572,28 @@ const getOrdersByVendor = () => {
 
           {/* More compact date and time text */}
           <div>
-              <p style={{ 
-                  margin: '2px 0', 
-                  fontSize: '13px', 
-                  color: '#1e293b',
-                  fontWeight: 'bold'
-              }}>
-                  📅 {pickupDateTime}
-              </p>
-              <p style={{ 
-                  margin: '2px 0', 
-                  fontSize: '13px', 
-                  color: '#1e293b',
-                  fontWeight: 'bold'
-              }}>
-                  🕕 6:10 PM
-              </p>
-          </div>
+  <p style={{ 
+      margin: '2px 0', 
+      fontSize: '13px', 
+      color: '#1e293b',
+      fontWeight: 'bold'
+  }}>
+      📅 {new Date(systemAvailability.deliveryDate + 'T00:00:00').toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })}
+  </p>
+  <p style={{ 
+      margin: '2px 0', 
+      fontSize: '13px', 
+      color: '#1e293b',
+      fontWeight: 'bold'
+  }}>
+      🕕 6:10 PM
+  </p>
+</div>
         </div>
         {/* Vendor Summary */}
         <div style={{

@@ -9,13 +9,16 @@ import {
   AlertCircle,
   UserCheck,
   Camera,
-  Image
+  Image,
+  Edit
 } from 'lucide-react';
 
 import AuthScreen from './AuthScreen';
 import ResponsiveTable from './ResponsiveTable';
 import SimpleChart from './SimpleChart';
 import { isToday } from '../utils/isToday';
+import EditHistoryModal from './EditHistoryModal';
+import * as firebaseService from '../services/firebase';
 
 const AdminTab = ({
   prebookUsers,
@@ -35,9 +38,12 @@ const AdminTab = ({
   hideLoadingAnimation, 
   setShowImageCarousel,
   setSelectedImages,
+  systemAvailability,
 }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
   const VENDOR_MAP = {
   'mixue': { name: 'Mixue', icon: '🧋' },
   'dominos': { name: 'Dominos', icon: '🍕' },
@@ -112,28 +118,32 @@ const AdminTab = ({
     }
   };
 
+  const handleEditClick = (entry) => {
+    setEditingEntry(entry);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveChanges = async (entryId, updatedData) => {
+    try {
+      showLoadingAnimation('Updating history...');
+      await firebaseService.updateHistoryEntry(entryId, updatedData);
+      // Refresh data to show changes
+      hideLoadingAnimation();
+      showSuccessAnimation('Success!', 'History entry has been updated.');
+    } catch (error) {
+      hideLoadingAnimation();
+      alert('Failed to update history. Check console for errors.');
+      console.error(error);
+    }
+  };
+
   const getTotalHistoryStats = () => {
+    // This function now ONLY calculates from the history data provided.
+    // It no longer tries to add live "today" data, which was causing the issue.
     const totalRegistered = historyData.reduce((sum, entry) => sum + (entry.registeredUsers || 0), 0);
     const totalRevenue = historyData.reduce((sum, entry) => sum + (entry.totalRevenue || 0), 0);
     const totalProfit = historyData.reduce((sum, entry) => sum + (entry.profit || 0), 0);
     const totalOrders = historyData.reduce((sum, entry) => sum + (entry.totalOrders || 0), 0);
-    
-    const todayString = new Date().toISOString().split('T')[0];
-    const todayInHistory = historyData.some(entry => entry.date === todayString);
-    
-    if (!todayInHistory && todayUsers.length > 0) {
-      const todayRegistered = todayUsers.filter(u => isToday(u.timestamp)).length;
-      const todayRevenue = todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-        todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
-      const todayProfit = todayRevenue - (todayOrders.length > 0 ? 30 : 0);
-      
-      return { 
-        totalRegistered: totalRegistered + todayRegistered, 
-        totalRevenue: totalRevenue + todayRevenue, 
-        totalProfit: totalProfit + todayProfit, 
-        totalOrders: totalOrders + todayOrders.length 
-      };
-    }
     
     return { totalRegistered, totalRevenue, totalProfit, totalOrders };
   };
@@ -185,13 +195,18 @@ const AdminTab = ({
             gap: '16px' 
           }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '32px', color: '#1e293b' }}>
-                Admin Dashboard
-              </h2>
-              <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '16px' }}>
-                Today's Data - {new Date().toLocaleDateString()}
-              </p>
-            </div>
+  <h2 style={{ margin: 0, fontSize: '32px', color: '#1e293b' }}>
+    Admin Dashboard
+  </h2>
+  <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '16px' }}>
+    Delivery Date: {new Date(systemAvailability.deliveryDate + 'T00:00:00').toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })}
+  </p>
+</div>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button 
                 onClick={() => setShowHistory(true)} 
@@ -260,7 +275,7 @@ const AdminTab = ({
                 <p style={{
                   ...styles.statValue,
                   ...(windowWidth <= 480 ? { fontSize: '18px' } : {})
-                }}>{todayUsers.filter(u => isToday(u.timestamp)).length}</p>
+                }}>{todayUsers.length}</p>
               </div>
             </div>
 
@@ -496,14 +511,23 @@ const AdminTab = ({
               <h2 style={styles.cardTitle}>Awaiting Order Submission (First three users only)</h2>
             </div>
             
-            {todayUsers.filter(user => user.commitmentPaid && !user.orderSubmitted).length > 0 ? (
+            {(() => {
+  // Get first 3 paid users who haven't ordered
+  const firstThreePaidUsers = todayUsers
+    .filter(u => u.commitmentPaid)
+    .sort((a, b) => new Date(a.receiptUploadTime || a.timestamp) - new Date(b.receiptUploadTime || b.timestamp))
+    .slice(0, 3);
+  
+  const awaitingUsers = firstThreePaidUsers.filter(user => !user.orderSubmitted);
+  
+  return awaitingUsers.length > 0 ? (
               <div style={{ 
                 display: 'grid', 
                 gap: '12px', 
                 marginTop: '16px',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))'
               }}>
-                {todayUsers.filter(user => user.commitmentPaid && !user.orderSubmitted).map(user => {
+                {awaitingUsers.map(user => {
   const vendorInfo = VENDOR_MAP[user.vendor] || { name: user.vendor || 'No vendor', icon: '🏪' };
   
   return (
@@ -545,14 +569,16 @@ const AdminTab = ({
     </div>
   );
 })}
-              </div>
-            ) : (
-              <p style={{ marginTop: '20px', color: '#64748b', textAlign: 'center' }}>
-                All paid users have submitted their orders for today.
-              </p>
-            )}
+          </div>
+        ) : (
+          <p style={{ marginTop: '20px', color: '#64748b', textAlign: 'center' }}>
+            All first 3 paid users have submitted their orders.
+          </p>
+        );
+      })()}
           </div>
 
+          {/* Payment & Order Verification Card */}
 <div style={styles.card}>
   <div style={styles.cardHeader}>
     <Camera color="#8b5cf6" size={28} />
@@ -575,7 +601,7 @@ const AdminTab = ({
         const userOrder = todayOrders.find(order => order.userId === user.firestoreId);
 // Get the first 3 users who PAID (by payment time, not registration time)
 const firstThreePaidUsers = todayUsers
-  .filter(u => u.commitmentPaid && isToday(u.timestamp))
+  .filter(u => u.commitmentPaid) // <-- CORRECTED: Removed isToday()
   .sort((a, b) => new Date(a.receiptUploadTime || a.timestamp) - new Date(b.receiptUploadTime || b.timestamp))
   .slice(0, 3);
 
@@ -682,28 +708,30 @@ const isFirstThreeUser = firstThreePaidUsers.some(paidUser => paidUser.firestore
                     alignItems: 'center',
                     marginBottom: '8px'
                   }}>
-                    <span style={{
-                      fontSize: windowWidth <= 480 ? '11px' : '12px',
-                      fontWeight: '600',
-                      color: '#475569',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}>
-                      Order #{userOrder.orderNumber}
-                    </span>
-                    <span style={{
-                      fontSize: windowWidth <= 480 ? '10px' : '11px',
-                      color: '#64748b',
-                      fontWeight: '500'
-                    }}>
-                      {new Date(userOrder.timestamp).toLocaleString('en-MY', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true
-                      })}
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+  <span style={{
+    fontSize: windowWidth <= 480 ? '11px' : '12px',
+    fontWeight: '600',
+    color: '#475569',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  }}>
+    Order #{userOrder.orderNumber}
+  </span>
+  <span style={{
+    fontSize: windowWidth <= 480 ? '10px' : '11px',
+    color: '#64748b',
+    fontWeight: '500'
+  }}>
+    Submitted: {new Date(userOrder.timestamp).toLocaleString('en-MY', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    })}
+  </span>
+</div>
                   </div>
                   
                   <div style={{
@@ -1266,111 +1294,152 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
           <div style={styles.card}>
             <h3 style={{ fontSize: '22px', marginBottom: '24px' }}>Daily History</h3>
             {historyData.length === 0 ? (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '60px',
-                color: '#64748b'
-              }}>
-                <History size={56} style={{ marginBottom: '20px' }} />
-                <p style={{ fontSize: '18px' }}>No history data available yet.</p>
-              </div>
-            ) : (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                gap: '20px'
-              }}>
-                {historyData.map((entry, index) => (
-                  <div key={index} style={{
-                    backgroundColor: '#f8fafc',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '16px',
-                    padding: '24px',
-                    transition: 'all 0.3s ease',
-                    cursor: 'pointer'
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '20px'
-                    }}>
-                      <h4 style={{ 
-                        margin: 0, 
-                        fontSize: '18px', 
-                        color: '#1e293b',
-                        fontWeight: '600'
-                      }}>
-                        {new Date(entry.date).toLocaleDateString('en-US', { 
-                          weekday: 'short', 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })}
-                      </h4>
-                      <span style={{
-                        backgroundColor: entry.profit >= 0 ? '#d1fae5' : '#fee2e2',
-                        color: entry.profit >= 0 ? '#065f46' : '#991b1b',
-                        padding: '4px 12px',
-                        borderRadius: '6px',
-                        fontSize: '13px',
-                        fontWeight: '600'
-                      }}>
-                        {entry.profit >= 0 ? 'Profit' : 'Loss'}
-                      </span>
-                    </div>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between',
-                        padding: '12px',
-                        backgroundColor: 'white',
-                        borderRadius: '8px'
-                      }}>
-                        <span style={{ color: '#64748b', fontSize: '14px' }}>Orders</span>
-                        <span style={{ fontWeight: '600', color: '#1e293b' }}>{entry.totalOrders || 0}</span>
-                      </div>
-                      
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between',
-                        padding: '12px',
-                        backgroundColor: 'white',
-                        borderRadius: '8px'
-                      }}>
-                        <span style={{ color: '#64748b', fontSize: '14px' }}>Revenue</span>
-                        <span style={{ fontWeight: '600', color: '#059669' }}>
-                          RM{(entry.totalRevenue || 0).toFixed(2)}
-                        </span>
-                      </div>
-                      
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between',
-                        padding: '12px',
-                        backgroundColor: entry.profit >= 0 ? '#f0fdf4' : '#fef2f2',
-                        borderRadius: '8px',
-                        border: `2px solid ${entry.profit >= 0 ? '#86efac' : '#fecaca'}`
-                      }}>
-                        <span style={{ 
-                          color: entry.profit >= 0 ? '#047857' : '#991b1b', 
-                          fontSize: '14px',
-                          fontWeight: '600'
-                        }}>
-                          Profit
-                        </span>
-                        <span style={{ 
-                          fontWeight: 'bold', 
-                          color: entry.profit >= 0 ? '#047857' : '#991b1b'
-                        }}>
-                          RM{(entry.profit || 0).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+  <div style={{ 
+    textAlign: 'center', 
+    padding: '60px',
+    color: '#64748b'
+  }}>
+    <History size={56} style={{ marginBottom: '20px' }} />
+    <p style={{ fontSize: '18px' }}>No history data available yet.</p>
+  </div>
+) : (
+  <div style={{
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+    gap: '20px'
+  }}>
+    {historyData
+  .filter(entry => {
+    // Only show entries for actual delivery days (1=Mon, 3=Wed, 5=Fri based on your schedule)
+    const entryDate = new Date(entry.date + 'T00:00:00');
+    const dayOfWeek = entryDate.getDay();
+    return [1, 3, 5].includes(dayOfWeek); // Adjust these numbers to match your DELIVERY_DAYS
+  })
+  .map((entry, index) => (
+      <div key={index} style={{
+        backgroundColor: '#f8fafc',
+        border: '2px solid #e2e8f0',
+        borderRadius: '16px',
+        padding: '24px',
+        transition: 'all 0.3s ease',
+        position: 'relative'
+      }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px'
+        }}>
+          <h4 style={{ 
+            margin: 0, 
+            fontSize: '18px', 
+            color: '#1e293b',
+            fontWeight: '600'
+          }}>
+            {new Date(entry.date).toLocaleDateString('en-US', { 
+              weekday: 'short', 
+              month: 'short', 
+              day: 'numeric' 
+            })}
+          </h4>
+          <span style={{
+            backgroundColor: entry.profit >= 0 ? '#d1fae5' : '#fee2e2',
+            color: entry.profit >= 0 ? '#065f46' : '#991b1b',
+            padding: '4px 12px',
+            borderRadius: '6px',
+            fontSize: '13px',
+            fontWeight: '600'
+          }}>
+            {entry.profit >= 0 ? 'Profit' : 'Loss'}
+          </span>
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            padding: '12px',
+            backgroundColor: 'white',
+            borderRadius: '8px'
+          }}>
+            <span style={{ color: '#64748b', fontSize: '14px' }}>Orders</span>
+            <span style={{ fontWeight: '600', color: '#1e293b' }}>{entry.totalOrders || 0}</span>
+          </div>
+          
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            padding: '12px',
+            backgroundColor: 'white',
+            borderRadius: '8px'
+          }}>
+            <span style={{ color: '#64748b', fontSize: '14px' }}>Revenue</span>
+            <span style={{ fontWeight: '600', color: '#059669' }}>
+              RM{(entry.totalRevenue || 0).toFixed(2)}
+            </span>
+          </div>
+          
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            padding: '12px',
+            backgroundColor: entry.profit >= 0 ? '#f0fdf4' : '#fef2f2',
+            borderRadius: '8px',
+            border: `2px solid ${entry.profit >= 0 ? '#86efac' : '#fecaca'}`
+          }}>
+            <span style={{ 
+              color: entry.profit >= 0 ? '#047857' : '#991b1b', 
+              fontSize: '14px',
+              fontWeight: '600'
+            }}>
+              Profit
+            </span>
+            <span style={{ 
+              fontWeight: 'bold', 
+              color: entry.profit >= 0 ? '#047857' : '#991b1b'
+            }}>
+              RM{(entry.profit || 0).toFixed(2)}
+            </span>
+          </div>
+        </div>
+
+        {/* Edit Button */}
+        <button
+          onClick={() => handleEditClick(entry)}
+          style={{
+            width: '100%',
+            marginTop: '16px',
+            padding: '12px',
+            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '10px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+          }}
+        >
+          <Edit size={18} />
+          Edit Data
+        </button>
+      </div>
+    ))}
+  </div>
+)}
           </div>
         </>
       )}
@@ -1433,6 +1502,13 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
     </div>
   </div>
 )}
+<EditHistoryModal
+      isOpen={isEditModalOpen}
+      onClose={() => setIsEditModalOpen(false)}
+      entry={editingEntry}
+      onSave={handleSaveChanges}
+      adminPasscode={'byyc'} // Your admin passcode
+    />
     </div>
   );
 };

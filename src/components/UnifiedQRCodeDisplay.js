@@ -68,7 +68,7 @@ const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false, userIndex = 0, 
                 textAlign: 'center'
             }}>
                 <QrCode size={window.innerWidth <= 480 ? 20 : 28} />
-                {isCommitmentFee ? 'Commitment Fee Payment' : 'Delivery Fee Payment'}
+                {isCommitmentFee ? 'Base Delivery Fee Payment' : 'Delivery Fee Payment'}
             </div>
             <div style={{
                 padding: window.innerWidth <= 480 ? '16px' : '20px',
