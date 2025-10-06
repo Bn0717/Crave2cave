@@ -772,12 +772,10 @@ const handleRetrieveRegistration = async (name, retrievedContact) => {
     const normalizedNameInput = name.trim().replace(/\s+/g, ' ').toLowerCase();
     const normalizedContactInput = retrievedContact.replace(/\D/g, ''); // Removes all non-digits
 
-    const foundUser = prebookUsers.find(user => {
-      // 2. Normalize the data from the database for a perfect comparison
-      const dbName = user.name?.trim().replace(/\s+/g, ' ').toLowerCase();
-      const dbContact = user.contactNumber?.replace(/\D/g, '');
-
-      return isToday(user.timestamp) && dbName === normalizedNameInput && dbContact === normalizedContactInput;
+    const foundUser = todayUsers.find(user => {
+        const dbName = user.name?.trim().replace(/\s+/g, ' ').toLowerCase();
+        const dbContact = user.contactNumber?.replace(/\D/g, '');
+        return dbName === normalizedNameInput && dbContact === normalizedContactInput;
     });
 
     if (!foundUser) {
@@ -819,47 +817,57 @@ const handleRetrieveRegistration = async (name, retrievedContact) => {
 
     // --- START OF THE CORRECTED LOGIC BLOCK ---
     if (foundUser.commitmentPaid) {
-      // A paid user should always be at Step 3.
-      updateSession(3, { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
-      setUserStep(3);
-
-      // NOW, CHECK IF THE SYSTEM IS ACTUALLY ACTIVATED BEFORE SHOWING THE MESSAGE
-      if (minOrderReached) {
-        // If 3+ users have paid, the system is active.
-        showSuccessAnimation(
-          `Welcome back, ${foundUser.name}!`,
-          'The system is active. You can now submit your order.',
-          null, 0, true
-        );
-      } else {
-        // If <3 users have paid, the system is NOT active yet. Tell them to wait.
-        const currentPaidUsersCount = todayUsers.filter(u => u.commitmentPaid).length;
-        const remaining = Math.max(0, 3 - currentPaidUsersCount);
-        showSuccessAnimation(
-          `Welcome back, ${foundUser.name}!`,
-          'Thank you for your payment. The system is waiting for more users to activate.',
-          <p>We need {remaining} more paid user{remaining !== 1 ? 's' : ''} to open order submissions. Please check back later!</p>,
-          0, true
-        );
-      }
-    } else {
-      // If user has NOT paid, they MUST go to Step 2. (This part was already correct)
-      const currentPaidUsersCount = todayUsers.filter(u => u.commitmentPaid).length;
-      const remaining = Math.max(0, 3 - currentPaidUsersCount);
-      
-      updateSession(2, { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
-      setUserStep(2);
-      
-      showSuccessAnimation(
-        `Welcome back, ${foundUser.name}!`,
-        'Please complete your base delivery fee payment to proceed.',
-        <p>We need {remaining} more paid user{remaining !== 1 ? 's' : ''} to activate the system for ordering.</p>,
-        0, true
-      );
-    }
-    // --- END OF THE CORRECTED LOGIC BLOCK ---
-  };
-
+  // Scenario A & B: User already paid commitment fee
+  if (minOrderReached) {
+    // System is active - go to Step 3 (order submission)
+    updateSession(3, { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
+    setUserStep(3);
+    showSuccessAnimation(
+      `Welcome back, ${foundUser.name}!`,
+      'The system is active. You can now submit your order.',
+      null, 0, true
+    );
+  } else {
+    // System NOT active yet - stay waiting (no step change needed, just show message)
+    const currentPaidUsersCount = todayUsers.filter(u => u.commitmentPaid).length;
+    const remaining = Math.max(0, 3 - currentPaidUsersCount);
+    updateSession(2, { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
+    setUserStep(2); // Keep them at step 2 view but show waiting message
+    showSuccessAnimation(
+      `Welcome back, ${foundUser.name}!`,
+      'Thank you for your payment. The system is waiting for more users to activate.',
+      <p>We need {remaining} more paid user{remaining !== 1 ? 's' : ''} to open order submissions. Please check back later!</p>,
+      0, true
+    );
+  }
+} else {
+  // Scenario C: User has NOT paid commitment fee
+  if (minOrderReached) {
+    // System already activated - skip payment, go directly to order submission
+    updateSession(3, { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
+    setUserStep(3);
+    showSuccessAnimation(
+      `Welcome back, ${foundUser.name}!`,
+      'The system is already activated! You can submit your order directly without paying the commitment fee.',
+      null, 0, true
+    );
+  } else {
+    // System NOT activated - must pay commitment fee
+    const currentPaidUsersCount = todayUsers.filter(u => u.commitmentPaid).length;
+    const remaining = Math.max(0, 3 - currentPaidUsersCount);
+    
+    updateSession(2, { name: foundUser.name, contactNumber: foundUser.contactNumber, firestoreId: foundUser.firestoreId }, foundUser.vendor);
+    setUserStep(2);
+    
+    showSuccessAnimation(
+      `Welcome back, ${foundUser.name}!`,
+      'Please complete your base delivery fee payment to proceed.',
+      <p>We need {remaining} more paid user{remaining !== 1 ? 's' : ''} to activate the system for ordering.</p>,
+      0, true
+    );
+  }
+}
+};
 
 const updateSession = (step, studentData, vendor) => {
   const todayKey = new Date().toLocaleDateString('en-CA');
