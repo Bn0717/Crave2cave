@@ -86,9 +86,9 @@ const DRIVER_PASSCODE = 'kyuemc2c1234';
   const getSystemAvailability = () => {
   // =================================================================
   // =================== YOUR MASTER SCHEDULE CONTROL ==================
-  const DELIVERY_DAYS = [2, 5]; // Monday=1, Wednesday=3, Friday=5
-  const CUTOFF_HOUR = 14; // 2 PM
-  const CUTOFF_MINUTE = 0; // 2:00 PM
+  const DELIVERY_DAYS = [2, 5]; // Tuesday=2, Friday=5
+  const CUTOFF_HOUR = 15; // 3 PM
+  const CUTOFF_MINUTE = 0; // 3:00 PM
   // =================================================================
 
   const now = new Date();
@@ -96,16 +96,19 @@ const DRIVER_PASSCODE = 'kyuemc2c1234';
   const currentHour = malaysiaTime.getHours();
   const currentMinute = malaysiaTime.getMinutes();
   const currentDay = malaysiaTime.getDay();
+  
+  // Create today's date in YYYY-MM-DD format for Malaysia timezone
+  const todayDateString = malaysiaTime.toLocaleDateString('en-CA');
 
-  // ✅ NEW: If it's a delivery day and past cutoff (4:30 PM - 11:59 PM), close the system
+  // ✅ KEY FIX: deliveryDate ALWAYS stays as TODAY until midnight (00:00)
+  // This ensures admin/driver can see today's orders even after cutoff
+  
+  // If it's a delivery day and past cutoff - CLOSE for new orders but KEEP showing today's data
   if (DELIVERY_DAYS.includes(currentDay)) {
     if (currentHour > CUTOFF_HOUR || (currentHour === CUTOFF_HOUR && currentMinute >= CUTOFF_MINUTE)) {
-      // It's after 4:30 PM on a delivery day - system is CLOSED until midnight
-      const nextDeliveryDate = new Date(malaysiaTime);
-      nextDeliveryDate.setDate(nextDeliveryDate.getDate() + 1);
-      nextDeliveryDate.setHours(0, 0, 0, 0);
+      // System is CLOSED for new orders, but deliveryDate stays TODAY for admin/driver
       
-      // Find the next delivery day after today
+      // Find the next delivery day for new orders
       for (let i = 1; i <= 14; i++) {
         const checkingDate = new Date(malaysiaTime);
         checkingDate.setDate(checkingDate.getDate() + i);
@@ -113,29 +116,29 @@ const DRIVER_PASSCODE = 'kyuemc2c1234';
         
         if (DELIVERY_DAYS.includes(checkingDay)) {
           return {
-          isSystemOpen: false,
-          deliveryDate: checkingDate.toLocaleDateString('en-CA'),  // ← Show next delivery date
-          nextOpenTime: `Midnight tonight (opens for ${checkingDate.toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            month: 'long', 
-            day: 'numeric' 
-          })} delivery)`,
-          malaysiaTime,
-        };
+            isSystemOpen: false,
+            deliveryDate: todayDateString,  // ✅ ALWAYS TODAY until midnight
+            nextOpenTime: `Midnight tonight (opens for ${checkingDate.toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              month: 'long', 
+              day: 'numeric' 
+            })} delivery)`,
+            malaysiaTime,
+          };
         }
       }
       
-      // If no delivery day found after cutoff
+      // If no delivery day found in next 14 days
       return {
         isSystemOpen: false,
-        deliveryDate: null,
+        deliveryDate: todayDateString,  // ✅ STILL TODAY
         nextOpenTime: 'No delivery dates scheduled in the next 2 weeks',
         malaysiaTime,
       };
     }
   }
 
-  // Check the next 14 days to find a valid delivery date
+  // Before cutoff - check for the next available delivery day (could be today or future)
   for (let i = 0; i <= 14; i++) {
     const checkingDate = new Date(malaysiaTime);
     checkingDate.setDate(checkingDate.getDate() + i);
@@ -143,11 +146,11 @@ const DRIVER_PASSCODE = 'kyuemc2c1234';
     const checkingDay = checkingDate.getDay();
 
     if (DELIVERY_DAYS.includes(checkingDay)) {
-      // If this is today (i === 0), we already checked cutoff above
-      // So if we reach here for today, it means we're before cutoff
+      const deliveryDateString = checkingDate.toLocaleDateString('en-CA');
+      // Before cutoff on a delivery day - system is OPEN
       return {
         isSystemOpen: true,
-        deliveryDate: checkingDate.toLocaleDateString('en-CA'),
+        deliveryDate: deliveryDateString,
         malaysiaTime,
       };
     }
@@ -156,7 +159,7 @@ const DRIVER_PASSCODE = 'kyuemc2c1234';
   // No delivery date found in the next 14 days
   return {
     isSystemOpen: false,
-    deliveryDate: null,
+    deliveryDate: todayDateString,
     nextOpenTime: 'No delivery dates scheduled',
     malaysiaTime,
   };
