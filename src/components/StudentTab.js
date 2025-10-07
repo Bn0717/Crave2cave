@@ -435,7 +435,7 @@ const handlePrebook = async () => {
     if (!systemAvailability.isSystemOpen) {
       showSuccessAnimation(
         'System Closed',
-        'The food delivery system is only available on Tuesday and Friday from 12:00 AM to 4:30 PM (Malaysia Time).',
+        'The food delivery system is only available on Tuesday and Friday from 12:00 AM to 3:00 PM (Malaysia Time).',
         <div>
           <p style={{ margin: '8px 0', color: '#92400e', fontWeight: '600' }}>
             Next available: {systemAvailability.nextOpenTime}
