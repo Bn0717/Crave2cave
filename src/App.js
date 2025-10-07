@@ -88,7 +88,7 @@ const DRIVER_PASSCODE = 'kyuemc2c1234';
   // =================== YOUR MASTER SCHEDULE CONTROL ==================
   const DELIVERY_DAYS = [2, 5]; // Tuesday=2, Friday=5
   const CUTOFF_HOUR = 15; // 3 PM
-  const CUTOFF_MINUTE = 45; // 3:00 PM
+  const CUTOFF_MINUTE = 30; // 3:00 PM
   // =================================================================
 
   const now = new Date();
