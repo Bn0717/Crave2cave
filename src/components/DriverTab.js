@@ -281,8 +281,6 @@ const handleStartDelivery = async () => {
     // Clear selection of orders that were just started
     setSelectedOrders(prev => prev.filter(id => !ordersToUpdate.map(o => o.id).includes(id)));
     
-    await fetchAllData();
-    
     // Show success message with email status
     let emailStatusMessage = '';
     if (successfulEmails > 0 && failedEmails === 0) {
@@ -321,7 +319,6 @@ const handleStartDelivery = async () => {
       hideLoadingAnimation();
       setDeliveryStatus('completed');
       setSelectedOrders([]);
-      await fetchAllData();
       showSuccessAnimation(
         'Deliveries Completed!',
         'All selected orders have been marked as delivered.',

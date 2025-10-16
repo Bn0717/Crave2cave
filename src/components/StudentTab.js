@@ -496,7 +496,7 @@ const existingUser = todayUsers.find(user => {
           hasOrdered: false,
           orderTotal: 0,
           deliveryDate: systemAvailability.deliveryDate,
-          vendor: selectedVendor,
+          vendor: null,
         };
 
         const nextStep = currentPaidUsersCount >= 3 ? 3 : 2;
@@ -616,15 +616,43 @@ const handleCommitmentPayment = async () => {
       );
       return;
     }
-  // Use local variable to get the current selectedUserId value with better fallback logic
-  let currentSelectedUserId = selectedUserId;
-  
-  // If selectedUserId is empty but we have remembered student data, use that
-  if ((!currentSelectedUserId || currentSelectedUserId.trim() === '') && rememberedStudent?.firestoreId) {
-    currentSelectedUserId = rememberedStudent.firestoreId;
-    // Update the state with the recovered ID
-    setSelectedUserId(currentSelectedUserId);
-  }
+
+    // Use local variable to get the current selectedUserId value with better fallback logic
+    let currentSelectedUserId = selectedUserId;
+
+    // If selectedUserId is empty but we have remembered student data, use that
+    if ((!currentSelectedUserId || currentSelectedUserId.trim() === '') && rememberedStudent?.firestoreId) {
+      currentSelectedUserId = rememberedStudent.firestoreId;
+      // Update the state with the recovered ID
+      setSelectedUserId(currentSelectedUserId);
+    }
+
+    const existingOrder = todayOrders.find(order => order.userId === currentSelectedUserId);
+    if (existingOrder) {
+      showSuccessAnimation(
+        'Order Already Submitted',
+        `You have already placed an order today. You cannot submit another order for the same delivery date.`,
+        <div style={{ 
+          marginTop: '12px', 
+          padding: '12px', 
+          backgroundColor: '#fef3c7', 
+          borderRadius: '8px',
+          border: '1px solid #fbbf24'
+        }}>
+          <p style={{ margin: '0 0 8px 0', fontWeight: '600', color: '#92400e' }}>
+            Your existing order:
+          </p>
+          <p style={{ margin: 0, color: '#92400e' }}>
+            📦 Order #{existingOrder.orderNumber}<br/>
+            🏪 {existingOrder.vendor}<br/>
+            💰 RM{existingOrder.orderTotal.toFixed(2)}
+          </p>
+        </div>,
+        0,
+        true
+      );
+      return;
+    }
   
   console.log('handleOrderSubmission called with:', {
     selectedUserId,
@@ -705,6 +733,12 @@ const handleCommitmentPayment = async () => {
 
     const orderImageURLs = await Promise.all(uploadPromises);
 
+    if (!selectedVendor || selectedVendor.trim() === '') {
+  showSuccessAnimation('Merchant Not Selected', 'Please select a merchant before submitting.', null, 0, true);
+  return;
+}
+
+
     const orderData = {
       userId: currentSelectedUserId, // Use the reliable ID
       userName: studentName,
@@ -733,6 +767,7 @@ const handleCommitmentPayment = async () => {
       orderSubmitted: true,
       hasOrdered: true,
       lastOrderDate: new Date().toISOString(),
+      vendor: selectedVendor,
     });
 
     hideLocalLoading();
@@ -872,7 +907,7 @@ const handleRetrieveRegistration = async (name, retrievedContact) => {
 const updateSession = (step, studentData, vendor) => {
   const todayKey = new Date().toLocaleDateString('en-CA');
   const sessionData = {
-    vendor: vendor,
+    vendor: vendor || null,
     step: step,
     student: {
       name: studentData.name,
@@ -952,7 +987,7 @@ const loadFromSession = useCallback(async () => {
   showLocalLoading("Restoring your session...");
   const sessionStep = rememberedStudent.sessionStep;
 
-  if (sessionStep === 3) {
+    if (sessionStep === 3) {
     try {
       const existingOrder = await firebaseService.getTodaysOrderByUserId(userFirestoreId);
       if (existingOrder) {
@@ -962,13 +997,26 @@ const loadFromSession = useCallback(async () => {
         setShowEmailModal(true);
         setCurrentOrder(existingOrder);
       } else {
-        const savedFormStateJSON = localStorage.getItem(`formState-${userFirestoreId}`);
-        if (savedFormStateJSON) {
-          const savedFormState = JSON.parse(savedFormStateJSON);
-          setOrderNumber(savedFormState.orderNumber || '');
-          setOrderTotal(savedFormState.orderTotal || '');
+        const userHasOrder = todayOrders.some(order => order.userId === userFirestoreId);
+        
+        if (userHasOrder) {
+          showSuccessAnimation(
+            'Order Found',
+            'You have already submitted an order today. Please use "Retrieve Registration" to view it.',
+            null,
+            0,
+            true
+          );
+          resetForm(true);
+        } else {
+          const savedFormStateJSON = localStorage.getItem(`formState-${userFirestoreId}`);
+          if (savedFormStateJSON) {
+            const savedFormState = JSON.parse(savedFormStateJSON);
+            setOrderNumber(savedFormState.orderNumber || '');
+            setOrderTotal(savedFormState.orderTotal || '');
+          }
+          setUserStep(3);
         }
-        setUserStep(3);
       }
     } catch (error) {
       showSuccessAnimation("Session Restore Failed", "Failed to restore your session. Please retrieve your registration again.", null, 0, true);
@@ -977,6 +1025,7 @@ const loadFromSession = useCallback(async () => {
       hideLocalLoading();
     }
   } else {
+    // ✅ This handles sessionStep 1 or 2
     setUserStep(sessionStep);
     hideLocalLoading();
   }
@@ -1480,9 +1529,27 @@ const isSubmitDisabled =
 
 <div style={styles.sectionCard}>
             <h4 style={styles.sectionHeader}>
-              <span style={styles.stepNumber}>2</span>
-              Confirm Merchant (One Only!!!)
-            </h4>
+  <span style={styles.stepNumber}>2</span>
+  Select Your Merchant (FINAL CHOICE)
+</h4>
+<div style={{
+  backgroundColor: '#fef3c7',
+  border: '2px solid #f59e0b',
+  borderRadius: '12px',
+  padding: '12px',
+  marginBottom: '16px'
+}}>
+  <p style={{ 
+    margin: 0, 
+    color: '#92400e', 
+    fontSize: windowWidth <= 480 ? '12px' : '13px',
+    fontWeight: '600',
+    lineHeight: '1.5'
+  }}>
+    ⚠️ <strong>Important:</strong> The merchant you select here will be your FINAL order pickup location. 
+    Make sure your order receipt matches this merchant!
+  </p>
+</div>
             <p style={{ 
               marginBottom: '16px', 
               color: '#64748b',

@@ -1313,7 +1313,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
     // Only show entries for actual delivery days (1=Mon, 3=Wed, 5=Fri based on your schedule)
     const entryDate = new Date(entry.date + 'T00:00:00');
     const dayOfWeek = entryDate.getDay();
-    return [1, 3, 5].includes(dayOfWeek); // Adjust these numbers to match your DELIVERY_DAYS
+    return [2, 5].includes(dayOfWeek); // Adjust these numbers to match your DELIVERY_DAYS
   })
   .map((entry, index) => (
       <div key={index} style={{
