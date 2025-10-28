@@ -87,8 +87,8 @@ useEffect(() => {
   // =================================================================
   // =================== YOUR MASTER SCHEDULE CONTROL ==================
   const DELIVERY_DAYS = [2, 5]; // Tuesday=2, Friday=5
-  const CUTOFF_HOUR = 17; // 3 PM
-  const CUTOFF_MINUTE = 30; // 3:00 PM
+  const CUTOFF_HOUR = 15; // 3 PM
+  const CUTOFF_MINUTE = 0; // 3:00 PM
   // =================================================================
 
   const now = new Date();
