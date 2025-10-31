@@ -48,6 +48,7 @@ const AdminTab = ({
   'mixue': { name: 'Mixue', icon: '🧋' },
   'dominos': { name: 'Dominos', icon: '🍕' },
   'ayam_gepuk': { name: 'Ayam Gepuk', icon: '🍗' },
+  'family_mart': { name: 'Family Mart', icon: '🏪' },
 };
 
   const styles = {

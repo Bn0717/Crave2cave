@@ -9,6 +9,7 @@ const VENDORS = {
     'mixue': { name: 'Mixue', icon: '🧋', shortName: 'Mixue' },
     'dominos': { name: 'Dominos', icon: '🍕', shortName: 'Dominos' },
     'ayam_gepuk': { name: "Ayam Gepuk", icon: '🍗', shortName: "Ayam Gepuk" },
+    'family_mart': { name: 'Family Mart', icon: '🏪', shortName: 'Family Mart' }
 };
 
 // A fallback for any case where the vendor might not be found.

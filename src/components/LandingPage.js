@@ -10,7 +10,8 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
   const vendors = [
     { id: 'dominos', name: "Domino's Pizza", logo: '🍕', color: '#0078d4' },
     { id: 'ayam_gepuk', name: "Ayam Gepuk Pak Gembus", logo: '🍗', color: '#ffcc02' },
-    { id: 'mixue', name: 'MIXUE', logo: '🧋', color: '#ff69b4' }
+    { id: 'mixue', name: 'MIXUE', logo: '🧋', color: '#ff69b4' },
+    { id: 'family_mart', name: 'Family Mart', logo: '🏪', color: '#00a1e0' }
   ];
 
   const foodItems = [
@@ -72,9 +73,15 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
       marginBottom: '40px', textShadow: '0 2px 10px rgba(0,0,0,0.3)',
     },
     vendorContainer: {
-      display: 'grid', gridTemplateColumns: windowWidth <= 768 ? '1fr' : 'repeat(3, 1fr)',
-      gap: '16px', maxWidth: '1000px',
-      width: '100%', marginBottom: '40px', zIndex: 2, position: 'relative',
+      display: 'flex', // CHANGED FROM 'grid'
+      flexWrap: 'wrap', // ADDED: to allow items to go to the next line
+      justifyContent: 'center', // ADDED: this is the magic that centers each line
+      gap: '16px',
+      maxWidth: '1000px',
+      width: '100%',
+      marginBottom: '40px',
+      zIndex: 2,
+      position: 'relative',
     },
     vendorCard: {
       background: 'rgba(255, 255, 255, 0.95)', borderRadius: '24px',
@@ -82,6 +89,7 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
       cursor: 'pointer', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
       border: '5px solid transparent', position: 'relative', overflow: 'hidden',
       backdropFilter: 'blur(20px)', boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+      width: windowWidth <= 768 ? '100%' : '300px',
     },
     vendorCardSelected: {
       transform: 'scale(1.05)', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',

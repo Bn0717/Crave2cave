@@ -1566,7 +1566,8 @@ const isSubmitDisabled =
               {[
                 { id: 'dominos', name: "Domino's Pizza", emoji: '🍕', color: '#0078d4' },
                 { id: 'ayam_gepuk', name: "Ayam Gepuk Pak Gembus", emoji: '🍗', color: '#ffcc02' },
-                { id: 'mixue', name: 'MIXUE', emoji: '🧋', color: '#ff69b4' }
+                { id: 'mixue', name: 'MIXUE', emoji: '🧋', color: '#ff69b4' },
+                { id: 'family_mart', name: 'Family Mart', emoji: '🏪', color: '#00a1e0' }
               ].map((vendor) => (
                 <div
                   key={vendor.id}
