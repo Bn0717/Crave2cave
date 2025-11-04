@@ -120,7 +120,7 @@ const QASection = () => (
             </tr>
             <tr>
               <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12) }}>RM201 – RM300</td>
-              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600' }}>RM45</td>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600' }}>RM50</td>
             </tr>
             <tr style={{ backgroundColor: '#f8fafc' }}>
               <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12) }}>Above RM300</td>
