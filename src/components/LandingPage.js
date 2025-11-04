@@ -11,7 +11,9 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
     { id: 'dominos', name: "Domino's Pizza", logo: '🍕', color: '#0078d4' },
     { id: 'ayam_gepuk', name: "Ayam Gepuk Pak Gembus", logo: '🍗', color: '#ffcc02' },
     { id: 'mixue', name: 'MIXUE', logo: '🧋', color: '#ff69b4' },
-    { id: 'family_mart', name: 'Family Mart', logo: '🏪', color: '#00a1e0' }
+    { id: 'family_mart', name: 'Family Mart', logo: '🏪', color: '#009a44' },
+    { id: 'bakers_cottage', name: 'Baker\'s Cottage', logo: '🥐', color: '#D97706' },
+    { id: 'zus_coffee', name: 'Zus Coffee', logo: '☕', color: '#0057A0' }
   ];
 
   const foodItems = [

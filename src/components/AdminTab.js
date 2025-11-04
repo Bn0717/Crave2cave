@@ -49,7 +49,43 @@ const AdminTab = ({
   'dominos': { name: 'Dominos', icon: '🍕' },
   'ayam_gepuk': { name: 'Ayam Gepuk', icon: '🍗' },
   'family_mart': { name: 'Family Mart', icon: '🏪' },
+  'bakers_cottage': { name: 'Baker\'s Cottage', icon: '🥐' },
+  'zus_coffee': { name: 'Zus Coffee', icon: '☕' },
 };
+
+  const [localHistoryData, setLocalHistoryData] = useState(historyData);
+
+  useEffect(() => {
+  setLocalHistoryData(historyData);
+}, [historyData]);
+
+const todayHistoryEntry = localHistoryData.find(entry => entry.date === systemAvailability.deliveryDate);
+
+// Step 1: Calculate all LIVE data as a baseline.
+const liveRegisteredUsers = todayUsers.length;
+const liveOrders = todayOrders.length;
+const liveCommitmentFees = todayUsers.filter(u => u.commitmentPaid).length * 10;
+const liveDeliveryFees = todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
+const liveRevenue = liveCommitmentFees + liveDeliveryFees;
+
+// Step 2: Determine the final DISPLAY values, using the history entry as an override.
+const displayRegisteredUsers = todayHistoryEntry?.registeredUsers ?? liveRegisteredUsers;
+const displayOrders = todayHistoryEntry?.totalOrders ?? liveOrders;
+const displayRevenue = todayHistoryEntry?.totalRevenue ?? liveRevenue;
+
+// Step 3: Calculate the breakdown components for VISUAL consistency.
+// Commitment fees are always the live value.
+const displayCommitmentFees = liveCommitmentFees;
+// Delivery fees are derived from the displayed revenue.
+const displayDeliveryFees = todayHistoryEntry ? (displayRevenue - displayCommitmentFees) : liveDeliveryFees;
+
+// Step 4: Calculate the profit. This is the most important part.
+// First, calculate a fallback profit based on the OTHER display values.
+// This ensures that if you edit Orders to 0, the Driver Cost is correctly removed.
+const fallbackProfit = displayRevenue - (displayOrders > 0 ? 30 : 0);
+// The final profit to display is EITHER the manually edited profit OR our calculated fallback.
+const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
+
 
   const styles = {
     card: { 
@@ -129,6 +165,11 @@ const AdminTab = ({
       showLoadingAnimation('Updating history...');
       await firebaseService.updateHistoryEntry(entryId, updatedData);
       // Refresh data to show changes
+      setLocalHistoryData(prevHistory => 
+      prevHistory.map(entry => 
+        entry.id === entryId ? { ...entry, ...updatedData } : entry
+      )
+    );
       hideLoadingAnimation();
       showSuccessAnimation('Success!', 'History entry has been updated.');
     } catch (error) {
@@ -276,7 +317,7 @@ const AdminTab = ({
                 <p style={{
                   ...styles.statValue,
                   ...(windowWidth <= 480 ? { fontSize: '18px' } : {})
-                }}>{todayUsers.length}</p>
+                }}>{displayRegisteredUsers}</p>
               </div>
             </div>
 
@@ -305,7 +346,7 @@ const AdminTab = ({
                 <p style={{
                   ...styles.statValue,
                   ...(windowWidth <= 480 ? { fontSize: '18px' } : {})
-                }}>{todayOrders.length}</p>
+                }}>{displayOrders}</p>
               </div>
             </div>
 
@@ -335,8 +376,7 @@ const AdminTab = ({
                   ...styles.statValue,
                   ...(windowWidth <= 480 ? { fontSize: '18px' } : {})
                 }}>
-                  RM{(todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-                    todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)).toFixed(2)}
+                  RM{displayRevenue.toFixed(2)}
                 </p>
               </div>
             </div>
@@ -367,9 +407,7 @@ const AdminTab = ({
                   ...styles.statValue,
                   ...(windowWidth <= 480 ? { fontSize: '18px' } : {})
                 }}>
-                  RM{((todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-                    todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
-                    (todayOrders.length > 0 ? 30 : 0))).toFixed(2)}
+                  RM{displayProfit.toFixed(2)}
                 </p>
               </div>
             </div>
@@ -406,7 +444,7 @@ const AdminTab = ({
                   fontWeight: 'bold', 
                   fontSize: windowWidth <= 480 ? '13px' : '16px' 
                 }}>
-                  +RM{(todayUsers.filter(u => u.commitmentPaid).length * 10).toFixed(2)}
+                  +RM{displayCommitmentFees.toFixed(2)}
                 </span>
               </div>
               <div style={{ 
@@ -426,7 +464,7 @@ const AdminTab = ({
                   fontWeight: 'bold', 
                   fontSize: windowWidth <= 480 ? '13px' : '16px' 
                 }}>
-                  +RM{todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0).toFixed(2)}
+                  +RM{displayDeliveryFees.toFixed(2)}
                 </span>
               </div>
               <div style={{ 
@@ -448,8 +486,7 @@ const AdminTab = ({
                   fontWeight: 'bold', 
                   fontSize: windowWidth <= 480 ? '14px' : '16px' 
                 }}>
-                  RM{(todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-                    todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)).toFixed(2)}
+                  RM{displayRevenue.toFixed(2)}
                 </span>
               </div>
               <div style={{ 
@@ -470,7 +507,7 @@ const AdminTab = ({
                   color: '#dc2626', 
                   fontSize: windowWidth <= 480 ? '13px' : '16px' 
                 }}>
-                  -RM{todayOrders.length > 0 ? '30.00' : '0.00'}
+                  -RM{displayOrders > 0 ? '30.00' : '0.00'}
                 </span>
               </div>
               <div style={{ 
@@ -492,18 +529,13 @@ const AdminTab = ({
                 <span style={{ 
                   fontSize: windowWidth <= 480 ? '16px' : '20px', 
                   fontWeight: 'bold', 
-                  color: (todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-                        todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
-                        (todayOrders.length > 0 ? 30 : 0)) >= 0 
-                        ? '#059669' : '#dc2626' 
+                  color: displayProfit >= 0 ? '#059669' : '#dc2626' 
                 }}>
-                  RM{((todayUsers.filter(u => u.commitmentPaid).length * 10 + 
-                      todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
-                      (todayOrders.length > 0 ? 30 : 0)).toFixed(2))}
-                </span>
-              </div>
-            </div>
-          </div>
+                  RM{displayProfit.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
 
           {/* Awaiting Orders Card */}
           <div style={styles.card}>
@@ -805,7 +837,7 @@ const isFirstThreeUser = firstThreePaidUsers.some(paidUser => paidUser.firestore
                         fontWeight: 'bold',
                         color: '#166534'
                       }}>
-                        RM{userOrder.totalWithDelivery.toFixed(2)}
+                        RM{(userOrder.totalWithDelivery + (isFirstThreeUser ? 10 : 0)).toFixed(2)}
                       </div>
                     </div>
                   </div>
@@ -1309,7 +1341,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
     gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
     gap: '20px'
   }}>
-    {historyData
+    {localHistoryData
   .filter(entry => {
     // Only show entries for actual delivery days (1=Mon, 3=Wed, 5=Fri based on your schedule)
     const entryDate = new Date(entry.date + 'T00:00:00');

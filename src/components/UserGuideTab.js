@@ -165,7 +165,7 @@ const QASection = () => (
           </thead>
           <tbody>
             <tr>
-              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600', whiteSpace: 'nowrap' }}>4:30 PM</td>
+              <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12), fontWeight: '600', whiteSpace: 'nowrap' }}>3:00 PM</td>
               <td style={{ border: '1px solid #e2e8f0', padding: fluidSize(10, 12) }}>Orders close</td>
             </tr>
             <tr style={{ backgroundColor: '#f8fafc' }}>
@@ -280,7 +280,7 @@ const UserGuideTab = () => {
     image: GuidePhoto, 
     steps: [ 
       'Order food via merchant\'s app (e.g. Domino\'s Pizza).',
-      "Select 'Scheduled' pick up option and set time to 17:45 - 18:00.",
+      "Select 'Scheduled' pick up option and set time to 17:00 - 17:15.",
       'Take a screenshot of your order (include order number and total amount).',
       'Register our website using your FULL NAME and CONTACT NUMBER.', 
       'Pay a base delivery fee of RM10 and upload proof of payment (only applies to the first 3 users).', 
@@ -298,7 +298,7 @@ const UserGuideTab = () => {
     steps: [ 
       'Ensure FoodPanda\'s address chosen is in Tanjung Malim (highly recommended).', 
       'Choose your orders. Ensure pick up option is chosen at the checkout page.', 
-      "Select 'Scheduled' pick up option and set time to 17:45 - 18:00.", 
+      "Select 'Scheduled' pick up option and set time to 17:00 - 17:15.", 
       'Take a screenshot of your order (include order number and total amount) and submit to our website when required.',
       'Register our website using your FULL NAME and CONTACT NUMBER.', 
       'Pay a base delivery fee of RM10 and upload proof of payment (only applies to the first 3 users).', 

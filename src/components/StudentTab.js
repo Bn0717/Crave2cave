@@ -1251,7 +1251,7 @@ const isSubmitDisabled =
     }}>
       Step 2: Pay Base Delivery Fee (Deposit)
     </h3>
-    <p>RM10 base delivery fee applies to the first 3 users but will be deducted from their total delivery fee during order submission. (Please check back before 4:30pm!!)</p>
+    <p>RM10 base delivery fee applies to the first 3 users but will be deducted from their total delivery fee during order submission. (Please check back before 3:00pm!!)</p>
 
     <UnifiedQRCodeDisplay 
       isCommitmentFee={true} 
@@ -1334,7 +1334,7 @@ const isSubmitDisabled =
             color: '#1e293b', 
             fontSize: windowWidth <= 480 ? '15px' : '20px' 
           }}>
-            Step 3: Submit Your Order (Please submit before 4:30pm on the delivery date)
+            Step 3: Submit Your Order (Please submit before 3:00pm on the delivery date)
           </h3>
           
           <div style={{ 
@@ -1567,7 +1567,9 @@ const isSubmitDisabled =
                 { id: 'dominos', name: "Domino's Pizza", emoji: '🍕', color: '#0078d4' },
                 { id: 'ayam_gepuk', name: "Ayam Gepuk Pak Gembus", emoji: '🍗', color: '#ffcc02' },
                 { id: 'mixue', name: 'MIXUE', emoji: '🧋', color: '#ff69b4' },
-                { id: 'family_mart', name: 'Family Mart', emoji: '🏪', color: '#00a1e0' }
+                { id: 'family_mart', name: 'Family Mart', emoji: '🏪', color: '#009a44' },
+                { id: 'bakers_cottage', name: 'Baker\'s Cottage', emoji: '🥐', color: '#D97706' },
+                { id: 'zus_coffee', name: 'Zus Coffee', emoji: '☕', color: '#0057A0' }
               ].map((vendor) => (
                 <div
                   key={vendor.id}
@@ -1700,7 +1702,7 @@ const isSubmitDisabled =
           >
             <p style={{ margin: '0', fontSize: '14px', color: '#92400e' }}>
   You'll be able to submit your order once we reach the minimum requirement. 
-  Please check back later <strong>before 4:30pm!</strong>
+  Please check back later <strong>before 3:00pm!</strong>
 </p>
 
           </BeautifulMessage>
