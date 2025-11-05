@@ -21,7 +21,7 @@ const SuccessAnimation = ({ title, message, additionalInfo, duration = 2000, sho
     const successStyles = {
         overlay: {
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, padding: '16px',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999, padding: '16px',
             backdropFilter: 'blur(8px)', opacity: visible ? 1 : 0, transition: 'opacity 0.5s ease-in-out'
         },
         modal: {

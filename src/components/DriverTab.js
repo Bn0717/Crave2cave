@@ -68,6 +68,7 @@ const DriverTab = ({
   setShowImageCarousel,
   setSelectedImages,
   systemAvailability,
+  driverCost,
 }) => {
   const [deliveryStatus, setDeliveryStatus] = useState('pending');
   const [selectedOrders, setSelectedOrders] = useState([]);
@@ -184,7 +185,8 @@ statValue: {
     const totalOrders = todayOrders.length;
     const completedOrders = todayOrders.filter(order => order.status === 'delivered').length;
     const pendingOrders = todayOrders.filter(order => order.status === 'pending').length;
-    const totalRevenue = 30;
+    // CRITICAL CHANGE HERE:
+    const totalRevenue = todayOrders.length > 0 ? driverCost : 0;
     return { totalOrders, completedOrders, pendingOrders, totalRevenue };
   };
 
@@ -506,8 +508,8 @@ const getOrdersByVendor = () => {
             <Truck size={32} color="#3b82f6" />
           </div>
           <div style={styles.statContent}>
-            <p style={styles.statLabel}>Delivery Fees</p>
-            <p style={styles.statValue}>RM{stats.totalRevenue.toFixed(2)}</p>
+            <p style={styles.statLabel}>My Delivery Fee</p>
+            <p style={styles.statValue}>RM{driverCost.toFixed(2)}</p>
           </div>
         </div>
       </div>

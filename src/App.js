@@ -3,7 +3,7 @@ import './App.css';
 import logoForAnimation from './assets/logo(1).png';
 import * as firebaseService from './services/firebase';
 import { db } from './services/firebase'; // We need direct db access
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc } from "firebase/firestore";
 import { isToday } from './utils/isToday';
 import Navigation from './components/Navigation';
 import LoadingAnimation from './components/LoadingAnimation';
@@ -55,6 +55,8 @@ function App() {
   const [isCurrentUserEligible, setIsCurrentUserEligible] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [allOrders, setAllOrders] = useState([]);
+  const [driverCost, setDriverCost] = useState(30);
+  const [dailySettings, setDailySettings] = useState({});
   const [systemAvailability, setSystemAvailability] = useState({ 
   isSystemOpen: true, 
   nextOpenTime: '', 
@@ -83,87 +85,71 @@ useEffect(() => {
     }
   };
 
-  const getSystemAvailability = () => {
-  // =================================================================
-  // =================== YOUR MASTER SCHEDULE CONTROL ==================
-  const DELIVERY_DAYS = [2, 5]; // Tuesday=2, Friday=5
-  const CUTOFF_HOUR = 15; // 3 PM
-  const CUTOFF_MINUTE = 0; // 3:00 PM
-  // =================================================================
-
-  const now = new Date();
-  const malaysiaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" }));
-  const currentHour = malaysiaTime.getHours();
-  const currentMinute = malaysiaTime.getMinutes();
-  const currentDay = malaysiaTime.getDay();
+  const getSystemAvailability = (settings = {}) => {
+    const DELIVERY_DAYS = [2, 5]; // Tuesday=2, Friday=5
+    
+    let CUTOFF_HOUR = 15; 
+    let CUTOFF_MINUTE = 0; 
   
-  // Create today's date in YYYY-MM-DD format for Malaysia timezone
-  const todayDateString = malaysiaTime.toLocaleDateString('en-CA');
-
-  // ✅ KEY FIX: deliveryDate ALWAYS stays as TODAY until midnight (00:00)
-  // This ensures admin/driver can see today's orders even after cutoff
+    if (settings.extendedCutoffTime) {
+      const [hours, minutes] = settings.extendedCutoffTime.split(':').map(Number);
+      CUTOFF_HOUR = hours;
+      CUTOFF_MINUTE = minutes;
+      console.log(`System extended! New cutoff: ${CUTOFF_HOUR}:${CUTOFF_MINUTE}`);
+    }
   
-  // If it's a delivery day and past cutoff - CLOSE for new orders but KEEP showing today's data
-  if (DELIVERY_DAYS.includes(currentDay)) {
-    if (currentHour > CUTOFF_HOUR || (currentHour === CUTOFF_HOUR && currentMinute >= CUTOFF_MINUTE)) {
-      // System is CLOSED for new orders, but deliveryDate stays TODAY for admin/driver
-      
-      // Find the next delivery day for new orders
-      for (let i = 1; i <= 14; i++) {
-        const checkingDate = new Date(malaysiaTime);
-        checkingDate.setDate(checkingDate.getDate() + i);
-        const checkingDay = checkingDate.getDay();
-        
-        if (DELIVERY_DAYS.includes(checkingDay)) {
-          return {
-            isSystemOpen: false,
-            deliveryDate: todayDateString,  // ✅ ALWAYS TODAY until midnight
-            nextOpenTime: `Midnight tonight (opens for ${checkingDate.toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              month: 'long', 
-              day: 'numeric' 
-            })} delivery)`,
-            malaysiaTime,
-          };
+    const now = new Date();
+    const malaysiaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" }));
+    const currentHour = malaysiaTime.getHours();
+    const currentMinute = malaysiaTime.getMinutes();
+    const currentDay = malaysiaTime.getDay();
+    const todayDateString = malaysiaTime.toLocaleDateString('en-CA');
+  
+    if (DELIVERY_DAYS.includes(currentDay)) {
+      if (currentHour > CUTOFF_HOUR || (currentHour === CUTOFF_HOUR && currentMinute >= CUTOFF_MINUTE)) {
+        for (let i = 1; i <= 14; i++) {
+          const checkingDate = new Date(malaysiaTime);
+          checkingDate.setDate(checkingDate.getDate() + i);
+          const checkingDay = checkingDate.getDay();
+          
+          if (DELIVERY_DAYS.includes(checkingDay)) {
+            return {
+              isSystemOpen: false,
+              deliveryDate: todayDateString,
+              nextOpenTime: `Midnight tonight (opens for ${checkingDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} delivery)`,
+              malaysiaTime,
+            };
+          }
         }
+        return {
+          isSystemOpen: false, deliveryDate: todayDateString,
+          nextOpenTime: 'No delivery dates scheduled in the next 2 weeks', malaysiaTime,
+        };
       }
-      
-      // If no delivery day found in next 14 days
-      return {
-        isSystemOpen: false,
-        deliveryDate: todayDateString,  // ✅ STILL TODAY
-        nextOpenTime: 'No delivery dates scheduled in the next 2 weeks',
-        malaysiaTime,
-      };
     }
-  }
-
-  // Before cutoff - check for the next available delivery day (could be today or future)
-  for (let i = 0; i <= 14; i++) {
-    const checkingDate = new Date(malaysiaTime);
-    checkingDate.setDate(checkingDate.getDate() + i);
-    checkingDate.setHours(0, 0, 0, 0);
-    const checkingDay = checkingDate.getDay();
-
-    if (DELIVERY_DAYS.includes(checkingDay)) {
-      const deliveryDateString = checkingDate.toLocaleDateString('en-CA');
-      // Before cutoff on a delivery day - system is OPEN
-      return {
-        isSystemOpen: true,
-        deliveryDate: deliveryDateString,
-        malaysiaTime,
-      };
+  
+    for (let i = 0; i <= 14; i++) {
+      const checkingDate = new Date(malaysiaTime);
+      checkingDate.setDate(checkingDate.getDate() + i);
+      checkingDate.setHours(0, 0, 0, 0);
+      const checkingDay = checkingDate.getDay();
+  
+      if (DELIVERY_DAYS.includes(checkingDay)) {
+        const deliveryDateString = checkingDate.toLocaleDateString('en-CA');
+        return { isSystemOpen: true, deliveryDate: deliveryDateString, malaysiaTime };
+      }
     }
-  }
-
-  // No delivery date found in the next 14 days
-  return {
-    isSystemOpen: false,
-    deliveryDate: todayDateString,
-    nextOpenTime: 'No delivery dates scheduled',
-    malaysiaTime,
+  
+    return {
+      isSystemOpen: false, deliveryDate: todayDateString,
+      nextOpenTime: 'No delivery dates scheduled', malaysiaTime,
+    };
   };
-};
+
+  useEffect(() => {
+    // Initialize system availability on mount, without settings
+    setSystemAvailability(getSystemAvailability());
+  }, []);
 
 const scrollToTop = useCallback(() => {
   // Simple, reliable scroll to top
@@ -235,72 +221,59 @@ const handleNavigateWithTransition = (config, navigationAction) => {
 };
 
 useEffect(() => {
-  if (!showMainApp) return;
-  
-  // Get the actual delivery date the system is operating on
-  const targetDeliveryDate = systemAvailability.deliveryDate;
-  
-  if (!targetDeliveryDate) {
-    // System is closed, no delivery date available
-    setLoadingUsers(false);
-    setLoadingOrders(false);
-    setLoadingHistory(false);
-    return;
-  }
-
-  setLoadingUsers(true);
-  setLoadingOrders(true);
-  setLoadingHistory(true);
-
-  // --- Listener for Users for Target Delivery Date ---
-  const usersQuery = query(
-    collection(db, "prebookUsers"),
-    where("deliveryDate", "==", targetDeliveryDate)  // ✅ Use the actual delivery date
-  );
-  const unsubscribeUsers = onSnapshot(usersQuery, (querySnapshot) => {
-    const users = querySnapshot.docs
-      .map((doc) => ({ id: doc.id, firestoreId: doc.id, ...doc.data() }))
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    if (!showMainApp) return;
     
-    setPrebookUsers(users);
-    const orderArray = users.map((user, index) => ({ userId: user.firestoreId, order: index + 1 }));
-    setRegistrationOrder(orderArray);
-    setLoadingUsers(false);
-    console.log("Real-time user data updated:", users);
-  }, (error) => {
-    console.error("Error listening to user data:", error);
-    setLoadingUsers(false);
-  });
-
-  // --- Listener for All Orders ---
-  const ordersQuery = query(collection(db, "orders"));
-  const unsubscribeOrders = onSnapshot(ordersQuery, (querySnapshot) => {
-    const ordersData = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    setAllOrders(ordersData);
-    setLoadingOrders(false);
-  }, (error) => {
-    console.error("Error listening to order data:", error);
-    setLoadingOrders(false);
-  });
+    const targetDeliveryDate = systemAvailability.deliveryDate;
+    
+    if (!targetDeliveryDate) {
+      setLoadingUsers(false);
+      setLoadingOrders(false);
+      setLoadingHistory(false);
+      return;
+    }
   
-  // --- Listener for History ---
-  const historyQuery = query(collection(db, "history"));
-   const unsubscribeHistory = onSnapshot(historyQuery, (querySnapshot) => {
-    const history = querySnapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
-    setHistoryData(history);
-    setLoadingHistory(false);
-  }, (error) => {
-    console.error("Error listening to history data:", error);
-    setLoadingHistory(false);
-  });
+    setLoadingUsers(true);
+    setLoadingOrders(true);
+    setLoadingHistory(true);
+  
+    const usersQuery = query(collection(db, "prebookUsers"), where("deliveryDate", "==", targetDeliveryDate));
+    const unsubscribeUsers = onSnapshot(usersQuery, (querySnapshot) => {
+      const users = querySnapshot.docs.map((doc) => ({ id: doc.id, firestoreId: doc.id, ...doc.data() })).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      setPrebookUsers(users);
+      setRegistrationOrder(users.map((user, index) => ({ userId: user.firestoreId, order: index + 1 })));
+      setLoadingUsers(false);
+    });
+  
+    const ordersQuery = query(collection(db, "orders"));
+    const unsubscribeOrders = onSnapshot(ordersQuery, (querySnapshot) => {
+      const ordersData = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setAllOrders(ordersData);
+      setLoadingOrders(false);
+    });
+    
+    const historyQuery = query(collection(db, "history"));
+    const unsubscribeHistory = onSnapshot(historyQuery, (querySnapshot) => {
+      const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => new Date(b.date) - new Date(a.date));
+      setHistoryData(history);
+      setLoadingHistory(false);
+    });
+  
+    // ==================== NEW DATABASE LISTENER ====================
+    const settingsDocRef = doc(db, "dailySettings", targetDeliveryDate);
+    const unsubscribeSettings = onSnapshot(settingsDocRef, (docSnap) => {
+      const newSettings = docSnap.exists() ? docSnap.data() : {};
+      setDailySettings(newSettings);
+      // Re-calculate system availability whenever settings change
+      setSystemAvailability(getSystemAvailability(newSettings));
+      console.log("Real-time daily settings updated:", newSettings);
+    });
 
   // Cleanup function: This is crucial to prevent memory leaks
   return () => {
     unsubscribeUsers();
     unsubscribeOrders();
     unsubscribeHistory();
+    unsubscribeSettings(); 
   };
   
 }, [systemAvailability.deliveryDate, showMainApp]); // Re-run this effect if the date or app visibility changes
@@ -901,8 +874,8 @@ useEffect(() => {
       )}
       <div id="main-content" style={styles.maxWidth}>
         {activeTab === 'student' && <StudentTab {...sharedProps} setSelectedVendor={setSelectedVendor} setResetStudentForm={setResetStudentForm} />}
-        {activeTab === 'admin' && <AdminTab {...sharedProps} showSuccessAnimation={showSuccessAnimation} showLoadingAnimation={showLoadingAnimation}  hideLoadingAnimation={hideLoadingAnimation} isAuthenticated={isAdminAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'admin')} resetAuth={resetAuth} />}
-{activeTab === 'driver' && <DriverTab {...sharedProps} isAuthenticated={isDriverAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'driver')} resetAuth={resetAuth} />}
+        {activeTab === 'admin' && <AdminTab {...sharedProps} driverCost={driverCost} setDriverCost={setDriverCost} showSuccessAnimation={showSuccessAnimation} showLoadingAnimation={showLoadingAnimation}  hideLoadingAnimation={hideLoadingAnimation} isAuthenticated={isAdminAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'admin')} resetAuth={resetAuth} />}
+{activeTab === 'driver' && <DriverTab {...sharedProps} driverCost={driverCost} isAuthenticated={isDriverAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'driver')} resetAuth={resetAuth} />}
   {activeTab === 'guide' && <UserGuideTab />}
   {activeTab === 'feedback' && <FeedbackTab showSuccessAnimation={showSuccessAnimation} windowWidth={windowWidth} />}
       </div>

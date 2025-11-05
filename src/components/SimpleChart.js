@@ -21,7 +21,7 @@ const SimpleChart = ({ data, type = 'bar', title, height = 300 }) => {
 
     const maxValue = Math.max(1, ...data.map(d => d.value)); // Ensure maxValue is at least 1 to avoid division by zero
     const chartHeight = isMobile ? 180 : height;
-
+    
     const styles = {
         container: {
             backgroundColor: 'white',

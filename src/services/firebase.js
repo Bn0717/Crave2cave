@@ -359,3 +359,17 @@ export const updateHistoryEntry = async (historyDocId, updates) => {
     throw e;
   }
 };
+
+export const extendSystemCutoff = async (deliveryDate, newCutoffTime) => {
+  try {
+    const settingsRef = doc(db, 'dailySettings', deliveryDate);
+    await setDoc(settingsRef, {
+      extendedCutoffTime: newCutoffTime,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    console.log(`System extended until ${newCutoffTime} for ${deliveryDate}`);
+  } catch (error) {
+    console.error('Error extending system cutoff:', error);
+    throw error;
+  }
+};

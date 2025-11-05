@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { doc } from 'firebase/firestore';
 import { 
   Users, 
   Package, 
@@ -10,7 +11,8 @@ import {
   UserCheck,
   Camera,
   Image,
-  Edit
+  Edit,
+  Clock
 } from 'lucide-react';
 
 import AuthScreen from './AuthScreen';
@@ -39,11 +41,16 @@ const AdminTab = ({
   setShowImageCarousel,
   setSelectedImages,
   systemAvailability,
+  driverCost,
+  setDriverCost,
 }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
+  const [showExtendModal, setShowExtendModal] = useState(false);
+const [extendUntilTime, setExtendUntilTime] = useState('16:30');
+const [adminPasscodeInput, setAdminPasscodeInput] = useState('');
   const VENDOR_MAP = {
   'mixue': { name: 'Mixue', icon: '🧋' },
   'dominos': { name: 'Dominos', icon: '🍕' },
@@ -52,6 +59,113 @@ const AdminTab = ({
   'bakers_cottage': { name: 'Baker\'s Cottage', icon: '🥐' },
   'zus_coffee': { name: 'Zus Coffee', icon: '☕' },
 };
+
+  const VENDOR_CATEGORIES = {
+    'mixue': 1, 'dominos': 1, 'ayam_gepuk': 1, 'bakers_cottage': 1,
+    'family_mart': 2,
+    'zus_coffee': 3,
+  };
+
+  const calculateSuggestedDriverCost = (orders) => {
+    if (!orders || orders.length === 0) return 0;
+    const uniqueCategories = new Set(orders.map(order => VENDOR_CATEGORIES[order.vendor] || null).filter(Boolean));
+    const categoryCount = uniqueCategories.size;
+    if (categoryCount === 0) return 0;
+    if (categoryCount === 1) return 30;
+    if (categoryCount === 2) return 33;
+    if (categoryCount >= 3) return 36;
+    return 30;
+  };
+
+  const handleExtendSystem = async () => {
+  // Check if today is actually a delivery day
+  const todayString = new Date().toLocaleDateString('en-CA', { timeZone: "Asia/Kuala_Lumpur" });
+  const todayDate = new Date(todayString + 'T00:00:00');
+  const todayDayOfWeek = todayDate.getDay();
+  const DELIVERY_DAYS = [2, 5]; // Tuesday=2, Friday=5
+  
+  if (!DELIVERY_DAYS.includes(todayDayOfWeek)) {
+    showSuccessAnimation(
+      'Not a Delivery Day',
+      'System extension is only available on delivery days (Tuesday and Friday).',
+      null,
+      3000,
+      true
+    );
+    return;
+  }
+
+  if (adminPasscodeInput !== 'byycky') {
+    showSuccessAnimation(
+      'Invalid Passcode',
+      'Please enter the correct admin passcode.',
+      null,
+      2500,
+      true
+    );
+    return;
+  }
+
+  if (!extendUntilTime) {
+    showSuccessAnimation(
+      'No Time Selected',
+      'Please select an extension time.',
+      null,
+      2500,
+      true
+    );
+    return;
+  }
+
+  const [hours, minutes] = extendUntilTime.split(':').map(Number);
+  
+  if (hours < 15 || (hours === 15 && minutes === 0) || hours > 16 || (hours === 16 && minutes > 30)) {
+    showSuccessAnimation(
+      'Invalid Time Range',
+      'Extension time must be between 3:01 PM and 4:30 PM.',
+      null,
+      2500,
+      true
+    );
+    return;
+  }
+
+  showLoadingAnimation('Extending system...');
+  
+  try {
+    await firebaseService.extendSystemCutoff(systemAvailability.deliveryDate, extendUntilTime);
+    hideLoadingAnimation();
+    setShowExtendModal(false);
+    setAdminPasscodeInput('');
+    setExtendUntilTime('16:30');
+    
+    const displayTime = new Date(`2000-01-01T${extendUntilTime}`).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+    
+    showSuccessAnimation(
+      'System Extended!',
+      `System will now remain open until ${displayTime} today.`,
+      null,
+      3000
+    );
+  } catch (error) {
+    hideLoadingAnimation();
+    showSuccessAnimation(
+      'Extension Failed',
+      error.message || 'Could not extend system. Please try again.',
+      null,
+      3000,
+      true
+    );
+  }
+};
+
+  const profit = (todayUsers.filter(u => u.commitmentPaid).length * 10 + 
+    todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) - 
+    (todayOrders.length > 0 ? driverCost : 0));
 
   const [localHistoryData, setLocalHistoryData] = useState(historyData);
 
@@ -82,7 +196,7 @@ const displayDeliveryFees = todayHistoryEntry ? (displayRevenue - displayCommitm
 // Step 4: Calculate the profit. This is the most important part.
 // First, calculate a fallback profit based on the OTHER display values.
 // This ensures that if you edit Orders to 0, the Driver Cost is correctly removed.
-const fallbackProfit = displayRevenue - (displayOrders > 0 ? 30 : 0);
+const fallbackProfit = displayRevenue - (displayOrders > 0 ? driverCost : 0);
 // The final profit to display is EITHER the manually edited profit OR our calculated fallback.
 const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
 
@@ -228,58 +342,110 @@ const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
       {!showHistory ? (
         <>
           {/* Header */}
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            marginBottom: '32px', 
-            flexWrap: 'wrap', 
-            gap: '16px' 
-          }}>
-            <div>
-  <h2 style={{ margin: 0, fontSize: '32px', color: '#1e293b' }}>
-    Admin Dashboard
-  </h2>
-  <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '16px' }}>
-    Delivery Date: {new Date(systemAvailability.deliveryDate + 'T00:00:00').toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })}
-  </p>
-</div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button 
-                onClick={() => setShowHistory(true)} 
-                style={{ 
-                  ...styles.button, 
-                  width: 'auto', 
-                  background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', 
-                  color: 'white', 
-                  padding: '14px 28px', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '10px' 
-                }}
-              >
-                <History size={20} /> View History
-              </button>
-              <button 
-  onClick={() => setShowConfirmPopup(true)}
+<div style={{ 
+  display: 'flex', 
+  justifyContent: 'space-between', 
+  alignItems: windowWidth > 1024 ? 'center' : 'flex-start',
+  marginBottom: '32px', 
+  flexDirection: windowWidth > 1024 ? 'row' : 'column',
+  gap: windowWidth > 1024 ? '24px' : '16px'
+}}>
+  <div style={{ flex: windowWidth > 1024 ? '1' : 'none' }}>
+    <h2 style={{ 
+      margin: 0, 
+      fontSize: windowWidth <= 480 ? '24px' : windowWidth <= 768 ? '28px' : '32px', 
+      color: '#1e293b',
+      fontWeight: '700'
+    }}>
+      Admin Dashboard
+    </h2>
+    <p style={{ 
+      margin: '8px 0 0 0', 
+      color: '#64748b', 
+      fontSize: windowWidth <= 480 ? '14px' : '16px' 
+    }}>
+      Delivery Date: {new Date(systemAvailability.deliveryDate + 'T00:00:00').toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })}
+    </p>
+  </div>
   
-  style={{ 
-    ...styles.button, 
-    width: 'auto', 
-    backgroundColor: '#ef4444', 
-    color: 'white', 
-    padding: '14px 28px' 
-  }}
->
-  Clear All Sessions
-</button>
-            </div>
-          </div>
+  <div style={{ 
+    display: 'flex', 
+    gap: windowWidth <= 480 ? '8px' : windowWidth <= 768 ? '10px' : '12px',
+    flexWrap: windowWidth <= 768 ? 'wrap' : 'nowrap',
+    width: windowWidth <= 768 ? '100%' : 'auto',
+    flexShrink: 0
+  }}>
+    <button 
+      onClick={() => setShowHistory(true)} 
+      style={{ 
+        ...styles.button, 
+        flex: windowWidth <= 768 ? '1 1 calc(50% - 4px)' : '0 0 auto',
+        minWidth: windowWidth <= 768 ? '0' : '140px',
+        background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', 
+        color: 'white', 
+        padding: windowWidth <= 480 ? '12px 16px' : windowWidth <= 768 ? '12px 20px' : '14px 24px',
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        gap: '8px',
+        fontSize: windowWidth <= 480 ? '14px' : '15px',
+        whiteSpace: 'nowrap',
+        width: windowWidth <= 768 ? 'auto' : 'auto'
+      }}
+    >
+      <History size={windowWidth <= 480 ? 18 : 20} /> 
+      {windowWidth <= 480 ? 'History' : 'View History'}
+    </button>
+
+    <button 
+      onClick={() => setShowExtendModal(true)} 
+      style={{ 
+        ...styles.button, 
+        flex: windowWidth <= 768 ? '1 1 calc(50% - 4px)' : '0 0 auto',
+        minWidth: windowWidth <= 768 ? '0' : '120px',
+        background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', 
+        color: 'white', 
+        padding: windowWidth <= 480 ? '12px 16px' : windowWidth <= 768 ? '12px 20px' : '14px 24px',
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        gap: '8px',
+        fontSize: windowWidth <= 480 ? '14px' : '15px',
+        whiteSpace: 'nowrap',
+        width: windowWidth <= 768 ? 'auto' : 'auto'
+      }}
+    >
+      <Clock size={windowWidth <= 480 ? 18 : 20} /> 
+      Extend
+    </button>
+    
+    <button 
+      onClick={() => setShowConfirmPopup(true)}
+      style={{ 
+        ...styles.button, 
+        flex: windowWidth <= 768 ? '1 1 100%' : '0 0 auto',
+        minWidth: windowWidth <= 768 ? '0' : '140px',
+        backgroundColor: '#ef4444', 
+        color: 'white', 
+        padding: windowWidth <= 480 ? '12px 16px' : windowWidth <= 768 ? '12px 20px' : '14px 24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px',
+        fontSize: windowWidth <= 480 ? '14px' : '15px',
+        whiteSpace: 'nowrap',
+        width: windowWidth <= 768 ? '100%' : 'auto'
+      }}
+    >
+      {windowWidth <= 480 ? 'Clear Sessions' : 'Clear All Sessions'}
+    </button>
+  </div>
+</div>
 
           {/* Statistics Cards */}
           <div style={{ 
@@ -413,20 +579,180 @@ const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
             </div>
           </div>
 
-          {/* Profit Breakdown */}
-          <div style={styles.card}>
-            <h3 style={{ 
-              fontSize: windowWidth <= 480 ? '18px' : '22px', 
-              marginBottom: '20px' 
-            }}>
-              Today's Profit Calculation
-            </h3>
-            <div style={{ 
-              backgroundColor: '#f8fafc', 
-              padding: windowWidth <= 480 ? '16px' : '24px', 
-              borderRadius: '16px',
-              marginBottom: '24px'
-            }}>
+          {/* Profit Breakdown - Add responsive wrapper */}
+<div style={{
+  ...styles.card,
+  padding: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '20px' : '32px'
+}}>
+  {/* Driver Cost Selector */}
+  <div style={{
+    background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+    border: '2px solid #3b82f6',
+    borderRadius: '16px',
+    padding: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '20px' : '24px',
+    marginBottom: windowWidth <= 480 ? '16px' : '24px',
+    boxShadow: '0 4px 16px rgba(59, 130, 246, 0.15)'
+  }}>
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: windowWidth <= 480 ? '8px' : '12px',
+      marginBottom: windowWidth <= 480 ? '12px' : '16px',
+      flexWrap: windowWidth <= 480 ? 'wrap' : 'nowrap'
+    }}>
+      <div style={{ flex: 1, minWidth: windowWidth <= 480 ? '100%' : '0' }}>
+        <h4 style={{
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '15px' : windowWidth <= 768 ? '16px' : '18px',
+          color: '#1e40af',
+          fontWeight: '700'
+        }}>
+          Driver Cost
+        </h4>
+        <p style={{
+          margin: '4px 0 0 0',
+          fontSize: windowWidth <= 480 ? '13px' : windowWidth <= 768 ? '12px' : '13px',
+          color: '#3b82f6',
+          fontWeight: '600'
+        }}>
+          Current: RM{driverCost.toFixed(2)}
+        </p>
+      </div>
+    </div>
+    
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: windowWidth <= 480 ? 'repeat(3, 1fr)' : 'repeat(3, 1fr)',
+      gap: windowWidth <= 480 ? '8px' : windowWidth <= 768 ? '10px' : '12px'
+    }}>
+      <button
+        onClick={() => setDriverCost(30)}
+        style={{
+          padding: windowWidth <= 480 ? '14px 8px' : windowWidth <= 768 ? '16px 12px' : '22px 16px',
+          borderRadius: windowWidth <= 480 ? '10px' : '12px',
+          border: driverCost === 30 ? '3px solid #3b82f6' : '2px solid #cbd5e1',
+          backgroundColor: driverCost === 30 ? '#ffffff' : '#f8fafc',
+          color: driverCost === 30 ? '#1e40af' : '#64748b',
+          fontWeight: '700',
+          cursor: 'pointer',
+          fontSize: windowWidth <= 480 ? '13px' : windowWidth <= 768 ? '15px' : '17px',
+          transition: 'all 0.2s ease',
+          boxShadow: driverCost === 30 ? '0 4px 12px rgba(59, 130, 246, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: windowWidth <= 480 ? '4px' : '8px',
+          minHeight: windowWidth <= 480 ? '70px' : windowWidth <= 768 ? '80px' : '95px'
+        }}
+      >
+        <span style={{ 
+          fontSize: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '18px' : '22px', 
+          lineHeight: '1' 
+        }}>
+          RM30
+        </span>
+        <span style={{ 
+          fontSize: windowWidth <= 480 ? '9px' : windowWidth <= 768 ? '10px' : '12px', 
+          fontWeight: '500', 
+          opacity: 0.7,
+          lineHeight: '1.2'
+        }}>
+          1 Category
+        </span>
+      </button>
+      
+      <button
+        onClick={() => setDriverCost(33)}
+        style={{
+          padding: windowWidth <= 480 ? '14px 8px' : windowWidth <= 768 ? '16px 12px' : '22px 16px',
+          borderRadius: windowWidth <= 480 ? '10px' : '12px',
+          border: driverCost === 33 ? '3px solid #3b82f6' : '2px solid #cbd5e1',
+          backgroundColor: driverCost === 33 ? '#ffffff' : '#f8fafc',
+          color: driverCost === 33 ? '#1e40af' : '#64748b',
+          fontWeight: '700',
+          cursor: 'pointer',
+          fontSize: windowWidth <= 480 ? '13px' : windowWidth <= 768 ? '15px' : '17px',
+          transition: 'all 0.2s ease',
+          boxShadow: driverCost === 33 ? '0 4px 12px rgba(59, 130, 246, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: windowWidth <= 480 ? '4px' : '8px',
+          minHeight: windowWidth <= 480 ? '70px' : windowWidth <= 768 ? '80px' : '95px'
+        }}
+      >
+        <span style={{ 
+          fontSize: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '18px' : '22px', 
+          lineHeight: '1' 
+        }}>
+          RM33
+        </span>
+        <span style={{ 
+          fontSize: windowWidth <= 480 ? '9px' : windowWidth <= 768 ? '10px' : '12px', 
+          fontWeight: '500', 
+          opacity: 0.7,
+          lineHeight: '1.2'
+        }}>
+          2 Categories
+        </span>
+      </button>
+      
+      <button
+        onClick={() => setDriverCost(36)}
+        style={{
+          padding: windowWidth <= 480 ? '14px 8px' : windowWidth <= 768 ? '16px 12px' : '22px 16px',
+          borderRadius: windowWidth <= 480 ? '10px' : '12px',
+          border: driverCost === 36 ? '3px solid #3b82f6' : '2px solid #cbd5e1',
+          backgroundColor: driverCost === 36 ? '#ffffff' : '#f8fafc',
+          color: driverCost === 36 ? '#1e40af' : '#64748b',
+          fontWeight: '700',
+          cursor: 'pointer',
+          fontSize: windowWidth <= 480 ? '13px' : windowWidth <= 768 ? '15px' : '17px',
+          transition: 'all 0.2s ease',
+          boxShadow: driverCost === 36 ? '0 4px 12px rgba(59, 130, 246, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: windowWidth <= 480 ? '4px' : '8px',
+          minHeight: windowWidth <= 480 ? '70px' : windowWidth <= 768 ? '80px' : '95px'
+        }}
+      >
+        <span style={{ 
+          fontSize: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '18px' : '22px', 
+          lineHeight: '1' 
+        }}>
+          RM36
+        </span>
+        <span style={{ 
+          fontSize: windowWidth <= 480 ? '9px' : windowWidth <= 768 ? '10px' : '12px', 
+          fontWeight: '500', 
+          opacity: 0.7,
+          lineHeight: '1.2'
+        }}>
+          3+ Categories
+        </span>
+      </button>
+    </div>
+  </div>
+  
+  <h3 style={{ 
+    fontSize: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '18px' : '20px', 
+    marginBottom: windowWidth <= 480 ? '12px' : '20px',
+    fontWeight: '700',
+    color: '#1e293b'
+  }}>
+    Today's Profit Calculation
+  </h3>
+  
+  <div style={{ 
+    backgroundColor: '#f8fafc', 
+    padding: windowWidth <= 480 ? '12px' : windowWidth <= 768 ? '16px' : '24px', 
+    borderRadius: '16px',
+    marginBottom: windowWidth <= 480 ? '16px' : '24px'
+  }}>
               <div style={{ 
                 display: 'flex', 
                 justifyContent: 'space-between', 
@@ -507,7 +833,7 @@ const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
                   color: '#dc2626', 
                   fontSize: windowWidth <= 480 ? '13px' : '16px' 
                 }}>
-                  -RM{displayOrders > 0 ? '30.00' : '0.00'}
+                  -RM{displayOrders > 0 ? driverCost.toFixed(2) : '0.00'}
                 </span>
               </div>
               <div style={{ 
@@ -1530,6 +1856,176 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
           }}
         >
           Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+{showExtendModal && (
+  <div style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10000,
+    padding: '20px'
+  }}>
+    <div style={{
+      backgroundColor: 'white',
+      borderRadius: '20px',
+      padding: windowWidth <= 480 ? '20px' : '32px',
+      maxWidth: '500px',
+      width: '100%',
+      boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+      maxHeight: '90vh',
+      overflowY: 'auto'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '20px'
+      }}>
+        <Clock size={28} color="#f59e0b" />
+        <h3 style={{
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '20px' : '24px',
+          color: '#1e293b',
+          fontWeight: '700'
+        }}>
+          Extend System Hours
+        </h3>
+      </div>
+
+      <div style={{
+        backgroundColor: '#fef3c7',
+        border: '2px solid #f59e0b',
+        borderRadius: '12px',
+        padding: windowWidth <= 480 ? '12px' : '16px',
+        marginBottom: '20px'
+      }}>
+        <p style={{
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '13px' : '14px',
+          color: '#92400e',
+          lineHeight: '1.5'
+        }}>
+          ⚠️ This will keep the system open beyond the normal 3:00 PM cutoff. Maximum extension: 4:30 PM.
+        </p>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+  <label style={{
+    display: 'block',
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: '8px',
+    fontSize: windowWidth <= 480 ? '14px' : '15px'
+  }}>
+    Extend Until (Time):
+  </label>
+  <select
+    value={extendUntilTime}
+    onChange={(e) => setExtendUntilTime(e.target.value)}
+    style={{
+      width: '100%',
+      padding: windowWidth <= 480 ? '12px' : '14px',
+      borderRadius: '10px',
+      border: '2px solid #e2e8f0',
+      fontSize: windowWidth <= 480 ? '15px' : '16px',
+      fontWeight: '600',
+      boxSizing: 'border-box',
+      backgroundColor: 'white',
+      cursor: 'pointer'
+    }}
+  >
+    <option value="15:15">3:15 PM</option>
+    <option value="15:30">3:30 PM</option>
+    <option value="15:45">3:45 PM</option>
+    <option value="16:00">4:00 PM</option>
+    <option value="16:15">4:15 PM</option>
+    <option value="16:30">4:30 PM</option>
+  </select>
+        <p style={{
+          margin: '8px 0 0 0',
+          fontSize: '14px',
+          color: '#64748b'
+        }}>
+          Select a time between 3:00 PM and 4:30 PM
+        </p>
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        <label style={{
+          display: 'block',
+          fontWeight: '600',
+          color: '#1e293b',
+          marginBottom: '8px',
+          fontSize: windowWidth <= 480 ? '14px' : '15px'
+        }}>
+          Admin Passcode:
+        </label>
+        <input
+          type="password"
+          value={adminPasscodeInput}
+          onChange={(e) => setAdminPasscodeInput(e.target.value)}
+          placeholder="Enter admin passcode"
+          style={{
+            width: '100%',
+            padding: windowWidth <= 480 ? '12px' : '14px',
+            borderRadius: '10px',
+            border: '2px solid #e2e8f0',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            boxSizing: 'border-box'
+          }}
+        />
+      </div>
+
+      <div style={{
+        display: 'flex',
+        gap: '12px',
+        flexDirection: windowWidth <= 480 ? 'column' : 'row'
+      }}>
+        <button
+          onClick={() => {
+            setShowExtendModal(false);
+            setAdminPasscodeInput('');
+          }}
+          style={{
+            flex: 1,
+            padding: windowWidth <= 480 ? '14px' : '16px',
+            borderRadius: '12px',
+            border: '2px solid #e2e8f0',
+            backgroundColor: 'white',
+            color: '#64748b',
+            fontWeight: '600',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            cursor: 'pointer'
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleExtendSystem}
+          style={{
+            flex: 1,
+            padding: windowWidth <= 480 ? '14px' : '16px',
+            borderRadius: '12px',
+            border: 'none',
+            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            color: 'white',
+            fontWeight: '600',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
+          }}
+        >
+          Extend System
         </button>
       </div>
     </div>
