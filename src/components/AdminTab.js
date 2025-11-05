@@ -51,6 +51,19 @@ const AdminTab = ({
   const [showExtendModal, setShowExtendModal] = useState(false);
 const [extendUntilTime, setExtendUntilTime] = useState('16:30');
 const [adminPasscodeInput, setAdminPasscodeInput] = useState('');
+const [emergencyLosses, setEmergencyLosses] = useState([]);
+const [loadingLosses, setLoadingLosses] = useState(true);
+const [showLossModal, setShowLossModal] = useState(false);
+const [showLossList, setShowLossList] = useState(false);
+const [editingLoss, setEditingLoss] = useState(null);
+const [lossFormData, setLossFormData] = useState({
+  amount: '',
+  reason: '',
+  date: new Date().toLocaleDateString('en-CA')
+});
+const [lossPasscode, setLossPasscode] = useState('');
+const [visibleLossCount, setVisibleLossCount] = useState(5);
+
   const VENDOR_MAP = {
   'mixue': { name: 'Mixue', icon: '🧋' },
   'dominos': { name: 'Dominos', icon: '🍕' },
@@ -169,9 +182,137 @@ const [adminPasscodeInput, setAdminPasscodeInput] = useState('');
 
   const [localHistoryData, setLocalHistoryData] = useState(historyData);
 
+
+  const handleAddLoss = () => {
+  setEditingLoss(null);
+  setLossFormData({
+    amount: '',
+    reason: '',
+    date: new Date().toLocaleDateString('en-CA')
+  });
+  setLossPasscode('');
+  setShowLossModal(true);
+};
+
+const handleEditLoss = (loss) => {
+  setEditingLoss(loss);
+  setLossFormData({
+    amount: loss.amount.toString(),
+    reason: loss.reason,
+    date: loss.date
+  });
+  setLossPasscode('');
+  setShowLossModal(true);
+};
+
+const handleDeleteLoss = async (lossId) => {
+  const passcode = prompt('Enter admin passcode to delete this loss:');
+  if (passcode !== 'byycky') {
+    showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
+    return;
+  }
+
+  if (!window.confirm('Are you sure you want to delete this emergency loss entry?')) {
+    return;
+  }
+
+  showLoadingAnimation('Deleting loss entry...');
+  try {
+    await firebaseService.deleteEmergencyLoss(lossId);
+    const updatedLosses = emergencyLosses.filter(loss => loss.id !== lossId);
+    setEmergencyLosses(updatedLosses);
+    hideLoadingAnimation();
+    showSuccessAnimation('Deleted!', 'Emergency loss entry has been removed.', null, 2500);
+  } catch (error) {
+    hideLoadingAnimation();
+    showSuccessAnimation('Error', 'Failed to delete loss entry.', null, 2500, true);
+  }
+};
+
+const handleSaveLoss = async () => {
+  if (lossPasscode !== 'byycky') {
+    showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
+    return;
+  }
+
+  if (!lossFormData.amount || !lossFormData.reason) {
+    showSuccessAnimation('Missing Information', 'Please fill in all fields.', null, 2500, true);
+    return;
+  }
+
+  const amount = parseFloat(lossFormData.amount);
+  if (isNaN(amount) || amount <= 0) {
+    showSuccessAnimation('Invalid Amount', 'Please enter a valid amount.', null, 2500, true);
+    return;
+  }
+
+  showLoadingAnimation(editingLoss ? 'Updating loss...' : 'Adding loss...');
+  
+  try {
+    if (editingLoss) {
+      await firebaseService.updateEmergencyLoss(editingLoss.id, {
+        amount: amount,
+        reason: lossFormData.reason.trim(),
+        date: lossFormData.date
+      });
+      const updatedLosses = emergencyLosses.map(loss =>
+        loss.id === editingLoss.id
+          ? { ...loss, amount, reason: lossFormData.reason.trim(), date: lossFormData.date }
+          : loss
+      );
+      setEmergencyLosses(updatedLosses);
+    } else {
+      const lossId = await firebaseService.addEmergencyLoss({
+        amount: amount,
+        reason: lossFormData.reason.trim(),
+        date: lossFormData.date
+      });
+      const newLoss = {
+        id: lossId,
+        amount,
+        reason: lossFormData.reason.trim(),
+        date: lossFormData.date,
+        timestamp: new Date().toISOString()
+      };
+      setEmergencyLosses([newLoss, ...emergencyLosses]);
+    }
+    
+    hideLoadingAnimation();
+    setShowLossModal(false);
+    setLossPasscode('');
+    showSuccessAnimation(
+      editingLoss ? 'Updated!' : 'Added!',
+      `Emergency loss has been ${editingLoss ? 'updated' : 'recorded'}.`,
+      null,
+      2500
+    );
+  } catch (error) {
+    hideLoadingAnimation();
+    showSuccessAnimation('Error', 'Failed to save emergency loss.', null, 2500, true);
+  }
+};
+
   useEffect(() => {
   setLocalHistoryData(historyData);
 }, [historyData]);
+
+useEffect(() => {
+  const fetchEmergencyLosses = async () => {
+    if (!isAuthenticated) return;
+    
+    setLoadingLosses(true);
+    try {
+      const losses = await firebaseService.getEmergencyLosses();
+      setEmergencyLosses(losses);
+    } catch (error) {
+      console.error('Error fetching emergency losses:', error);
+    } finally {
+      setLoadingLosses(false);
+    }
+  };
+
+  fetchEmergencyLosses();
+}, [isAuthenticated]);
 
 const todayHistoryEntry = localHistoryData.find(entry => entry.date === systemAvailability.deliveryDate);
 
@@ -294,14 +435,20 @@ const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
   };
 
   const getTotalHistoryStats = () => {
-    // This function now ONLY calculates from the history data provided.
-    // It no longer tries to add live "today" data, which was causing the issue.
     const totalRegistered = historyData.reduce((sum, entry) => sum + (entry.registeredUsers || 0), 0);
     const totalRevenue = historyData.reduce((sum, entry) => sum + (entry.totalRevenue || 0), 0);
-    const totalProfit = historyData.reduce((sum, entry) => sum + (entry.profit || 0), 0);
     const totalOrders = historyData.reduce((sum, entry) => sum + (entry.totalOrders || 0), 0);
     
-    return { totalRegistered, totalRevenue, totalProfit, totalOrders };
+    // 1. Calculate the sum of historical profits from the history collection
+    const grossProfit = historyData.reduce((sum, entry) => sum + (entry.profit || 0), 0);
+    
+    // 2. Calculate the sum of all emergency losses
+    const totalEmergencyLosses = emergencyLosses.reduce((sum, loss) => sum + (loss.amount || 0), 0);
+
+    // 3. Subtract losses from the profit to get the true net profit
+    const netTotalProfit = grossProfit - totalEmergencyLosses;
+
+    return { totalRegistered, totalRevenue, totalProfit: netTotalProfit, totalOrders };
   };
 
     if (!isAuthenticated) {
@@ -1649,6 +1796,220 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
             />
           </div>
 
+          {/* Emergency Loss */}
+<div style={styles.card}>
+  <div style={styles.cardHeader}>
+    <AlertCircle color="#ef4444" size={28} />
+    <h2 style={styles.cardTitle}>Emergency Loss</h2>
+  </div>
+
+  <div style={{
+    display: 'flex',
+    gap: '12px',
+    marginBottom: '20px',
+    flexWrap: 'wrap'
+  }}>
+    <button
+      onClick={handleAddLoss}
+      style={{
+        flex: windowWidth <= 480 ? '1 1 100%' : '0 0 auto',
+        padding: windowWidth <= 480 ? '12px 16px' : '14px 24px',
+        borderRadius: '12px',
+        border: 'none',
+        background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+        color: 'white',
+        fontWeight: '600',
+        fontSize: windowWidth <= 480 ? '14px' : '15px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px',
+        boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+      }}
+    >
+      <span style={{ fontSize: '18px' }}>+</span> Add Emergency Loss
+    </button>
+
+    <button
+      onClick={() => setShowLossList(!showLossList)}
+      style={{
+        flex: windowWidth <= 480 ? '1 1 100%' : '0 0 auto',
+        padding: windowWidth <= 480 ? '12px 16px' : '14px 24px',
+        borderRadius: '12px',
+        border: '2px solid #e5e7eb',
+        background: 'white',
+        color: '#64748b',
+        fontWeight: '600',
+        fontSize: windowWidth <= 480 ? '14px' : '15px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px'
+      }}
+    >
+      {showLossList ? 'Hide' : 'View'} All Losses ({emergencyLosses.length})
+    </button>
+  </div>
+
+  {/* Emergency Loss Summary */}
+  <div style={{
+    background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+    border: '2px solid #ef4444',
+    borderRadius: '12px',
+    padding: windowWidth <= 480 ? '16px' : '20px',
+    marginBottom: '20px'
+  }}>
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: '12px'
+    }}>
+      <div>
+        <p style={{
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '13px' : '14px',
+          color: '#991b1b',
+          fontWeight: '600'
+        }}>
+          Total Emergency Losses
+        </p>
+        <p style={{
+          margin: '4px 0 0 0',
+          fontSize: windowWidth <= 480 ? '11px' : '12px',
+          color: '#dc2626'
+        }}>
+          {emergencyLosses.length} entries recorded
+        </p>
+      </div>
+      <div style={{
+        fontSize: windowWidth <= 480 ? '16px' : '24px',
+        fontWeight: 'bold',
+        color: '#991b1b'
+      }}>
+        -RM{emergencyLosses.reduce((sum, loss) => sum + (loss.amount || 0), 0).toFixed(2)}
+      </div>
+    </div>
+  </div>
+
+  {/* Loss List */}
+  {showLossList && (
+    <div style={{
+      maxHeight: '400px',
+      overflowY: 'auto',
+      border: '1px solid #e5e7eb',
+      borderRadius: '12px',
+      padding: windowWidth <= 480 ? '12px' : '16px'
+    }}>
+      {loadingLosses ? (
+        <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>
+          <Loader2 size={32} style={{ animation: 'spin 1s linear infinite' }} />
+          <p style={{ marginTop: '12px' }}>Loading losses...</p>
+        </div>
+      ) : emergencyLosses.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+          <AlertCircle size={48} style={{ marginBottom: '16px' }} />
+          <p>No emergency losses recorded yet.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {emergencyLosses.map((loss) => (
+            <div
+              key={loss.id}
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                padding: windowWidth <= 480 ? '12px' : '16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                gap: '12px'
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '8px',
+                  flexWrap: 'wrap',
+                  gap: '8px'
+                }}>
+                  <span style={{
+                    fontSize: windowWidth <= 480 ? '12px' : '13px',
+                    color: '#64748b',
+                    fontWeight: '500'
+                  }}>
+                    {new Date(loss.date + 'T00:00:00').toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </span>
+                  <span style={{
+                    fontSize: windowWidth <= 480 ? '16px' : '18px',
+                    fontWeight: 'bold',
+                    color: '#ef4444'
+                  }}>
+                    -RM{loss.amount.toFixed(2)}
+                  </span>
+                </div>
+                <p style={{
+                  margin: 0,
+                  fontSize: windowWidth <= 480 ? '13px' : '14px',
+                  color: '#1e293b',
+                  fontWeight: '500',
+                  wordBreak: 'break-word'
+                }}>
+                  {loss.reason}
+                </p>
+              </div>
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                flexShrink: 0
+              }}>
+                <button
+                  onClick={() => handleEditLoss(loss)}
+                  style={{
+                    padding: '8px',
+                    borderRadius: '8px',
+                    border: '1px solid #3b82f6',
+                    backgroundColor: '#dbeafe',
+                    color: '#1e40af',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  <Edit size={16} />
+                </button>
+                <button
+                  onClick={() => handleDeleteLoss(loss.id)}
+                  style={{
+                    padding: '8px',
+                    borderRadius: '8px',
+                    border: '1px solid #ef4444',
+                    backgroundColor: '#fee2e2',
+                    color: '#991b1b',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )}
+</div>
+
           {/* History Table */}
           <div style={styles.card}>
             <h3 style={{ fontSize: '22px', marginBottom: '24px' }}>Daily History</h3>
@@ -2038,6 +2399,200 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
       onSave={handleSaveChanges}
       adminPasscode={'byyc'} // Your admin passcode
     />
+
+    {/* Emergency Loss Modal */}
+{showLossModal && (
+  <div style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10000,
+    padding: '20px'
+  }}>
+    <div style={{
+      backgroundColor: 'white',
+      borderRadius: '20px',
+      padding: windowWidth <= 480 ? '20px' : '32px',
+      maxWidth: '500px',
+      width: '100%',
+      boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+      maxHeight: '90vh',
+      overflowY: 'auto'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '20px'
+      }}>
+        <AlertCircle size={28} color="#ef4444" />
+        <h3 style={{
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '20px' : '24px',
+          color: '#1e293b',
+          fontWeight: '700'
+        }}>
+          {editingLoss ? 'Edit' : 'Add'} Emergency Loss
+        </h3>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{
+          display: 'block',
+          fontWeight: '600',
+          color: '#1e293b',
+          marginBottom: '8px',
+          fontSize: windowWidth <= 480 ? '14px' : '15px'
+        }}>
+          Loss Amount (RM):
+        </label>
+        <input
+          type="number"
+          min="0"
+          value={lossFormData.amount}
+          onChange={(e) => setLossFormData({ ...lossFormData, amount: e.target.value })}
+          placeholder="Enter amount"
+          style={{
+            width: '100%',
+            padding: windowWidth <= 480 ? '12px' : '14px',
+            borderRadius: '10px',
+            border: '2px solid #e2e8f0',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            boxSizing: 'border-box'
+          }}
+        />
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{
+          display: 'block',
+          fontWeight: '600',
+          color: '#1e293b',
+          marginBottom: '8px',
+          fontSize: windowWidth <= 480 ? '14px' : '15px'
+        }}>
+          Reason:
+        </label>
+        <textarea
+          value={lossFormData.reason}
+          onChange={(e) => setLossFormData({ ...lossFormData, reason: e.target.value })}
+          placeholder="Describe the emergency loss..."
+          rows="4"
+          style={{
+            width: '100%',
+            padding: windowWidth <= 480 ? '12px' : '14px',
+            borderRadius: '10px',
+            border: '2px solid #e2e8f0',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            boxSizing: 'border-box',
+            fontFamily: 'inherit',
+            resize: 'vertical'
+          }}
+        />
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{
+          display: 'block',
+          fontWeight: '600',
+          color: '#1e293b',
+          marginBottom: '8px',
+          fontSize: windowWidth <= 480 ? '14px' : '15px'
+        }}>
+          Date:
+        </label>
+        <input
+          type="date"
+          value={lossFormData.date}
+          onChange={(e) => setLossFormData({ ...lossFormData, date: e.target.value })}
+          style={{
+            width: '100%',
+            padding: windowWidth <= 480 ? '12px' : '14px',
+            borderRadius: '10px',
+            border: '2px solid #e2e8f0',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            boxSizing: 'border-box'
+          }}
+        />
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        <label style={{
+          display: 'block',
+          fontWeight: '600',
+          color: '#1e293b',
+          marginBottom: '8px',
+          fontSize: windowWidth <= 480 ? '14px' : '15px'
+        }}>
+          Admin Passcode:
+        </label>
+        <input
+          type="password"
+          value={lossPasscode}
+          onChange={(e) => setLossPasscode(e.target.value)}
+          placeholder="Enter admin passcode"
+          style={{
+            width: '100%',
+            padding: windowWidth <= 480 ? '12px' : '14px',
+            borderRadius: '10px',
+            border: '2px solid #e2e8f0',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            boxSizing: 'border-box'
+          }}
+        />
+      </div>
+
+      <div style={{
+        display: 'flex',
+        gap: '12px',
+        flexDirection: windowWidth <= 480 ? 'column' : 'row'
+      }}>
+        <button
+          onClick={() => {
+            setShowLossModal(false);
+            setLossPasscode('');
+          }}
+          style={{
+            flex: 1,
+            padding: windowWidth <= 480 ? '14px' : '16px',
+            borderRadius: '12px',
+            border: '2px solid #e2e8f0',
+            backgroundColor: 'white',
+            color: '#64748b',
+            fontWeight: '600',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            cursor: 'pointer'
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSaveLoss}
+          style={{
+            flex: 1,
+            padding: windowWidth <= 480 ? '14px' : '16px',
+            borderRadius: '12px',
+            border: 'none',
+            background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+            color: 'white',
+            fontWeight: '600',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+          }}
+        >
+          {editingLoss ? 'Update' : 'Add'} Loss
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };

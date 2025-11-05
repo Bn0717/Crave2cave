@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, addDoc, query, where, Timestamp, writeBatch, doc, updateDoc, limit, orderBy, setDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, deleteDoc, addDoc, query, where, Timestamp, writeBatch, doc, updateDoc, limit, orderBy, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { isToday } from '../utils/isToday';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -371,5 +371,63 @@ export const extendSystemCutoff = async (deliveryDate, newCutoffTime) => {
   } catch (error) {
     console.error('Error extending system cutoff:', error);
     throw error;
+  }
+};
+
+// Emergency Loss Management Functions
+export const addEmergencyLoss = async (lossData) => {
+  try {
+    const lossEntry = {
+      ...lossData,
+      timestamp: new Date().toISOString(),
+      date: lossData.date || new Date().toLocaleDateString('en-CA')
+    };
+    const docRef = await addDoc(collection(db, 'emergencyLosses'), lossEntry);
+    return docRef.id;
+  } catch (e) {
+    console.error('Error adding emergency loss: ', e);
+    throw e;
+  }
+};
+
+export const getEmergencyLosses = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'emergencyLosses'));
+    const losses = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return losses.sort((a, b) => new Date(b.date) - new Date(a.date));
+  } catch (e) {
+    console.error('Error getting emergency losses: ', e);
+    return [];
+  }
+};
+
+export const updateEmergencyLoss = async (lossId, updates) => {
+  try {
+    if (!lossId || typeof lossId !== 'string') {
+      throw new Error('Invalid loss ID');
+    }
+    const lossRef = doc(db, 'emergencyLosses', lossId);
+    await updateDoc(lossRef, {
+      ...updates,
+      lastUpdated: new Date().toISOString()
+    });
+    console.log(`Emergency loss ${lossId} updated successfully`);
+  } catch (e) {
+    console.error('Error updating emergency loss: ', e);
+    throw e;
+  }
+};
+
+export const deleteEmergencyLoss = async (lossId) => {
+  try {
+    if (!lossId || typeof lossId !== 'string') {
+      throw new Error('Invalid loss ID');
+    }
+    const lossRef = doc(db, 'emergencyLosses', lossId);
+    await deleteDoc(lossRef);
+    console.log(`Emergency loss ${lossId} deleted successfully`);
+  } catch (e) {
+    console.error('Error deleting emergency loss: ', e);
+    throw e;
   }
 };
