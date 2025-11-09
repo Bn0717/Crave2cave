@@ -7,7 +7,6 @@ import RetrieveRegistration from './RetrieveRegistration';
 import BeautifulMessage from './BeautifulMessage';
 import FeeBreakdown from './FeeBreakdown';
 import UnifiedQRCodeDisplay from './UnifiedQRCodeDisplay';
-import CountdownTimer from './CountdownTimer';
 import imageCompression from 'browser-image-compression';
 import LoadingAnimation from './LoadingAnimation';
 

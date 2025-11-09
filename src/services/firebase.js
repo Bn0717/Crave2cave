@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, deleteDoc, addDoc, query, where, Timestamp, writeBatch, doc, updateDoc, limit, orderBy, setDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, deleteDoc, addDoc, query, where, writeBatch, doc, updateDoc, limit, orderBy, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { isToday } from '../utils/isToday';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
 // Firebase configuration

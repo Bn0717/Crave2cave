@@ -18,8 +18,6 @@ import {
 } from 'lucide-react';
 
 import AuthScreen from './AuthScreen';
-import ResponsiveTable from './ResponsiveTable';
-import CountdownTimer from './CountdownTimer';
 
 const VENDOR_DATA = {
   dominos: { name: "Domino's", color: '#006491', backgroundColor: '#E5F0F4' },

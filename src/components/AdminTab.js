@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { doc } from 'firebase/firestore';
 import { 
   Users, 
   Package, 
@@ -16,9 +15,7 @@ import {
 } from 'lucide-react';
 
 import AuthScreen from './AuthScreen';
-import ResponsiveTable from './ResponsiveTable';
 import SimpleChart from './SimpleChart';
-import { isToday } from '../utils/isToday';
 import EditHistoryModal from './EditHistoryModal';
 import * as firebaseService from '../services/firebase';
 
