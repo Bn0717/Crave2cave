@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, CheckCircle, AlertCircle, PlayCircle, X, Film, Loader2 } from 'lucide-react';
+import { Users, CheckCircle, AlertCircle, PlayCircle, X, Loader2 } from 'lucide-react';
 import * as firebaseService from '../services/firebase';
 import { calculateDeliveryFee } from '../utils/calculateDeliveryFee';
 import { isToday } from '../utils/isToday';
@@ -947,7 +947,7 @@ const resetForm = useCallback((clearSession = false) => {
   if (clearSession) {
     clearStudentSession();
   }
-}, [clearStudentSession, selectedUserId]); // Added selectedUserId to dependencies
+}, [clearStudentSession, selectedUserId, setIsCurrentUserEligible]);// Added selectedUserId to dependencies
 
 const loadFromSession = useCallback(async () => {
   if (!rememberedStudent || prebookUsers.length === 0) {
@@ -1028,7 +1028,7 @@ const loadFromSession = useCallback(async () => {
     setUserStep(sessionStep);
     hideLocalLoading();
   }
-}, [rememberedStudent, prebookUsers, selectedVendor, systemAvailability.isSystemOpen, showSuccessAnimation, resetForm, hideLocalLoading, setOrderConfirmed, setCurrentOrder, setShowEmailModal, setUserForEmail]);
+}, [rememberedStudent, prebookUsers, selectedVendor, systemAvailability.isSystemOpen, showSuccessAnimation, resetForm, hideLocalLoading, setOrderConfirmed, setCurrentOrder, setShowEmailModal, setUserForEmail, setIsCurrentUserEligible, systemAvailability.nextOpenTime, todayOrders]);
 
 useEffect(() => {
   setResetStudentForm(() => resetForm);
@@ -1388,7 +1388,7 @@ const isSubmitDisabled =
   value={orderTotal}
   onChange={(e) => {
     const value = e.target.value;
-    const [intPart, decimalPart] = value.split('.');
+    const [intPart] = value.split('.');
 
     // Prevent typing more than 4 digits before decimal
     if (intPart && intPart.length > 4) {

@@ -4,7 +4,6 @@ import logoForAnimation from './assets/logo(1).png';
 import * as firebaseService from './services/firebase';
 import { db } from './services/firebase'; // We need direct db access
 import { collection, query, where, onSnapshot, doc } from "firebase/firestore";
-import { isToday } from './utils/isToday';
 import Navigation from './components/Navigation';
 import LoadingAnimation from './components/LoadingAnimation';
 import SuccessAnimation from './components/SuccessAnimation';
