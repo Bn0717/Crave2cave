@@ -43,6 +43,7 @@ const AdminTab = ({
   systemAvailability,
   driverCost,
   setDriverCost,
+  dailySettings,
 }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
@@ -63,6 +64,10 @@ const [lossFormData, setLossFormData] = useState({
 });
 const [lossPasscode, setLossPasscode] = useState('');
 const [visibleLossCount, setVisibleLossCount] = useState(5);
+const [showCustomDriverCost, setShowCustomDriverCost] = useState(false);
+const [customDriverCostInput, setCustomDriverCostInput] = useState('');
+const [selectedOrderForAction, setSelectedOrderForAction] = useState(null);
+const [showOrderActionModal, setShowOrderActionModal] = useState(false);
 
   const VENDOR_MAP = {
   'mixue': { name: 'Mixue', icon: '🧋' },
@@ -194,6 +199,30 @@ const [visibleLossCount, setVisibleLossCount] = useState(5);
   setShowLossModal(true);
 };
 
+const handleResetHistoryEntry = async (entryId) => {
+  const passcode = prompt('Enter admin passcode to reset this entry to live data:');
+  if (passcode !== 'byyc') {
+    showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
+    return;
+  }
+
+  if (!window.confirm('This will delete the manual edits and show live data instead. Continue?')) {
+    return;
+  }
+
+  showLoadingAnimation('Resetting to live data...');
+  try {
+    await firebaseService.deleteHistoryEntry(entryId);
+    setLocalHistoryData(prevHistory => prevHistory.filter(entry => entry.id !== entryId));
+    hideLoadingAnimation();
+    showSuccessAnimation('Reset Complete!', 'Now showing live data for today.', null, 2500);
+  } catch (error) {
+    hideLoadingAnimation();
+    showSuccessAnimation('Error', 'Failed to reset entry.', null, 2500, true);
+    console.error('Reset error:', error);
+  }
+};
+
 const handleEditLoss = (loss) => {
   setEditingLoss(loss);
   setLossFormData({
@@ -292,9 +321,69 @@ const handleSaveLoss = async () => {
   }
 };
 
+
+const handleDeleteOrder = async (orderId) => {
+  const passcode = prompt('Enter admin passcode to delete this order:');
+  if (passcode !== 'byycky') {
+    showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
+    return;
+  }
+
+  if (!window.confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
+    return;
+  }
+
+  showLoadingAnimation('Deleting order...');
+  try {
+    await firebaseService.deleteOrder(orderId);
+    hideLoadingAnimation();
+    showSuccessAnimation('Order Deleted!', 'The order has been removed from the system.', null, 2500);
+    setShowOrderActionModal(false);
+    setSelectedOrderForAction(null);
+  } catch (error) {
+    hideLoadingAnimation();
+    showSuccessAnimation('Error', 'Failed to delete order.', null, 2500, true);
+    console.error('Delete order error:', error);
+  }
+};
+
+const handleDeleteUser = async (userId) => {
+  const passcode = prompt('Enter admin passcode to delete this user:');
+  if (passcode !== 'byycky') {
+    showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
+    return;
+  }
+
+  if (!window.confirm('Are you sure you want to delete this user? This will also delete any associated orders.')) {
+    return;
+  }
+
+  showLoadingAnimation('Deleting user...');
+  try {
+    // First, find and delete any orders associated with this user
+    const userOrders = todayOrders.filter(order => order.userId === userId);
+    for (const order of userOrders) {
+      await firebaseService.deleteOrder(order.id);
+    }
+    
+    // Then delete the user
+    await firebaseService.deleteUser(userId);
+    
+    hideLoadingAnimation();
+    showSuccessAnimation('User Deleted!', 'The user and their orders have been removed from the system.', null, 2500);
+    setShowOrderActionModal(false);
+    setSelectedOrderForAction(null);
+  } catch (error) {
+    hideLoadingAnimation();
+    showSuccessAnimation('Error', 'Failed to delete user.', null, 2500, true);
+    console.error('Delete user error:', error);
+  }
+};
+
   useEffect(() => {
   setLocalHistoryData(historyData);
-}, [historyData]);
+}, [historyData, driverCost]); // Add driverCost here
+
 
 useEffect(() => {
   const fetchEmergencyLosses = async () => {
@@ -316,30 +405,38 @@ useEffect(() => {
 
 const todayHistoryEntry = localHistoryData.find(entry => entry.date === systemAvailability.deliveryDate);
 
-// Step 1: Calculate all LIVE data as a baseline.
+// Calculate LIVE data from Firebase
 const liveRegisteredUsers = todayUsers.length;
 const liveOrders = todayOrders.length;
-const liveCommitmentFees = todayUsers.filter(u => u.commitmentPaid).length * 10;
-const liveDeliveryFees = todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
-const liveRevenue = liveCommitmentFees + liveDeliveryFees;
 
-// Step 2: Determine the final DISPLAY values, using the history entry as an override.
+// Only count first 3 paid users for commitment fees
+const firstThreePaidCount = Math.min(todayUsers.filter(u => u.commitmentPaid).length, 3);
+const liveCommitmentFees = firstThreePaidCount * 10;
+
+// Sum all delivery fees from orders
+const liveDeliveryFees = todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
+
+// Calculate live revenue and profit
+const liveRevenue = liveCommitmentFees + liveDeliveryFees;
+const liveProfit = liveRevenue - driverCost;
+
+// Determine if we should show LIVE data or EDITED data
+const isEdited = !!todayHistoryEntry && (
+  (todayHistoryEntry.registeredUsers !== undefined && todayHistoryEntry.registeredUsers !== liveRegisteredUsers) ||
+  (todayHistoryEntry.totalOrders !== undefined && todayHistoryEntry.totalOrders !== liveOrders) ||
+  (todayHistoryEntry.totalRevenue !== undefined && todayHistoryEntry.totalRevenue !== liveRevenue) ||
+  (todayHistoryEntry.profit !== undefined && todayHistoryEntry.profit !== liveProfit)
+);
+
+// Display values (use edited if available, otherwise use live)
 const displayRegisteredUsers = todayHistoryEntry?.registeredUsers ?? liveRegisteredUsers;
 const displayOrders = todayHistoryEntry?.totalOrders ?? liveOrders;
 const displayRevenue = todayHistoryEntry?.totalRevenue ?? liveRevenue;
+const displayProfit = todayHistoryEntry?.profit ?? liveProfit;
 
-// Step 3: Calculate the breakdown components for VISUAL consistency.
-// Commitment fees are always the live value.
+// For the breakdown display, always show live fees unless revenue was manually edited
 const displayCommitmentFees = liveCommitmentFees;
-// Delivery fees are derived from the displayed revenue.
-const displayDeliveryFees = todayHistoryEntry ? (displayRevenue - displayCommitmentFees) : liveDeliveryFees;
-
-// Step 4: Calculate the profit. This is the most important part.
-// First, calculate a fallback profit based on the OTHER display values.
-// This ensures that if you edit Orders to 0, the Driver Cost is correctly removed.
-const fallbackProfit = displayRevenue - (displayOrders > 0 ? driverCost : 0);
-// The final profit to display is EITHER the manually edited profit OR our calculated fallback.
-const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
+const displayDeliveryFees = liveDeliveryFees;
 
 
   const styles = {
@@ -506,18 +603,34 @@ const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
     }}>
       Admin Dashboard
     </h2>
-    <p style={{ 
-      margin: '8px 0 0 0', 
-      color: '#64748b', 
-      fontSize: windowWidth <= 480 ? '14px' : '16px' 
+    <div>
+  <p style={{ 
+    margin: '8px 0 0 0', 
+    color: '#64748b', 
+    fontSize: windowWidth <= 480 ? '14px' : '16px' 
+  }}>
+    Delivery Date: {new Date(systemAvailability.deliveryDate + 'T00:00:00').toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })}
+  </p>
+  {dailySettings?.extendedCutoffTime && (
+    <p style={{
+      margin: '4px 0 0 0',
+      color: '#64748b',
+      fontSize: windowWidth <= 480 ? '13px' : '15px',
+      fontWeight: '600'
     }}>
-      Delivery Date: {new Date(systemAvailability.deliveryDate + 'T00:00:00').toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })}
+      ⏰ Extended until {new Date(`2000-01-01T${dailySettings.extendedCutoffTime}`).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })} today
     </p>
+  )}
+</div>
   </div>
   
   <div style={{ 
@@ -768,121 +881,206 @@ const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
     </div>
     
     <div style={{
-      display: 'grid',
-      gridTemplateColumns: windowWidth <= 480 ? 'repeat(3, 1fr)' : 'repeat(3, 1fr)',
-      gap: windowWidth <= 480 ? '8px' : windowWidth <= 768 ? '10px' : '12px'
+  display: 'grid',
+  gridTemplateColumns: windowWidth <= 480 ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+  gap: windowWidth <= 480 ? '8px' : windowWidth <= 768 ? '10px' : '12px'
+}}>
+  <button
+    onClick={() => {
+      setDriverCost(30);
+      setShowCustomDriverCost(false);
+    }}
+    style={{
+      padding: windowWidth <= 480 ? '14px 8px' : windowWidth <= 768 ? '16px 12px' : '22px 16px',
+      borderRadius: windowWidth <= 480 ? '10px' : '12px',
+      border: driverCost === 30 && !showCustomDriverCost ? '3px solid #3b82f6' : '2px solid #cbd5e1',
+      backgroundColor: driverCost === 30 && !showCustomDriverCost ? '#ffffff' : '#f8fafc',
+      color: driverCost === 30 && !showCustomDriverCost ? '#1e40af' : '#64748b',
+      fontWeight: '700',
+      cursor: 'pointer',
+      fontSize: windowWidth <= 480 ? '13px' : windowWidth <= 768 ? '15px' : '17px',
+      transition: 'all 0.2s ease',
+      boxShadow: driverCost === 30 && !showCustomDriverCost ? '0 4px 12px rgba(59, 130, 246, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: windowWidth <= 480 ? '4px' : '8px',
+      minHeight: windowWidth <= 480 ? '70px' : windowWidth <= 768 ? '80px' : '95px'
+    }}
+  >
+    <span style={{ fontSize: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '18px' : '22px', lineHeight: '1' }}>
+      RM30
+    </span>
+    <span style={{ fontSize: windowWidth <= 480 ? '9px' : windowWidth <= 768 ? '10px' : '12px', fontWeight: '500', opacity: 0.7, lineHeight: '1.2' }}>
+      1 Category
+    </span>
+  </button>
+  
+  <button
+    onClick={() => {
+      setDriverCost(33);
+      setShowCustomDriverCost(false);
+    }}
+    style={{
+      padding: windowWidth <= 480 ? '14px 8px' : windowWidth <= 768 ? '16px 12px' : '22px 16px',
+      borderRadius: windowWidth <= 480 ? '10px' : '12px',
+      border: driverCost === 33 && !showCustomDriverCost ? '3px solid #3b82f6' : '2px solid #cbd5e1',
+      backgroundColor: driverCost === 33 && !showCustomDriverCost ? '#ffffff' : '#f8fafc',
+      color: driverCost === 33 && !showCustomDriverCost ? '#1e40af' : '#64748b',
+      fontWeight: '700',
+      cursor: 'pointer',
+      fontSize: windowWidth <= 480 ? '13px' : windowWidth <= 768 ? '15px' : '17px',
+      transition: 'all 0.2s ease',
+      boxShadow: driverCost === 33 && !showCustomDriverCost ? '0 4px 12px rgba(59, 130, 246, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: windowWidth <= 480 ? '4px' : '8px',
+      minHeight: windowWidth <= 480 ? '70px' : windowWidth <= 768 ? '80px' : '95px'
+    }}
+  >
+    <span style={{ fontSize: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '18px' : '22px', lineHeight: '1' }}>
+      RM33
+    </span>
+    <span style={{ fontSize: windowWidth <= 480 ? '9px' : windowWidth <= 768 ? '10px' : '12px', fontWeight: '500', opacity: 0.7, lineHeight: '1.2' }}>
+      2 Categories
+    </span>
+  </button>
+  
+  <button
+    onClick={() => {
+      setDriverCost(36);
+      setShowCustomDriverCost(false);
+    }}
+    style={{
+      padding: windowWidth <= 480 ? '14px 8px' : windowWidth <= 768 ? '16px 12px' : '22px 16px',
+      borderRadius: windowWidth <= 480 ? '10px' : '12px',
+      border: driverCost === 36 && !showCustomDriverCost ? '3px solid #3b82f6' : '2px solid #cbd5e1',
+      backgroundColor: driverCost === 36 && !showCustomDriverCost ? '#ffffff' : '#f8fafc',
+      color: driverCost === 36 && !showCustomDriverCost ? '#1e40af' : '#64748b',
+      fontWeight: '700',
+      cursor: 'pointer',
+      fontSize: windowWidth <= 480 ? '13px' : windowWidth <= 768 ? '15px' : '17px',
+      transition: 'all 0.2s ease',
+      boxShadow: driverCost === 36 && !showCustomDriverCost ? '0 4px 12px rgba(59, 130, 246, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: windowWidth <= 480 ? '4px' : '8px',
+      minHeight: windowWidth <= 480 ? '70px' : windowWidth <= 768 ? '80px' : '95px'
+    }}
+  >
+    <span style={{ fontSize: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '18px' : '22px', lineHeight: '1' }}>
+      RM36
+    </span>
+    <span style={{ fontSize: windowWidth <= 480 ? '9px' : windowWidth <= 768 ? '10px' : '12px', fontWeight: '500', opacity: 0.7, lineHeight: '1.2' }}>
+      3+ Categories
+    </span>
+  </button>
+
+  <button
+    onClick={() => setShowCustomDriverCost(!showCustomDriverCost)}
+    style={{
+      padding: windowWidth <= 480 ? '14px 8px' : windowWidth <= 768 ? '16px 12px' : '22px 16px',
+      borderRadius: windowWidth <= 480 ? '10px' : '12px',
+      border: showCustomDriverCost ? '3px solid #ef4444' : '2px solid #cbd5e1',
+      backgroundColor: showCustomDriverCost ? '#ffffff' : '#f8fafc',
+      color: showCustomDriverCost ? '#991b1b' : '#64748b',
+      fontWeight: '700',
+      cursor: 'pointer',
+      fontSize: windowWidth <= 480 ? '13px' : windowWidth <= 768 ? '15px' : '17px',
+      transition: 'all 0.2s ease',
+      boxShadow: showCustomDriverCost ? '0 4px 12px rgba(239, 68, 68, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: windowWidth <= 480 ? '4px' : '8px',
+      minHeight: windowWidth <= 480 ? '70px' : windowWidth <= 768 ? '80px' : '95px'
+    }}
+  >
+    <span style={{ fontSize: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '18px' : '22px', lineHeight: '1' }}>
+      Custom
+    </span>
+    <span style={{ fontSize: windowWidth <= 480 ? '9px' : windowWidth <= 768 ? '10px' : '12px', fontWeight: '500', opacity: 0.7, lineHeight: '1.2' }}>
+      Emergency
+    </span>
+  </button>
+</div>
+
+{showCustomDriverCost && (
+  <div style={{
+    marginTop: '16px',
+    padding: '16px',
+    backgroundColor: '#fef2f2',
+    borderRadius: '12px',
+    border: '2px solid #ef4444'
+  }}>
+    <label style={{
+      display: 'block',
+      marginBottom: '8px',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: '#991b1b'
     }}>
-      <button
-        onClick={() => setDriverCost(30)}
+      Enter Custom Driver Cost (RM):
+    </label>
+    <div style={{ display: 'flex', gap: '8px' }}>
+      <input
+        type="number"
+        min="0"
+        step="0.01"
+        value={customDriverCostInput}
+        onChange={(e) => setCustomDriverCostInput(e.target.value)}
+        placeholder="e.g., 40"
         style={{
-          padding: windowWidth <= 480 ? '14px 8px' : windowWidth <= 768 ? '16px 12px' : '22px 16px',
-          borderRadius: windowWidth <= 480 ? '10px' : '12px',
-          border: driverCost === 30 ? '3px solid #3b82f6' : '2px solid #cbd5e1',
-          backgroundColor: driverCost === 30 ? '#ffffff' : '#f8fafc',
-          color: driverCost === 30 ? '#1e40af' : '#64748b',
-          fontWeight: '700',
-          cursor: 'pointer',
-          fontSize: windowWidth <= 480 ? '13px' : windowWidth <= 768 ? '15px' : '17px',
-          transition: 'all 0.2s ease',
-          boxShadow: driverCost === 30 ? '0 4px 12px rgba(59, 130, 246, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: windowWidth <= 480 ? '4px' : '8px',
-          minHeight: windowWidth <= 480 ? '70px' : windowWidth <= 768 ? '80px' : '95px'
+          flex: 1,
+          padding: '12px',
+          borderRadius: '8px',
+          border: '2px solid #fecaca',
+          fontSize: '16px',
+          fontWeight: '600'
+        }}
+      />
+      <button
+        onClick={() => {
+          const amount = parseFloat(customDriverCostInput);
+          if (!isNaN(amount) && amount >= 0) {
+            setDriverCost(amount);
+            showSuccessAnimation(
+              'Driver Cost Updated',
+              `Driver cost set to RM${amount.toFixed(2)}`,
+              null,
+              2000
+            );
+          } else {
+            showSuccessAnimation(
+              'Invalid Amount',
+              'Please enter a valid number',
+              null,
+              2000,
+              true
+            );
+          }
+        }}
+        style={{
+          padding: '12px 24px',
+          borderRadius: '8px',
+          border: 'none',
+          backgroundColor: '#ef4444',
+          color: 'white',
+          fontWeight: '600',
+          cursor: 'pointer'
         }}
       >
-        <span style={{ 
-          fontSize: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '18px' : '22px', 
-          lineHeight: '1' 
-        }}>
-          RM30
-        </span>
-        <span style={{ 
-          fontSize: windowWidth <= 480 ? '9px' : windowWidth <= 768 ? '10px' : '12px', 
-          fontWeight: '500', 
-          opacity: 0.7,
-          lineHeight: '1.2'
-        }}>
-          1 Category
-        </span>
-      </button>
-      
-      <button
-        onClick={() => setDriverCost(33)}
-        style={{
-          padding: windowWidth <= 480 ? '14px 8px' : windowWidth <= 768 ? '16px 12px' : '22px 16px',
-          borderRadius: windowWidth <= 480 ? '10px' : '12px',
-          border: driverCost === 33 ? '3px solid #3b82f6' : '2px solid #cbd5e1',
-          backgroundColor: driverCost === 33 ? '#ffffff' : '#f8fafc',
-          color: driverCost === 33 ? '#1e40af' : '#64748b',
-          fontWeight: '700',
-          cursor: 'pointer',
-          fontSize: windowWidth <= 480 ? '13px' : windowWidth <= 768 ? '15px' : '17px',
-          transition: 'all 0.2s ease',
-          boxShadow: driverCost === 33 ? '0 4px 12px rgba(59, 130, 246, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: windowWidth <= 480 ? '4px' : '8px',
-          minHeight: windowWidth <= 480 ? '70px' : windowWidth <= 768 ? '80px' : '95px'
-        }}
-      >
-        <span style={{ 
-          fontSize: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '18px' : '22px', 
-          lineHeight: '1' 
-        }}>
-          RM33
-        </span>
-        <span style={{ 
-          fontSize: windowWidth <= 480 ? '9px' : windowWidth <= 768 ? '10px' : '12px', 
-          fontWeight: '500', 
-          opacity: 0.7,
-          lineHeight: '1.2'
-        }}>
-          2 Categories
-        </span>
-      </button>
-      
-      <button
-        onClick={() => setDriverCost(36)}
-        style={{
-          padding: windowWidth <= 480 ? '14px 8px' : windowWidth <= 768 ? '16px 12px' : '22px 16px',
-          borderRadius: windowWidth <= 480 ? '10px' : '12px',
-          border: driverCost === 36 ? '3px solid #3b82f6' : '2px solid #cbd5e1',
-          backgroundColor: driverCost === 36 ? '#ffffff' : '#f8fafc',
-          color: driverCost === 36 ? '#1e40af' : '#64748b',
-          fontWeight: '700',
-          cursor: 'pointer',
-          fontSize: windowWidth <= 480 ? '13px' : windowWidth <= 768 ? '15px' : '17px',
-          transition: 'all 0.2s ease',
-          boxShadow: driverCost === 36 ? '0 4px 12px rgba(59, 130, 246, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: windowWidth <= 480 ? '4px' : '8px',
-          minHeight: windowWidth <= 480 ? '70px' : windowWidth <= 768 ? '80px' : '95px'
-        }}
-      >
-        <span style={{ 
-          fontSize: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '18px' : '22px', 
-          lineHeight: '1' 
-        }}>
-          RM36
-        </span>
-        <span style={{ 
-          fontSize: windowWidth <= 480 ? '9px' : windowWidth <= 768 ? '10px' : '12px', 
-          fontWeight: '500', 
-          opacity: 0.7,
-          lineHeight: '1.2'
-        }}>
-          3+ Categories
-        </span>
+        Set
       </button>
     </div>
+  </div>
+)}
   </div>
   
   <h3 style={{ 
@@ -894,12 +1092,63 @@ const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
     Today's Profit Calculation
   </h3>
   
-  <div style={{ 
-    backgroundColor: '#f8fafc', 
-    padding: windowWidth <= 480 ? '12px' : windowWidth <= 768 ? '16px' : '24px', 
-    borderRadius: '16px',
-    marginBottom: windowWidth <= 480 ? '16px' : '24px'
+  {isEdited && (
+  <div style={{
+    backgroundColor: '#fef3c7',
+    border: '2px solid #f59e0b',
+    borderRadius: '12px',
+    padding: '12px 16px',
+    marginBottom: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    flexWrap: 'wrap'
   }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <Edit size={20} color="#d97706" />
+      <span style={{
+        fontSize: '14px',
+        fontWeight: '600',
+        color: '#92400e'
+      }}>
+        ⚠️ This calculation has been manually edited by admin
+      </span>
+    </div>
+    <button
+      onClick={() => handleResetHistoryEntry(todayHistoryEntry.id)}
+      style={{
+        padding: '8px 16px',
+        borderRadius: '8px',
+        border: 'none',
+        backgroundColor: '#3b82f6',
+        color: 'white',
+        fontWeight: '600',
+        fontSize: '13px',
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px'
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+        <path d="M21 3v5h-5"/>
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+        <path d="M3 21v-5h5"/>
+      </svg>
+      Reset to Live Data
+    </button>
+  </div>
+)}
+
+            <div style={{ 
+              backgroundColor: '#f8fafc', 
+              padding: windowWidth <= 480 ? '12px' : windowWidth <= 768 ? '16px' : '24px', 
+              borderRadius: '16px',
+              marginBottom: windowWidth <= 480 ? '16px' : '24px'
+            }}>
               <div style={{ 
                 display: 'flex', 
                 justifyContent: 'space-between', 
@@ -911,7 +1160,7 @@ const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
                   fontSize: windowWidth <= 480 ? '13px' : '16px',
                   lineHeight: '1.4'
                 }}>
-                  Commitment Fees ({todayUsers.filter(u => u.commitmentPaid).length} × RM10):
+                  Commitment Fees ({firstThreePaidCount} × RM10):
                 </span>
                 <span style={{ 
                   fontWeight: 'bold', 
@@ -920,6 +1169,7 @@ const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
                   +RM{displayCommitmentFees.toFixed(2)}
                 </span>
               </div>
+
               <div style={{ 
                 display: 'flex', 
                 justifyContent: 'space-between', 
@@ -931,7 +1181,7 @@ const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
                   fontSize: windowWidth <= 480 ? '13px' : '16px',
                   lineHeight: '1.4'
                 }}>
-                  Delivery Fees:
+                  Delivery Fees ({liveOrders} order{liveOrders !== 1 ? 's' : ''}):
                 </span>
                 <span style={{ 
                   fontWeight: 'bold', 
@@ -940,6 +1190,7 @@ const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
                   +RM{displayDeliveryFees.toFixed(2)}
                 </span>
               </div>
+
               <div style={{ 
                 display: 'flex', 
                 justifyContent: 'space-between', 
@@ -957,11 +1208,14 @@ const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
                 </span>
                 <span style={{ 
                   fontWeight: 'bold', 
-                  fontSize: windowWidth <= 480 ? '14px' : '16px' 
+                  fontSize: windowWidth <= 480 ? '14px' : '16px',
+                  color: isEdited ? '#f59e0b' : '#1e293b'
                 }}>
                   RM{displayRevenue.toFixed(2)}
+                  {isEdited && <span style={{ fontSize: '12px', marginLeft: '4px' }}>*</span>}
                 </span>
               </div>
+
               <div style={{ 
                 display: 'flex', 
                 justifyContent: 'space-between',
@@ -980,9 +1234,10 @@ const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
                   color: '#dc2626', 
                   fontSize: windowWidth <= 480 ? '13px' : '16px' 
                 }}>
-                  -RM{displayOrders > 0 ? driverCost.toFixed(2) : '0.00'}
+                  -RM{driverCost.toFixed(2)}
                 </span>
               </div>
+
               <div style={{ 
                 display: 'flex', 
                 justifyContent: 'space-between',
@@ -1005,9 +1260,22 @@ const displayProfit = todayHistoryEntry?.profit ?? fallbackProfit;
                   color: displayProfit >= 0 ? '#059669' : '#dc2626' 
                 }}>
                   RM{displayProfit.toFixed(2)}
-                                </span>
-                              </div>
-                            </div>
+                  {isEdited && <span style={{ fontSize: '14px', marginLeft: '4px' }}>*</span>}
+                </span>
+              </div>
+
+              {isEdited && (
+                <p style={{
+                  fontSize: '12px',
+                  color: '#92400e',
+                  marginTop: '12px',
+                  marginBottom: 0,
+                  fontStyle: 'italic'
+                }}>
+                  * Values marked with asterisk have been manually edited by admin
+                </p>
+              )}
+              </div>
                           </div>
 
           {/* Awaiting Orders Card */}
@@ -1512,6 +1780,40 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
 </div>
               </div>
             </div>
+            {/* Manage User Button - Always visible */}
+<div style={{
+  marginTop: '16px',
+  padding: '12px',
+  backgroundColor: '#f8fafc',
+  borderRadius: '8px',
+  display: 'flex',
+  gap: '8px'
+}}>
+  <button
+    onClick={() => {
+      setSelectedOrderForAction(userOrder || user);
+      setShowOrderActionModal(true);
+    }}
+    style={{
+      flex: 1,
+      padding: '10px',
+      borderRadius: '8px',
+      border: 'none',
+      backgroundColor: userOrder ? '#ef4444' : '#64748b',
+      color: 'white',
+      fontWeight: '600',
+      fontSize: '14px',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '6px'
+    }}
+  >
+    <AlertCircle size={16} />
+    {userOrder ? 'Manage Order' : 'Manage User'}
+  </button>
+</div>
           </div>
         );
       })}
@@ -2030,10 +2332,19 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
   }}>
     {localHistoryData
   .filter(entry => {
-    // Only show entries for actual delivery days (1=Mon, 3=Wed, 5=Fri based on your schedule)
+    // Only show entries for actual delivery days
     const entryDate = new Date(entry.date + 'T00:00:00');
     const dayOfWeek = entryDate.getDay();
-    return [2, 5].includes(dayOfWeek); // Adjust these numbers to match your DELIVERY_DAYS
+    
+    // Don't show future dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (entryDate > today) {
+      return false; // Hide future entries
+    }
+    
+    return [2, 5].includes(dayOfWeek); // Only Tuesday and Friday
   })
   .map((entry, index) => (
       <div key={index} style={{
@@ -2397,7 +2708,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
       onClose={() => setIsEditModalOpen(false)}
       entry={editingEntry}
       onSave={handleSaveChanges}
-      adminPasscode={'byyc'} // Your admin passcode
+      adminPasscode={'byycky'} // Your admin passcode
     />
 
     {/* Emergency Loss Modal */}
@@ -2588,6 +2899,142 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
           }}
         >
           {editingLoss ? 'Update' : 'Add'} Loss
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+{/* Order Action Modal */}
+{showOrderActionModal && selectedOrderForAction && (
+  <div style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10000,
+    padding: '20px'
+  }}>
+    <div style={{
+      backgroundColor: 'white',
+      borderRadius: '20px',
+      padding: windowWidth <= 480 ? '20px' : '32px',
+      maxWidth: '500px',
+      width: '100%',
+      boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '20px'
+      }}>
+        <AlertCircle size={28} color="#ef4444" />
+        <h3 style={{
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '20px' : '24px',
+          color: '#1e293b',
+          fontWeight: '700'
+        }}>
+          {selectedOrderForAction.orderNumber ? `Manage Order #${selectedOrderForAction.orderNumber}` : `Manage User: ${selectedOrderForAction.name}`}
+        </h3>
+      </div>
+
+      <div style={{
+        backgroundColor: '#f8fafc',
+        padding: '16px',
+        borderRadius: '12px',
+        marginBottom: '20px'
+      }}>
+        <p style={{ margin: '0 0 8px 0' }}>
+          <strong>Student:</strong> {selectedOrderForAction.userName || selectedOrderForAction.name}
+        </p>
+        {selectedOrderForAction.orderTotal && (
+          <>
+            <p style={{ margin: '0 0 8px 0' }}>
+              <strong>Order Total:</strong> RM{selectedOrderForAction.orderTotal.toFixed(2)}
+            </p>
+            <p style={{ margin: '0' }}>
+              <strong>Vendor:</strong> {selectedOrderForAction.vendor}
+            </p>
+          </>
+        )}
+        {!selectedOrderForAction.orderTotal && (
+          <p style={{ margin: '0', color: '#64748b' }}>
+            This user has not submitted an order yet.
+          </p>
+        )}
+      </div>
+
+      <div style={{
+        backgroundColor: '#fef2f2',
+        border: '2px solid #ef4444',
+        borderRadius: '12px',
+        padding: '16px',
+        marginBottom: '24px'
+      }}>
+        <p style={{
+          margin: 0,
+          fontSize: '13px',
+          color: '#991b1b',
+          lineHeight: '1.5'
+        }}>
+          ⚠️ <strong>Warning:</strong> {selectedOrderForAction.orderNumber 
+            ? 'Deleting this order will remove it from the driver\'s view and all system records. This action cannot be undone.'
+            : 'Deleting this user will remove their registration and any associated order data. This action cannot be undone.'}
+        </p>
+      </div>
+
+      <div style={{
+        display: 'flex',
+        gap: '12px',
+        flexDirection: windowWidth <= 480 ? 'column' : 'row'
+      }}>
+        <button
+          onClick={() => {
+            setShowOrderActionModal(false);
+            setSelectedOrderForAction(null);
+          }}
+          style={{
+            flex: 1,
+            padding: '14px',
+            borderRadius: '12px',
+            border: '2px solid #e2e8f0',
+            backgroundColor: 'white',
+            color: '#64748b',
+            fontWeight: '600',
+            fontSize: '15px',
+            cursor: 'pointer'
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => {
+            if (selectedOrderForAction.orderNumber) {
+              handleDeleteOrder(selectedOrderForAction.id);
+            } else {
+              handleDeleteUser(selectedOrderForAction.firestoreId);
+            }
+          }}
+          style={{
+            flex: 1,
+            padding: '14px',
+            borderRadius: '12px',
+            border: 'none',
+            background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+            color: 'white',
+            fontWeight: '600',
+            fontSize: '15px',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+          }}
+        >
+          {selectedOrderForAction.orderNumber ? 'Delete Order' : 'Delete User'}
         </button>
       </div>
     </div>

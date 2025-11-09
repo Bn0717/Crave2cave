@@ -677,6 +677,7 @@ useEffect(() => {
   isCurrentUserEligible,
   setIsCurrentUserEligible,  
   setSelectedVendor,
+  dailySettings,
   };
 
   const gateAnimationStyles = `

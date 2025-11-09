@@ -431,3 +431,33 @@ export const deleteEmergencyLoss = async (lossId) => {
     throw e;
   }
 };
+
+export const deleteOrder = async (orderId) => {
+  try {
+    await deleteDoc(doc(db, 'orders', orderId));
+    console.log('Order deleted successfully:', orderId);
+  } catch (error) {
+    console.error('Error deleting order:', error);
+    throw error;
+  }
+};
+
+export const deleteUser = async (userId) => {
+  try {
+    await deleteDoc(doc(db, 'prebookUsers', userId));
+    console.log('User deleted successfully:', userId);
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    throw error;
+  }
+};
+
+export const deleteHistoryEntry = async (entryId) => {
+  try {
+    await deleteDoc(doc(db, 'history', entryId));
+    console.log('History entry deleted successfully:', entryId);
+  } catch (error) {
+    console.error('Error deleting history entry:', error);
+    throw error;
+  }
+};
