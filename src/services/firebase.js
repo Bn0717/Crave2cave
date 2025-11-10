@@ -460,3 +460,17 @@ export const deleteHistoryEntry = async (entryId) => {
     throw error;
   }
 };
+
+export const setEarlySystemOpen = async (deliveryDate, isOpen) => {
+  try {
+    const settingsRef = doc(db, "dailySettings", deliveryDate);
+    await setDoc(settingsRef, { 
+      earlySystemOpen: isOpen,
+      earlyOpenTime: new Date().toISOString()
+    }, { merge: true });
+    console.log(`Early system open set to ${isOpen} for ${deliveryDate}`);
+  } catch (error) {
+    console.error("Error setting early system open:", error);
+    throw error;
+  }
+};

@@ -117,12 +117,14 @@ useEffect(() => {
               deliveryDate: todayDateString,
               nextOpenTime: `Midnight tonight (opens for ${checkingDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} delivery)`,
               malaysiaTime,
+              earlySystemOpen: settings.earlySystemOpen || false
             };
           }
         }
         return {
           isSystemOpen: false, deliveryDate: todayDateString,
           nextOpenTime: 'No delivery dates scheduled in the next 2 weeks', malaysiaTime,
+          earlySystemOpen: settings.earlySystemOpen || false
         };
       }
     }
@@ -135,13 +137,16 @@ useEffect(() => {
   
       if (DELIVERY_DAYS.includes(checkingDay)) {
         const deliveryDateString = checkingDate.toLocaleDateString('en-CA');
-        return { isSystemOpen: true, deliveryDate: deliveryDateString, malaysiaTime };
+        return { isSystemOpen: true, deliveryDate: deliveryDateString, malaysiaTime,
+          earlySystemOpen: settings.earlySystemOpen || false
+        };
       }
     }
   
     return {
       isSystemOpen: false, deliveryDate: todayDateString,
       nextOpenTime: 'No delivery dates scheduled', malaysiaTime,
+      earlySystemOpen: settings.earlySystemOpen || false 
     };
   };
 
@@ -300,14 +305,15 @@ const handleMultipleImages = (images) => {
   const todayOrdersFiltered = allOrders.filter(order => order.deliveryDate === targetDeliveryDate);
   
   setTodayOrders(todayOrdersFiltered);
-  setTodayUsers(prebookUsers);  // prebookUsers is already filtered by the listener
+  setTodayUsers(prebookUsers);
   
   const paidUsersCount = prebookUsers.filter(u => u.commitmentPaid).length;
   
-  const isActivatedToday = paidUsersCount >= 3;
+  // MODIFY THIS LOGIC
+  const isActivatedToday = paidUsersCount >= 3 || systemAvailability.earlySystemOpen;
   setMinOrderReached(isActivatedToday);
   setSystemActivatedToday(isActivatedToday);
-}, [allOrders, prebookUsers, systemAvailability.deliveryDate]);
+}, [allOrders, prebookUsers, systemAvailability.deliveryDate, systemAvailability.earlySystemOpen]);
 
 // ADD this useEffect right below filterTodayData
 useEffect(() => {

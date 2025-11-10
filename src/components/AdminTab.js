@@ -65,6 +65,8 @@ const [showCustomDriverCost, setShowCustomDriverCost] = useState(false);
 const [customDriverCostInput, setCustomDriverCostInput] = useState('');
 const [selectedOrderForAction, setSelectedOrderForAction] = useState(null);
 const [showOrderActionModal, setShowOrderActionModal] = useState(false);
+const [showOpenSystemModal, setShowOpenSystemModal] = useState(false);
+const [openSystemPasscode, setOpenSystemPasscode] = useState('');
 
   const VENDOR_MAP = {
   'mixue': { name: 'Mixue', icon: '🧋' },
@@ -91,6 +93,70 @@ const [showOrderActionModal, setShowOrderActionModal] = useState(false);
     if (categoryCount >= 3) return 36;
     return 30;
   };
+
+  const handleOpenSystem = async () => {
+  if (openSystemPasscode !== 'byycky') {
+    showSuccessAnimation(
+      'Invalid Passcode',
+      'Please enter the correct admin passcode.',
+      null,
+      2500,
+      true
+    );
+    return;
+  }
+
+  const paidUsersCount = todayUsers.filter(u => u.commitmentPaid).length;
+  
+  if (paidUsersCount >= 3) {
+    showSuccessAnimation(
+      'System Already Active',
+      'System is already open with 3 or more paid users.',
+      null,
+      2500,
+      true
+    );
+    return;
+  }
+
+  if (paidUsersCount === 0) {
+    showSuccessAnimation(
+      'No Paid Users',
+      'There must be at least 1 paid user to open the system early.',
+      null,
+      2500,
+      true
+    );
+    return;
+  }
+
+  showLoadingAnimation('Opening system early...');
+  
+  try {
+    // Set a flag in dailySettings to indicate early opening
+    await firebaseService.setEarlySystemOpen(systemAvailability.deliveryDate, true);
+    
+    hideLoadingAnimation();
+    setShowOpenSystemModal(false);
+    setOpenSystemPasscode('');
+    
+    showSuccessAnimation(
+      'System Opened Early!',
+      `System is now open for ${paidUsersCount} paid user${paidUsersCount > 1 ? 's' : ''} to submit orders. Third user will need to pay deposit.`,
+      null,
+      4000
+    );
+  } catch (error) {
+    hideLoadingAnimation();
+    showSuccessAnimation(
+      'Failed to Open System',
+      error.message || 'Could not open system early. Please try again.',
+      null,
+      3000,
+      true
+    );
+  }
+};
 
   const handleExtendSystem = async () => {
   // Check if today is actually a delivery day
@@ -680,6 +746,28 @@ const displayDeliveryFees = liveDeliveryFees;
       <Clock size={windowWidth <= 480 ? 18 : 20} /> 
       Extend
     </button>
+
+    <button 
+  onClick={() => setShowOpenSystemModal(true)} 
+  style={{ 
+    ...styles.button, 
+    flex: windowWidth <= 768 ? '1 1 calc(50% - 4px)' : '0 0 auto',
+    minWidth: windowWidth <= 768 ? '0' : '140px',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+    color: 'white', 
+    padding: windowWidth <= 480 ? '12px 16px' : windowWidth <= 768 ? '12px 20px' : '14px 24px',
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    gap: '8px',
+    fontSize: windowWidth <= 480 ? '14px' : '15px',
+    whiteSpace: 'nowrap',
+    width: windowWidth <= 768 ? 'auto' : 'auto'
+  }}
+>
+  <UserCheck size={windowWidth <= 480 ? 18 : 20} /> 
+  Open System
+</button>
     
     <button 
       onClick={() => setShowConfirmPopup(true)}
@@ -2695,6 +2783,147 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
           }}
         >
           Extend System
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+{showOpenSystemModal && (
+  <div style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10000,
+    padding: '20px'
+  }}>
+    <div style={{
+      backgroundColor: 'white',
+      borderRadius: '20px',
+      padding: windowWidth <= 480 ? '20px' : '32px',
+      maxWidth: '500px',
+      width: '100%',
+      boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+      maxHeight: '90vh',
+      overflowY: 'auto'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '20px'
+      }}>
+        <UserCheck size={28} color="#10b981" />
+        <h3 style={{
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '20px' : '24px',
+          color: '#1e293b',
+          fontWeight: '700'
+        }}>
+          Open System Early
+        </h3>
+      </div>
+
+      <div style={{
+        backgroundColor: '#d1fae5',
+        border: '2px solid #10b981',
+        borderRadius: '12px',
+        padding: windowWidth <= 480 ? '12px' : '16px',
+        marginBottom: '20px'
+      }}>
+        <p style={{
+          margin: '0 0 12px 0',
+          fontSize: windowWidth <= 480 ? '13px' : '14px',
+          color: '#065f46',
+          lineHeight: '1.5',
+          fontWeight: '600'
+        }}>
+          ⚠️ Current Status:
+        </p>
+        <p style={{
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '13px' : '14px',
+          color: '#065f46',
+          lineHeight: '1.5'
+        }}>
+          • Paid Users: <strong>{todayUsers.filter(u => u.commitmentPaid).length}</strong><br/>
+          • This will allow paid users to submit orders before reaching 3 users<br/>
+          • 3rd user joining will need to pay RM10 deposit (with RM10 deducted from delivery)<br/>
+          • 4th+ users join normally (no deposit, no deduction)
+        </p>
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        <label style={{
+          display: 'block',
+          fontWeight: '600',
+          color: '#1e293b',
+          marginBottom: '8px',
+          fontSize: windowWidth <= 480 ? '14px' : '15px'
+        }}>
+          Admin Passcode:
+        </label>
+        <input
+          type="password"
+          value={openSystemPasscode}
+          onChange={(e) => setOpenSystemPasscode(e.target.value)}
+          placeholder="Enter admin passcode"
+          style={{
+            width: '100%',
+            padding: windowWidth <= 480 ? '12px' : '14px',
+            borderRadius: '10px',
+            border: '2px solid #e2e8f0',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            boxSizing: 'border-box'
+          }}
+        />
+      </div>
+
+      <div style={{
+        display: 'flex',
+        gap: '12px',
+        flexDirection: windowWidth <= 480 ? 'column' : 'row'
+      }}>
+        <button
+          onClick={() => {
+            setShowOpenSystemModal(false);
+            setOpenSystemPasscode('');
+          }}
+          style={{
+            flex: 1,
+            padding: windowWidth <= 480 ? '14px' : '16px',
+            borderRadius: '12px',
+            border: '2px solid #e2e8f0',
+            backgroundColor: 'white',
+            color: '#64748b',
+            fontWeight: '600',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            cursor: 'pointer'
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleOpenSystem}
+          style={{
+            flex: 1,
+            padding: windowWidth <= 480 ? '14px' : '16px',
+            borderRadius: '12px',
+            border: 'none',
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            color: 'white',
+            fontWeight: '600',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+          }}
+        >
+          Open System
         </button>
       </div>
     </div>
