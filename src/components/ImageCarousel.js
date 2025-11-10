@@ -20,7 +20,7 @@ const ImageCarousel = ({ images, onClose }) => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [handleNext, handlePrevious]);
 
   // Define the breakpoint for mobile styles
   const isMobile = windowWidth <= 768;
