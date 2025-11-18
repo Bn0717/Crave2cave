@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react';
 
 const ImageCarousel = ({ images, onClose }) => {
@@ -20,7 +20,7 @@ const ImageCarousel = ({ images, onClose }) => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [handleNext, handlePrevious]);
+  }, []);
 
   // Define the breakpoint for mobile styles
   const isMobile = windowWidth <= 768;
@@ -33,17 +33,17 @@ const ImageCarousel = ({ images, onClose }) => {
     setPosition({ x: 0, y: 0 });
   };
 
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     if (images.length <= 1) return;
     setCurrentIndex(prev => prev === 0 ? images.length - 1 : prev - 1);
     resetImageState();
-  };
+  }, [images.length]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (images.length <= 1) return;
-    setCurrentIndex(prev => prev === images.length - 1 ? 0 : prev + 1);
+    setCurrentIndex(prev => prev === images.length - 1 ? 0 : prev - 1);
     resetImageState();
-  };
+  }, [images.length]);
 
   // Keyboard navigation effect
   useEffect(() => {
@@ -55,7 +55,7 @@ const ImageCarousel = ({ images, onClose }) => {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [images, onClose]); // Dependencies ensure functions have latest scope
+  }, [handlePrevious, handleNext, onClose]); // <-- Add the functions back here
 
   // --- MOUSE & TOUCH HANDLERS (ZOOM/PAN) ---
 
