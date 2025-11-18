@@ -530,75 +530,97 @@ const existingUser = todayUsers.find(user => {
 
 const handleCommitmentPayment = async () => {
   if (!systemAvailability.isSystemOpen) {
-      showSuccessAnimation(
-        'System Closed',
-        'The system is currently closed and cannot accept new payments.',
-        <div>
-          <p style={{ margin: '8px 0', color: '#92400e', fontWeight: '600' }}>
-            Next available: {systemAvailability.nextOpenTime}
-          </p>
-        </div>,
-        0,
-        true
-      );
-      return;
-    }
+    showSuccessAnimation(
+      'System Closed',
+      'The system is currently closed and cannot accept new payments.',
+      <div>
+        <p style={{ margin: '8px 0', color: '#92400e', fontWeight: '600' }}>
+          Next available: {systemAvailability.nextOpenTime}
+        </p>
+      </div>,
+      0,
+      true
+    );
+    return;
+  }
 
-    if (!receiptFile) {
-      showSuccessAnimation('Missing Receipt', 'Please upload a payment receipt.', null, 0, true);
-      return;
-    }
+  if (!receiptFile) {
+    showSuccessAnimation('Missing Receipt', 'Please upload a payment receipt.', null, 0, true);
+    return;
+  }
 
-    showLocalLoading('Uploading receipt...');
+  // ==================== NEW GATEKEEPER LOGIC ====================
+  // Re-check the latest count from the props right before processing.
+  const currentPaidCount = todayUsers.filter(u => u.commitmentPaid).length;
 
-    // Use setTimeout to allow UI to update
-    setTimeout(async () => {
-      try {
-        if (!(receiptFile instanceof File)) {
-          throw new Error('Invalid receipt file: Please select a valid image');
-        }
-        const receiptURL = await firebaseService.uploadFileToStorage(receiptFile);
-
-        const currentPaidCount = todayUsers.filter(u => u.commitmentPaid).length;
-        const isEligibleForDeduction = currentPaidCount < 3;
-
-        setIsCurrentUserEligible(isEligibleForDeduction);
-
-        await firebaseService.updatePrebookUser(selectedUserId, {
-          commitmentPaid: true,
-          receiptURL,
-          receiptUploadTime: new Date().toISOString(),
-          eligibleForDeduction: isEligibleForDeduction,
-        });
-
+  if (currentPaidCount >= 3) {
+    // If the system activated while this user was on the payment screen,
+    // we stop them from paying and move them to the next step for free.
+    showSuccessAnimation(
+      "System is Now Active!",
+      "Good news! The system activated while you were away. You no longer need to pay the RM10 fee.",
+      <p>You can now proceed directly to submitting your order.</p>,
+      0, true,
+      () => {
+        // Move the user to the next step without processing the payment.
         updateSession(3, { name: studentName, contactNumber, firestoreId: selectedUserId }, selectedVendor);
-        hideLocalLoading();
-
-        const newPaidCount = currentPaidCount + 1;
-        if (newPaidCount >= 3) {
-          showSuccessAnimation(
-            'Payment Confirmed!',
-            'You can now submit your order!',
-            null, 0, true,
-            () => setUserStep(3)
-          );
-        } else {
-          const remaining = 3 - newPaidCount;
-          showSuccessAnimation(
-            'Payment Confirmed!',
-            'Your payment has been received.',
-            <p>We need {remaining} more paid user{remaining > 1 ? 's' : ''} to activate.</p>,
-            0, true,
-            () => setUserStep(3)
-          );
-        }
-      } catch (error) {
-        hideLocalLoading();
-        showSuccessAnimation('Upload Failed', `Error: ${error.message}`, null, 0, true);
-        console.error('Payment error:', error);
+        setUserStep(3);
       }
-    }, 50);
-  };
+    );
+    return; // Stop the function here to prevent the payment.
+  }
+  // ===============================================================
+
+  showLocalLoading('Uploading receipt...');
+
+  // This part of the code will now only run if paidUsersCount < 3.
+  setTimeout(async () => {
+    try {
+      if (!(receiptFile instanceof File)) {
+        throw new Error('Invalid receipt file: Please select a valid image');
+      }
+      const receiptURL = await firebaseService.uploadFileToStorage(receiptFile);
+
+      // This logic is still correct. It determines if the current user
+      // is one of the first three to successfully pay.
+      const isEligibleForDeduction = currentPaidCount < 3;
+      setIsCurrentUserEligible(isEligibleForDeduction);
+
+      await firebaseService.updatePrebookUser(selectedUserId, {
+        commitmentPaid: true,
+        receiptURL,
+        receiptUploadTime: new Date().toISOString(),
+        eligibleForDeduction: isEligibleForDeduction,
+      });
+
+      updateSession(3, { name: studentName, contactNumber, firestoreId: selectedUserId }, selectedVendor);
+      hideLocalLoading();
+
+      const newPaidCount = currentPaidCount + 1;
+      if (newPaidCount >= 3) {
+        showSuccessAnimation(
+          'Payment Confirmed!',
+          'You can now submit your order!',
+          null, 0, true,
+          () => setUserStep(3)
+        );
+      } else {
+        const remaining = 3 - newPaidCount;
+        showSuccessAnimation(
+          'Payment Confirmed!',
+          'Your payment has been received.',
+          <p>We need {remaining} more paid user{remaining > 1 ? 's' : ''} to activate.</p>,
+          0, true,
+          () => setUserStep(3)
+        );
+      }
+    } catch (error) {
+      hideLocalLoading();
+      showSuccessAnimation('Upload Failed', `Error: ${error.message}`, null, 0, true);
+      console.error('Payment error:', error);
+    }
+  }, 50);
+};
 
   const handleOrderSubmission = async () => {
   if (!systemAvailability.isSystemOpen) {

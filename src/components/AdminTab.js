@@ -275,8 +275,19 @@ const handleResetHistoryEntry = async (entryId) => {
 
   showLoadingAnimation('Resetting to live data...');
   try {
-    await firebaseService.deleteHistoryEntry(entryId);
-    setLocalHistoryData(prevHistory => prevHistory.filter(entry => entry.id !== entryId));
+    // Call the new, safer function
+    await firebaseService.resetHistoryEntryToLive(entryId);
+    
+    // Instead of filtering, we need to refetch or manually update the local state
+    // For simplicity, we'll just visually remove the "edited" state locally
+    setLocalHistoryData(prevHistory => 
+      prevHistory.map(entry => 
+        entry.id === entryId 
+          ? { ...entry, totalRevenue: liveRevenue, profit: liveProfit, totalOrders: liveOrders, registeredUsers: liveRegisteredUsers } 
+          : entry
+      )
+    );
+
     hideLoadingAnimation();
     showSuccessAnimation('Reset Complete!', 'Now showing live data for today.', null, 2500);
   } catch (error) {

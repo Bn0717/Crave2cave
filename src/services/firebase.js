@@ -451,12 +451,19 @@ export const deleteUser = async (userId) => {
   }
 };
 
-export const deleteHistoryEntry = async (entryId) => {
+export const resetHistoryEntryToLive = async (entryId) => {
   try {
-    await deleteDoc(doc(db, 'history', entryId));
-    console.log('History entry deleted successfully:', entryId);
+    const historyRef = doc(db, 'history', entryId);
+    // This removes the fields, forcing your app's logic to fall back to live data
+    await updateDoc(historyRef, {
+      totalRevenue: deleteField(),
+      profit: deleteField(),
+      totalOrders: deleteField(),
+      registeredUsers: deleteField()
+    });
+    console.log('History entry fields reset successfully:', entryId);
   } catch (error) {
-    console.error('Error deleting history entry:', error);
+    console.error('Error resetting history entry:', error);
     throw error;
   }
 };
