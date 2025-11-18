@@ -41,7 +41,7 @@ const ImageCarousel = ({ images, onClose }) => {
 
   const handleNext = useCallback(() => {
     if (images.length <= 1) return;
-    setCurrentIndex(prev => prev === images.length - 1 ? 0 : prev - 1);
+    setCurrentIndex(prev => prev === images.length - 1 ? 0 : prev + 1);
     resetImageState();
   }, [images.length]);
 
