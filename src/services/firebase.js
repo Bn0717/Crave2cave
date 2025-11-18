@@ -474,3 +474,17 @@ export const setEarlySystemOpen = async (deliveryDate, isOpen) => {
     throw error;
   }
 };
+
+export const updateDailyDriverCost = async (deliveryDate, cost) => {
+  try {
+    const settingsRef = doc(db, 'dailySettings', deliveryDate);
+    await setDoc(settingsRef, {
+      driverCost: cost,
+      updatedAt: new Date().toISOString()
+    }, { merge: true }); // Use merge to avoid overwriting other settings like extendedCutoffTime
+    console.log(`Driver cost set to ${cost} for ${deliveryDate}`);
+  } catch (error) {
+    console.error('Error updating daily driver cost:', error);
+    throw error;
+  }
+};

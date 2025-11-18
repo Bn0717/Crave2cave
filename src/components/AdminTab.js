@@ -468,39 +468,50 @@ useEffect(() => {
 
 const todayHistoryEntry = localHistoryData.find(entry => entry.date === systemAvailability.deliveryDate);
 
-// Calculate LIVE data from Firebase
 const liveRegisteredUsers = todayUsers.length;
 const liveOrders = todayOrders.length;
-
-// Only count first 3 paid users for commitment fees
 const firstThreePaidCount = Math.min(todayUsers.filter(u => u.commitmentPaid).length, 3);
 const liveCommitmentFees = firstThreePaidCount * 10;
-
-// Sum all delivery fees from orders
 const liveDeliveryFees = todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
-
-// Calculate live revenue and profit
 const liveRevenue = liveCommitmentFees + liveDeliveryFees;
+
+// This is the profit displayed on screen, which reacts to the driverCost buttons.
 const liveProfit = liveRevenue - driverCost;
 
-// Determine if we should show LIVE data or EDITED data
-const isEdited = !!todayHistoryEntry && (
-  (todayHistoryEntry.registeredUsers !== undefined && todayHistoryEntry.registeredUsers !== liveRegisteredUsers) ||
-  (todayHistoryEntry.totalOrders !== undefined && todayHistoryEntry.totalOrders !== liveOrders) ||
-  (todayHistoryEntry.totalRevenue !== undefined && todayHistoryEntry.totalRevenue !== liveRevenue) ||
-  (todayHistoryEntry.profit !== undefined && todayHistoryEntry.profit !== liveProfit)
-);
+// --- Smart `isEdited` Check ---
+const isEdited = (() => {
+  if (!todayHistoryEntry) return false;
+
+  // 1. Check foundational numbers. If these are edited, the warning must show.
+  const usersEdited = todayHistoryEntry.registeredUsers !== liveRegisteredUsers;
+  const ordersEdited = todayHistoryEntry.totalOrders !== liveOrders;
+  const revenueEdited = todayHistoryEntry.totalRevenue !== liveRevenue;
+
+  if (usersEdited || ordersEdited || revenueEdited) {
+    return true;
+  }
+
+  // 2. Smart profit check. This is the key fix.
+  // We check if the stored profit is consistent with the stored revenue and stored driver cost.
+  // This detects if an admin ONLY changed the profit field in the modal.
+  const storedDriverCost = todayHistoryEntry.driverCost || 30; // Use stored cost, or default to 30
+  const expectedProfitFromStoredValues = todayHistoryEntry.totalRevenue - storedDriverCost;
+  
+  // Use a small tolerance for floating point comparisons
+  const profitManuallyOverridden = Math.abs(todayHistoryEntry.profit - expectedProfitFromStoredValues) > 0.01;
+
+  return profitManuallyOverridden;
+})();
 
 // Display values (use edited if available, otherwise use live)
 const displayRegisteredUsers = todayHistoryEntry?.registeredUsers ?? liveRegisteredUsers;
 const displayOrders = todayHistoryEntry?.totalOrders ?? liveOrders;
 const displayRevenue = todayHistoryEntry?.totalRevenue ?? liveRevenue;
-const displayProfit = todayHistoryEntry?.profit ?? liveProfit;
+const displayProfit = isEdited ? (todayHistoryEntry?.profit ?? liveProfit) : liveProfit;
 
 // For the breakdown display, always show live fees unless revenue was manually edited
 const displayCommitmentFees = liveCommitmentFees;
 const displayDeliveryFees = liveDeliveryFees;
-
 
   const styles = {
     card: { 

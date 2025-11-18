@@ -55,6 +55,17 @@ function App() {
   const [currentDate, setCurrentDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [allOrders, setAllOrders] = useState([]);
   const [driverCost, setDriverCost] = useState(30);
+
+  const handleDriverCostChange = async (cost) => {
+  setDriverCost(cost); // Update the local state immediately for a responsive UI
+  try {
+    await firebaseService.updateDailyDriverCost(systemAvailability.deliveryDate, cost);
+  } catch (error) {
+    console.error("Failed to save driver cost to Firebase:", error);
+    // Optionally show an error message to the user here
+  }
+};
+
   const [dailySettings, setDailySettings] = useState({});
   const [systemAvailability, setSystemAvailability] = useState({ 
   isSystemOpen: true, 
@@ -626,6 +637,16 @@ useEffect(() => {
     return () => clearInterval(dailyResetInterval);
   }, [currentDate, showSuccessAnimation, handleNavigationHome]); // Dependencies for the hook
 
+  useEffect(() => {
+    // Check if a driverCost is defined in the settings for the current delivery date
+    if (dailySettings.driverCost !== undefined) {
+      setDriverCost(dailySettings.driverCost);
+    } else {
+      // If no cost is saved, default back to 30 or a calculated suggestion
+      setDriverCost(30);
+    }
+  }, [dailySettings]); // This runs whenever dailySettings are fetched or updated
+
     useEffect(() => {
     const fetchEligibilityForRestoredSession = async () => {
       // Only run if there's a remembered student and the main data has loaded.
@@ -880,7 +901,7 @@ useEffect(() => {
       )}
       <div id="main-content" style={styles.maxWidth}>
         {activeTab === 'student' && <StudentTab {...sharedProps} setSelectedVendor={setSelectedVendor} setResetStudentForm={setResetStudentForm} />}
-        {activeTab === 'admin' && <AdminTab {...sharedProps} driverCost={driverCost} setDriverCost={setDriverCost} showSuccessAnimation={showSuccessAnimation} showLoadingAnimation={showLoadingAnimation}  hideLoadingAnimation={hideLoadingAnimation} isAuthenticated={isAdminAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'admin')} resetAuth={resetAuth} />}
+        {activeTab === 'admin' && <AdminTab {...sharedProps} driverCost={driverCost} setDriverCost={handleDriverCostChange} showSuccessAnimation={showSuccessAnimation} showLoadingAnimation={showLoadingAnimation}  hideLoadingAnimation={hideLoadingAnimation} isAuthenticated={isAdminAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'admin')} resetAuth={resetAuth} />}
 {activeTab === 'driver' && <DriverTab {...sharedProps} driverCost={driverCost} isAuthenticated={isDriverAuthenticated} onAuth={(passcode) => handleAuthentication(passcode, 'driver')} resetAuth={resetAuth} />}
   {activeTab === 'guide' && <UserGuideTab />}
   {activeTab === 'feedback' && <FeedbackTab showSuccessAnimation={showSuccessAnimation} windowWidth={windowWidth} />}
