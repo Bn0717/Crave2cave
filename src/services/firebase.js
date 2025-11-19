@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, deleteDoc, addDoc, query, where, writeBatch, doc, updateDoc, limit, orderBy, setDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, deleteDoc, addDoc, query, where, writeBatch, doc, updateDoc, limit, orderBy, setDoc, deleteField } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
@@ -431,20 +431,26 @@ export const deleteEmergencyLoss = async (lossId) => {
   }
 };
 
-export const deleteOrder = async (orderId) => {
+export const deleteOrder = async (orderId, deliveryDate) => {
   try {
     await deleteDoc(doc(db, 'orders', orderId));
     console.log('Order deleted successfully:', orderId);
+    if (deliveryDate) {
+      await updateDailyHistory(deliveryDate); // Trigger a history update
+    }
   } catch (error) {
     console.error('Error deleting order:', error);
     throw error;
   }
 };
 
-export const deleteUser = async (userId) => {
+export const deleteUser = async (userId, deliveryDate) => {
   try {
     await deleteDoc(doc(db, 'prebookUsers', userId));
     console.log('User deleted successfully:', userId);
+    if (deliveryDate) {
+      await updateDailyHistory(deliveryDate); // Trigger a history update
+    }
   } catch (error) {
     console.error('Error deleting user:', error);
     throw error;

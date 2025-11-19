@@ -409,7 +409,7 @@ const handleDeleteOrder = async (orderId) => {
 
   showLoadingAnimation('Deleting order...');
   try {
-    await firebaseService.deleteOrder(orderId);
+    await firebaseService.deleteOrder(orderId, systemAvailability.deliveryDate);
     hideLoadingAnimation();
     showSuccessAnimation('Order Deleted!', 'The order has been removed from the system.', null, 2500);
     setShowOrderActionModal(false);
@@ -441,7 +441,7 @@ const handleDeleteUser = async (userId) => {
     }
     
     // Then delete the user
-    await firebaseService.deleteUser(userId);
+    await firebaseService.deleteUser(userId, systemAvailability.deliveryDate);
     
     hideLoadingAnimation();
     showSuccessAnimation('User Deleted!', 'The user and their orders have been removed from the system.', null, 2500);
