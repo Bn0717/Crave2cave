@@ -7,7 +7,10 @@ import {
   History, 
   Loader2, 
   AlertCircle,
-  UserCheck
+  UserCheck,
+  Store,
+  Crown
+  
 } from 'lucide-react';
 
 import AuthScreen from './AuthScreen';
@@ -30,7 +33,7 @@ const AdminTab = ({
   resetAuth
 }) => {
   const [showHistory, setShowHistory] = useState(false);
-
+  const [timePeriod, setTimePeriod] = useState('months');
   const styles = {
     card: { 
       backgroundColor: 'white', 
@@ -124,7 +127,168 @@ const AdminTab = ({
     
     return { totalRegistered, totalRevenue, totalProfit, totalOrders };
   };
+  // NEW: Get most ordered merchant
+  const getMostOrderedMerchant = () => {
+    const merchantCounts = {};
+    todayOrders.forEach(order => {
+      const merchant = order.vendor || order.merchant || 'Unknown';
+      merchantCounts[merchant] = (merchantCounts[merchant] || 0) + 1;
+    });
 
+    historyData.forEach(entry => {
+      if (entry.orders && Array.isArray(entry.orders)) {
+        entry.orders.forEach(order => {
+          const merchant = order.vendor || order.merchant || 'Unknown';
+          merchantCounts[merchant] = (merchantCounts[merchant] || 0) + 1;
+        });
+      }
+    });
+    const sortedMerchants = Object.entries(merchantCounts).sort((a, b) => b[1] - a[1]);
+    return sortedMerchants.length > 0 ? { name: sortedMerchants[0][0], orders: sortedMerchants[0][1] } : { name: 'N/A', orders: 0 };
+  }//remeber to remove this shit and move it to the end of edits
+  // NEW: Get highest spender
+  const getHighestSpender = () => {
+    const userSpending = {};
+    todayOrders.forEach(order => {
+      const userId = order.userId || order.studentId;
+      const userName = order.userName || 'Unknown';
+      const amount = order.orderTotal || 0;
+
+      if (!userSpending[userId]) {
+        userSpending[userId] = { name: userName, total: 0 };
+      }
+      userSpending[userId].total += amount;
+    });
+
+    const sortedSpenders = Object.values(userSpending).sort((a, b) => b.total - a.total);
+    return sortedSpenders.length > 0 ? sortedSpenders[0] : { name: 'N/A', total: 0 };
+  };
+
+  // UPDATED: Get time series average profit data
+  const getTimSeriesProfitData = (period) => {
+    const data = {};
+
+    historyData.forEach(entry => {
+      const entryDate = new Date(entry.date);
+      let label;
+
+      if (period === 'weeks') {
+        // Calculate week number or a consistent week label
+        const startOfWeek = new Date(entryDate);
+        startOfWeek.setDate(entryDate.getDate() - entryDate.getDay()); // Sunday as start of week
+        label = `Week of ${startOfWeek.getDate()}/${startOfWeek.getMonth() + 1}`;
+      } else { // 'months'
+        label = entryDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      }
+
+      if (!data[label]) {
+        data[label] = { totalProfit: 0, count: 0 };
+      }
+      data[label].totalProfit += entry.profit || 0;
+      data[label].count += 1;
+    });
+
+    // Calculate averages and format for chart
+    const averagedData = Object.entries(data).map(([label, { totalProfit, count }]) => ({
+      label,
+      value: (totalProfit / count).toFixed(2), // Calculate average and format to 2 decimal places
+      color: (totalProfit / count) >= 0 ? '#10b981' : '#ef4444'
+    }));
+
+    // Sort by date (important for line charts)
+    averagedData.sort((a, b) => {
+      const dateA = new Date(a.label.replace('Week of ', ''));
+      const dateB = new Date(b.label.replace('Week of ', ''));
+      return dateA - dateB;
+    });
+
+    // Limit to last 6 months or 7 weeks (adjust as needed)
+    if (period === 'weeks') {
+      return averagedData.slice(-7);
+    } else {
+      return averagedData.slice(-6);
+    }
+  };
+
+
+  // NEW: Get merchant order distribution for all time
+  const getMerchantDistribution = () => {
+    const merchantCounts = {};
+
+    historyData.forEach(entry => {
+      if (entry.orders && Array.isArray(entry.orders)) {
+        entry.orders.forEach(order => {
+          const merchant = order.vendor || order.merchant || 'Unknown';
+          merchantCounts[merchant] = (merchantCounts[merchant] || 0) + 1;
+        });
+      }
+    });
+
+    // Add today's orders if not in history
+    const todayString = new Date().toISOString().split('T')[0];
+    const todayInHistory = historyData.some(entry => entry.date === todayString);
+
+    if (!todayInHistory) {
+      todayOrders.forEach(order => {
+        const merchant = order.vendor || order.merchant || 'Unknown';
+        merchantCounts[merchant] = (merchantCounts[merchant] || 0) + 1;
+      });
+    }
+
+    return Object.entries(merchantCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => ({
+        label: name,
+        value: count,
+        color: '#8b5cf6'
+      }));
+  };
+
+  // NEW: Get average order price by merchant (all time)
+  const getAverageOrderPriceByMerchant = () => {
+    const merchantStats = {}; // { merchantName: { totalRevenue: 0, orderCount: 0 } }
+
+    // Process today's orders
+    todayOrders.forEach(order => {
+      const merchant = order.vendor || order.merchant || 'Unknown';
+      const orderTotal = order.orderTotal || 0;
+
+      if (!merchantStats[merchant]) {
+        merchantStats[merchant] = { totalRevenue: 0, orderCount: 0 };
+      }
+      merchantStats[merchant].totalRevenue += orderTotal;
+      merchantStats[merchant].orderCount += 1;
+    });
+
+    // Process historical orders
+    historyData.forEach(entry => {
+      if (entry.orders && Array.isArray(entry.orders)) {
+        entry.orders.forEach(order => {
+          const merchant = order.vendor || order.merchant || 'Unknown';
+          const orderTotal = order.orderTotal || 0;
+
+          if (!merchantStats[merchant]) {
+            merchantStats[merchant] = { totalRevenue: 0, orderCount: 0 };
+          }
+          merchantStats[merchant].totalRevenue += orderTotal;
+          merchantStats[merchant].orderCount += 1;
+        });
+      }
+    });
+
+    // Calculate average and format for chart
+    const chartData = Object.entries(merchantStats)
+      .filter(([, stats]) => stats.orderCount > 0) // Only include merchants with at least one order
+      .map(([merchantName, stats]) => ({
+        label: merchantName,
+        value: (stats.totalRevenue / stats.orderCount).toFixed(2), // Average order price
+        color: '#84cc16' // A nice green color for this chart
+      }))
+      .sort((a, b) => b.value - a.value); // Sort by average price descending
+
+    return chartData.slice(0, 7); // Show top 7 merchants by average order price
+  };
     if (!isAuthenticated) {
     // This wrapper will center the AuthScreen component
     return (
