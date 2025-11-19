@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import {
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Sector,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 
 const SimpleChart = ({ data, type = 'bar', title, height = 300 }) => {
     const [isMobile, setIsMobile] = useState(false);
