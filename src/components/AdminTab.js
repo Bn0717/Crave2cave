@@ -60,13 +60,39 @@ const [lossFormData, setLossFormData] = useState({
   date: new Date().toLocaleDateString('en-CA')
 });
 const [lossPasscode, setLossPasscode] = useState('');
-const [visibleLossCount, setVisibleLossCount] = useState(5);
+const [visibleLossCount, setVisibleLossCount] = useState(3);
 const [showCustomDriverCost, setShowCustomDriverCost] = useState(false);
 const [customDriverCostInput, setCustomDriverCostInput] = useState('');
 const [selectedOrderForAction, setSelectedOrderForAction] = useState(null);
 const [showOrderActionModal, setShowOrderActionModal] = useState(false);
 const [showOpenSystemModal, setShowOpenSystemModal] = useState(false);
 const [openSystemPasscode, setOpenSystemPasscode] = useState('');
+const [moneyDistributions, setMoneyDistributions] = useState([]);
+const [loadingDistributions, setLoadingDistributions] = useState(true);
+const [showDistributionModal, setShowDistributionModal] = useState(false);
+const [showDistributionList, setShowDistributionList] = useState(false);
+const [editingDistribution, setEditingDistribution] = useState(null);
+const [showAdminNameModal, setShowAdminNameModal] = useState(false);
+const [systemSettings, setSystemSettings] = useState({
+  adminName: 'Admin',
+  coFounders: ['Bryan Ngu', 'Yiek Siew Hao', 'Yeoh Sheng Ze', 'Charmaine Yong']
+});
+const [tempAdminName, setTempAdminName] = useState('');
+const [adminNamePasscode, setAdminNamePasscode] = useState('');
+const [distributionFormData, setDistributionFormData] = useState({
+  totalAmount: '',
+  adminName: '',
+  distributions: {
+    admin: { name: '', amount: 0, percentage: 5 },
+    coFounder1: { name: 'Bryan Ngu', amount: 0, percentage: 20 },
+    coFounder2: { name: 'Yiek Siew Hao', amount: 0, percentage: 20 },
+    coFounder3: { name: 'Yeoh Sheng Ze', amount: 0, percentage: 20 },
+    coFounder4: { name: 'Charmaine Yong', amount: 0, percentage: 20 },
+    systemReserve: { name: 'Reserve Fund', amount: 0, percentage: 15 }
+  },
+  date: new Date().toLocaleDateString('en-CA')
+});
+const [distributionPasscode, setDistributionPasscode] = useState('');
 
   const VENDOR_MAP = {
   'mixue': { name: 'Mixue', icon: '🧋' },
@@ -395,6 +421,239 @@ const handleSaveLoss = async () => {
   }
 };
 
+const calculateDistributions = (totalAmount, adminName) => {
+  const total = parseFloat(totalAmount) || 0;
+  
+  return {
+    admin: { 
+      name: adminName || 'Admin', 
+      amount: total * 0.05, 
+      percentage: 5 
+    },
+    coFounder1: { 
+      name: 'Bryan Ngu', 
+      amount: total * 0.20, 
+      percentage: 20 
+    },
+    coFounder2: { 
+      name: 'Yiek Siew Hao', 
+      amount: total * 0.20, 
+      percentage: 20 
+    },
+    coFounder3: { 
+      name: 'Yeoh Sheng Ze', 
+      amount: total * 0.20, 
+      percentage: 20 
+    },
+    coFounder4: { 
+      name: 'Charmaine Yong', 
+      amount: total * 0.20, 
+      percentage: 20 
+    },
+    systemReserve: { 
+      name: 'Reserve Fund', 
+      amount: total * 0.15, 
+      percentage: 15 
+    }
+  };
+};
+
+const handleAddDistribution = () => {
+  setEditingDistribution(null);
+  setDistributionFormData({
+    totalAmount: '',
+    adminName: systemSettings.adminName,
+    distributions: calculateDistributions(0, systemSettings.adminName),
+    date: new Date().toLocaleDateString('en-CA')
+  });
+  setDistributionPasscode('');
+  setShowDistributionModal(true);
+};
+
+const handleEditDistribution = (distribution) => {
+  setEditingDistribution(distribution);
+  setDistributionFormData({
+    totalAmount: distribution.totalAmount.toString(),
+    adminName: distribution.adminName,
+    distributions: distribution.distributions,
+    date: distribution.date
+  });
+  setDistributionPasscode('');
+  setShowDistributionModal(true);
+};
+
+const handleDeleteDistribution = async (distributionId) => {
+  const passcode = prompt('Enter admin passcode to delete this distribution:');
+  if (passcode !== 'byycky') {
+    showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
+    return;
+  }
+
+  if (!window.confirm('Are you sure you want to delete this money distribution entry?')) {
+    return;
+  }
+
+  showLoadingAnimation('Deleting distribution entry...');
+  try {
+    await firebaseService.deleteMoneyDistribution(distributionId);
+    const updatedDistributions = moneyDistributions.filter(dist => dist.id !== distributionId);
+    setMoneyDistributions(updatedDistributions);
+    hideLoadingAnimation();
+    showSuccessAnimation('Deleted!', 'Money distribution entry has been removed.', null, 2500);
+  } catch (error) {
+    hideLoadingAnimation();
+    showSuccessAnimation('Error', 'Failed to delete distribution entry.', null, 2500, true);
+  }
+};
+
+const handleTotalAmountChange = (value) => {
+  const newDistributions = calculateDistributions(value, distributionFormData.adminName);
+  setDistributionFormData({
+    ...distributionFormData,
+    totalAmount: value,
+    distributions: newDistributions
+  });
+};
+
+const handleSaveDistribution = async () => {
+  if (distributionPasscode !== 'byycky') {
+    showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
+    return;
+  }
+
+  const totalAmount = parseFloat(distributionFormData.totalAmount);
+  if (isNaN(totalAmount) || totalAmount <= 0) {
+    showSuccessAnimation('Invalid Amount', 'Please enter a valid total amount.', null, 2500, true);
+    return;
+  }
+
+  // ✅ NEW: Check if distribution amount exceeds available balance
+  const availableBalance = getTotalHistoryStats().totalProfit - 
+    moneyDistributions.reduce((sum, dist) => sum + (dist.totalAmount || 0), 0);
+  
+  if (!editingDistribution && totalAmount > availableBalance) {
+    showSuccessAnimation(
+      'Insufficient Balance',
+      `Cannot distribute RM${totalAmount.toFixed(2)}. Available balance: RM${availableBalance.toFixed(2)}`,
+      null,
+      3500,
+      true
+    );
+    return;
+  }
+
+  // If editing, check adjusted balance
+  if (editingDistribution) {
+    const adjustedBalance = availableBalance + editingDistribution.totalAmount;
+    if (totalAmount > adjustedBalance) {
+      showSuccessAnimation(
+        'Insufficient Balance',
+        `Cannot distribute RM${totalAmount.toFixed(2)}. Available balance: RM${adjustedBalance.toFixed(2)}`,
+        null,
+        3500,
+        true
+      );
+      return;
+    }
+  }
+
+  showLoadingAnimation(editingDistribution ? 'Updating distribution...' : 'Recording distribution...');
+  
+  try {
+    const distributionData = {
+      totalAmount: totalAmount,
+      adminName: distributionFormData.adminName,
+      distributions: distributionFormData.distributions,
+      date: distributionFormData.date
+    };
+
+    if (editingDistribution) {
+      await firebaseService.updateMoneyDistribution(editingDistribution.id, distributionData);
+      // ✅ Update local state
+      const updatedDistributions = moneyDistributions.map(dist =>
+        dist.id === editingDistribution.id
+          ? { ...dist, ...distributionData }
+          : dist
+      );
+      setMoneyDistributions(updatedDistributions);
+    } else {
+      const distributionId = await firebaseService.addMoneyDistribution(distributionData);
+      // ✅ Update local state
+      const newDistribution = {
+        id: distributionId,
+        ...distributionData,
+        timestamp: new Date().toISOString()
+      };
+      setMoneyDistributions([newDistribution, ...moneyDistributions]);
+    }
+    
+    hideLoadingAnimation();
+    setShowDistributionModal(false);
+    setDistributionPasscode('');
+    showSuccessAnimation(
+      editingDistribution ? 'Updated!' : 'Recorded!',
+      `Money distribution has been ${editingDistribution ? 'updated' : 'recorded'}.`,
+      null,
+      2500
+    );
+  } catch (error) {
+    hideLoadingAnimation();
+    showSuccessAnimation('Error', 'Failed to save money distribution.', null, 2500, true);
+  }
+};
+
+const handleChangeAdminName = () => {
+  setTempAdminName(systemSettings.adminName);
+  setAdminNamePasscode('');
+  setShowAdminNameModal(true);
+};
+
+const handleSaveAdminName = async () => {
+  if (adminNamePasscode !== 'byycky') {
+    showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
+    return;
+  }
+
+  if (!tempAdminName.trim()) {
+    showSuccessAnimation('Invalid Name', 'Please enter a valid admin name.', null, 2500, true);
+    return;
+  }
+
+  showLoadingAnimation('Updating admin name...');
+  
+  try {
+    await firebaseService.updateAdminName(systemSettings.id, tempAdminName.trim());
+    
+    const updatedSettings = {
+      ...systemSettings,
+      adminName: tempAdminName.trim()
+    };
+    setSystemSettings(updatedSettings);
+    
+    // Update current distribution form if open
+    setDistributionFormData(prev => ({
+      ...prev,
+      adminName: tempAdminName.trim(),
+      distributions: {
+        ...prev.distributions,
+        admin: { ...prev.distributions.admin, name: tempAdminName.trim() }
+      }
+    }));
+    
+    hideLoadingAnimation();
+    setShowAdminNameModal(false);
+    setAdminNamePasscode('');
+    showSuccessAnimation(
+      'Admin Name Updated!',
+      `Admin name has been changed to ${tempAdminName.trim()}.`,
+      null,
+      2500
+    );
+  } catch (error) {
+    hideLoadingAnimation();
+    showSuccessAnimation('Error', 'Failed to update admin name.', null, 2500, true);
+  }
+};
 
 const handleDeleteOrder = async (orderId) => {
   const passcode = prompt('Enter admin passcode to delete this order:');
@@ -475,6 +734,49 @@ useEffect(() => {
   };
 
   fetchEmergencyLosses();
+}, [isAuthenticated]);
+
+useEffect(() => {
+  const fetchSystemSettings = async () => {
+    if (!isAuthenticated) return;
+    
+    try {
+      const settings = await firebaseService.getSystemSettings();
+      setSystemSettings(settings);
+      
+      // Update distribution form with current admin name
+      setDistributionFormData(prev => ({
+        ...prev,
+        adminName: settings.adminName,
+        distributions: {
+          ...prev.distributions,
+          admin: { ...prev.distributions.admin, name: settings.adminName }
+        }
+      }));
+    } catch (error) {
+      console.error('Error fetching system settings:', error);
+    }
+  };
+
+  fetchSystemSettings();
+}, [isAuthenticated]);
+
+useEffect(() => {
+  const fetchMoneyDistributions = async () => {
+    if (!isAuthenticated) return;
+    
+    setLoadingDistributions(true);
+    try {
+      const distributions = await firebaseService.getMoneyDistributions();
+      setMoneyDistributions(distributions);
+    } catch (error) {
+      console.error('Error fetching money distributions:', error);
+    } finally {
+      setLoadingDistributions(false);
+    }
+  };
+
+  fetchMoneyDistributions();
 }, [isAuthenticated]);
 
 const todayHistoryEntry = localHistoryData.find(entry => entry.date === systemAvailability.deliveryDate);
@@ -1139,7 +1441,6 @@ const displayDeliveryFees = liveDeliveryFees;
       <input
         type="number"
         min="0"
-        step="0.01"
         value={customDriverCostInput}
         onChange={(e) => setCustomDriverCostInput(e.target.value)}
         placeholder="e.g., 40"
@@ -2115,6 +2416,881 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
               </div>
             </div>
           </div>
+
+{/* Money Distribution Section */}
+<div style={styles.card}>
+  <div style={styles.cardHeader}>
+    <h2 style={{
+      ...styles.cardTitle,
+      fontSize: windowWidth <= 480 ? '18px' : windowWidth <= 768 ? '20px' : '24px'
+    }}>
+      Money Distribution Tracker
+    </h2>
+  </div>
+
+  {/* Admin Name Display & Change Button */}
+  <div style={{
+    backgroundColor: '#f0f9ff',
+    border: '2px solid #3b82f6',
+    borderRadius: '12px',
+    padding: windowWidth <= 480 ? '12px' : '16px',
+    marginBottom: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '12px'
+  }}>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <p style={{ 
+        margin: '0 0 4px 0', 
+        fontSize: windowWidth <= 480 ? '10px' : '13px', 
+        color: '#64748b', 
+        fontWeight: '600' 
+      }}>
+        Current Admin
+      </p>
+      <p style={{ 
+        margin: 0, 
+        fontSize: windowWidth <= 480 ? '14px' : '18px', 
+        fontWeight: '700', 
+        color: '#1e40af',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }}>
+        {systemSettings.adminName}
+      </p>
+    </div>
+    <button
+      onClick={handleChangeAdminName}
+      style={{
+        padding: windowWidth <= 480 ? '8px 12px' : '10px 20px',
+        borderRadius: '8px',
+        border: 'none',
+        backgroundColor: '#3b82f6',
+        color: 'white',
+        fontWeight: '600',
+        fontSize: windowWidth <= 480 ? '11px' : '14px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        whiteSpace: 'nowrap',
+        flexShrink: 0
+      }}
+    >
+      <Edit size={windowWidth <= 480 ? 14 : 16} />
+      {windowWidth <= 480 ? 'Change' : 'Change Admin'}
+    </button>
+  </div>
+
+  <div style={{
+    display: 'flex',
+    gap: '12px',
+    marginBottom: '20px',
+    flexWrap: 'wrap'
+  }}>
+    <button
+      onClick={handleAddDistribution}
+      style={{
+        flex: windowWidth <= 480 ? '1 1 100%' : '0 0 auto',
+        padding: windowWidth <= 480 ? '12px 16px' : '14px 24px',
+        borderRadius: '12px',
+        border: 'none',
+        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+        color: 'white',
+        fontWeight: '600',
+        fontSize: windowWidth <= 480 ? '14px' : '15px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px',
+        boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+      }}
+    >
+      <span style={{ fontSize: '18px' }}>+</span> Record Distribution
+    </button>
+
+    <button
+      onClick={() => setShowDistributionList(!showDistributionList)}
+      style={{
+        flex: windowWidth <= 480 ? '1 1 100%' : '0 0 auto',
+        padding: windowWidth <= 480 ? '12px 16px' : '14px 24px',
+        borderRadius: '12px',
+        border: '2px solid #e5e7eb',
+        background: 'white',
+        color: '#64748b',
+        fontWeight: '600',
+        fontSize: windowWidth <= 480 ? '14px' : '15px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px'
+      }}
+    >
+      {showDistributionList ? 'Hide' : 'View'} All Distributions ({moneyDistributions.length})
+    </button>
+  </div>
+
+  {/* Summary Cards */}
+  <div style={{
+    display: 'grid',
+    gridTemplateColumns: windowWidth <= 480 ? '1fr' : 'repeat(3, 1fr)',
+    gap: '16px',
+    marginBottom: '20px'
+  }}>
+    {/* Total Distributed */}
+<div style={{
+  background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+  border: '2px solid #10b981',
+  borderRadius: '12px',
+  padding: windowWidth <= 480 ? '12px' : '16px'
+}}>
+  <div style={{
+    fontSize: windowWidth <= 480 ? '11px' : '13px',
+    color: '#065f46',
+    fontWeight: '600',
+    marginBottom: '6px'
+  }}>
+    Total Distributed
+  </div>
+  <div style={{
+    fontSize: windowWidth <= 480 ? '18px' : '22px',
+    fontWeight: 'bold',
+    color: '#047857',
+    wordBreak: 'break-word'
+  }}>
+    RM{moneyDistributions.reduce((sum, dist) => sum + (dist.totalAmount || 0), 0).toFixed(2)}
+  </div>
+</div>
+
+{/* Available Balance */}
+<div style={{
+  background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+  border: '2px solid #3b82f6',
+  borderRadius: '12px',
+  padding: windowWidth <= 480 ? '12px' : '16px'
+}}>
+  <div style={{
+    fontSize: windowWidth <= 480 ? '11px' : '13px',
+    color: '#1e40af',
+    fontWeight: '600',
+    marginBottom: '6px'
+  }}>
+    Available Balance
+  </div>
+  <div style={{
+    fontSize: windowWidth <= 480 ? '18px' : '22px',
+    fontWeight: 'bold',
+    color: '#1e40af',
+    wordBreak: 'break-word'
+  }}>
+    RM{(getTotalHistoryStats().totalProfit - 
+        moneyDistributions.reduce((sum, dist) => sum + (dist.totalAmount || 0), 0)).toFixed(2)}
+  </div>
+</div>
+
+{/* System Reserve Total */}
+<div style={{
+  background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+  border: '2px solid #f59e0b',
+  borderRadius: '12px',
+  padding: windowWidth <= 480 ? '12px' : '16px',
+  gridColumn: windowWidth <= 768 && windowWidth > 480 ? 'span 2' : 'auto'
+}}>
+  <div style={{
+    fontSize: windowWidth <= 480 ? '11px' : '13px',
+    color: '#92400e',
+    fontWeight: '600',
+    marginBottom: '6px'
+  }}>
+    System Reserve (15%)
+  </div>
+  <div style={{
+    fontSize: windowWidth <= 480 ? '18px' : '22px',
+    fontWeight: 'bold',
+    color: '#b45309',
+    wordBreak: 'break-word'
+  }}>
+    RM{moneyDistributions.reduce((sum, dist) => 
+      sum + (dist.distributions?.systemReserve?.amount || 0), 0
+    ).toFixed(2)}
+  </div>
+</div>
+  </div>
+
+      {/* Distribution List */}
+{showDistributionList && (
+  <div style={{
+    maxHeight: '500px',
+    overflowY: 'auto',
+    border: '1px solid #e5e7eb',
+    borderRadius: '12px',
+    padding: windowWidth <= 480 ? '12px' : '16px'
+  }}>
+    {loadingDistributions ? (
+      <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>
+        <Loader2 size={32} style={{ animation: 'spin 1s linear infinite' }} />
+        <p style={{ marginTop: '12px' }}>Loading distributions...</p>
+      </div>
+    ) : moneyDistributions.length === 0 ? (
+      <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+        <DollarSign size={48} style={{ marginBottom: '16px' }} />
+        <p>No money distributions recorded yet.</p>
+      </div>
+    ) : (
+      <>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {moneyDistributions.slice(0, visibleLossCount).map((distribution) => (
+            <div
+              key={distribution.id}
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '2px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: windowWidth <= 480 ? '12px' : '16px'
+              }}
+            >
+              {/* Header */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '12px',
+                flexWrap: 'wrap',
+                gap: '8px'
+              }}>
+                <div>
+                  <span style={{
+                    fontSize: windowWidth <= 480 ? '13px' : '18px',
+                    color: '#64748b',
+                    fontWeight: '500',
+                    display: 'block',
+                    marginBottom: '4px'
+                  }}>
+                    {new Date(distribution.date + 'T00:00:00').toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </span>
+                  <span style={{
+                    fontSize: windowWidth <= 480 ? '10px' : '15px',
+                    color: '#94a3b8',
+                    fontStyle: 'italic'
+                  }}>
+                    Admin: {distribution.adminName || 'N/A'}
+                  </span>
+                </div>
+                <span style={{
+                  fontSize: windowWidth <= 480 ? '18px' : '22px',
+                  fontWeight: 'bold',
+                  color: '#10b981'
+                }}>
+                  RM{distribution.totalAmount.toFixed(2)}
+                </span>
+              </div>
+
+              {/* Compact Distribution Summary */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                marginBottom: '12px'
+              }}>
+                {/* Admin */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: windowWidth <= 480 ? '8px 10px' : '10px 12px',
+                  backgroundColor: '#eff6ff',
+                  borderRadius: '8px',
+                  border: '1px solid #bfdbfe'
+                }}>
+                  <span style={{ 
+                    fontSize: windowWidth <= 480 ? '12px' : '14px', 
+                    color: '#1e40af',
+                    fontWeight: '600'
+                  }}>
+                    Admin (5%)
+                  </span>
+                  <span style={{ 
+                    fontSize: windowWidth <= 480 ? '13px' : '14px', 
+                    fontWeight: '700', 
+                    color: '#1e40af' 
+                  }}>
+                    RM{(distribution.distributions?.admin?.amount || 0).toFixed(2)}
+                  </span>
+                </div>
+
+                {/* Co-Founders Combined */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: windowWidth <= 480 ? '8px 10px' : '10px 12px',
+                  backgroundColor: 'white',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <span style={{ 
+                    fontSize: windowWidth <= 480 ? '11px' : '14px', 
+                    color: '#64748b',
+                    fontWeight: '600'
+                  }}>
+                    Founders (20% each)
+                  </span>
+                  <span style={{ 
+                    fontSize: windowWidth <= 480 ? '12px' : '14px', 
+                    fontWeight: '700', 
+                    color: '#1e293b' 
+                  }}>
+                    RM{(
+                      (distribution.distributions?.coFounder1?.amount || 0) 
+                    ).toFixed(2)} x 4
+                  </span>
+                </div>
+
+                {/* System Reserve */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: windowWidth <= 480 ? '8px 10px' : '10px 12px',
+                  backgroundColor: '#fefce8',
+                  borderRadius: '8px',
+                  border: '2px solid #fbbf24'
+                }}>
+                  <span style={{ 
+                    fontSize: windowWidth <= 480 ? '11px' : '13px', 
+                    color: '#92400e',
+                    fontWeight: '600'
+                  }}>
+                    System Reserve (15%)
+                  </span>
+                  <span style={{ 
+                    fontSize: windowWidth <= 480 ? '12px' : '14px', 
+                    fontWeight: '700', 
+                    color: '#b45309' 
+                  }}>
+                    RM{(distribution.distributions?.systemReserve?.amount || 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                justifyContent: 'flex-end',
+                paddingTop: '12px',
+                borderTop: '1px solid #e2e8f0',
+                flexWrap: 'wrap'
+              }}>
+                <button
+                  onClick={() => handleEditDistribution(distribution)}
+                  style={{
+                    padding: windowWidth <= 480 ? '8px 12px' : '8px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid #3b82f6',
+                    backgroundColor: '#dbeafe',
+                    color: '#1e40af',
+                    cursor: 'pointer',
+                    fontSize: windowWidth <= 480 ? '12px' : '13px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    flex: windowWidth <= 480 ? '1' : '0'
+                  }}
+                >
+                  <Edit size={14} />
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDeleteDistribution(distribution.id)}
+                  style={{
+                    padding: windowWidth <= 480 ? '8px 12px' : '8px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid #ef4444',
+                    backgroundColor: '#fee2e2',
+                    color: '#991b1b',
+                    cursor: 'pointer',
+                    fontSize: windowWidth <= 480 ? '12px' : '13px',
+                    fontWeight: '600',
+                    flex: windowWidth <= 480 ? '1' : '0'
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Load More Button */}
+        {moneyDistributions.length > visibleLossCount && (
+          <div style={{ textAlign: 'center', marginTop: '16px' }}>
+            <button
+              onClick={() => setVisibleLossCount(prev => prev + 3)}
+              style={{
+                padding: windowWidth <= 480 ? '10px 20px' : '12px 24px',
+                borderRadius: '10px',
+                border: '2px solid #3b82f6',
+                backgroundColor: 'white',
+                color: '#3b82f6',
+                fontWeight: '600',
+                fontSize: windowWidth <= 480 ? '13px' : '14px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              Load More ({moneyDistributions.length - visibleLossCount} remaining)
+            </button>
+          </div>
+        )}
+
+        {/* Show Less Button */}
+        {visibleLossCount > 3 && (
+          <div style={{ textAlign: 'center', marginTop: '12px' }}>
+            <button
+              onClick={() => setVisibleLossCount(3)}
+              style={{
+                padding: windowWidth <= 480 ? '8px 16px' : '10px 20px',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                backgroundColor: '#f8fafc',
+                color: '#64748b',
+                fontWeight: '600',
+                fontSize: windowWidth <= 480 ? '12px' : '13px',
+                cursor: 'pointer'
+              }}
+            >
+              Show Less
+            </button>
+          </div>
+        )}
+      </>
+    )}
+  </div>
+)}
+</div>
+
+{/* Distribution Modal */}
+{showDistributionModal && (
+  <div style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10000,
+    padding: '20px'
+  }}>
+    <div style={{
+      backgroundColor: 'white',
+      borderRadius: '20px',
+      padding: windowWidth <= 480 ? '20px' : '32px',
+      maxWidth: '700px',
+      width: '100%',
+      boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+      maxHeight: '90vh',
+      overflowY: 'auto'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '20px'
+      }}>
+        <DollarSign size={28} color="#10b981" />
+        <h3 style={{
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '20px' : '24px',
+          color: '#1e293b',
+          fontWeight: '700'
+        }}>
+          {editingDistribution ? 'Edit' : 'Record'} Money Distribution
+        </h3>
+      </div>
+
+      {/* Info Box */}
+      <div style={{
+        backgroundColor: '#f0f9ff',
+        border: '2px solid #3b82f6',
+        borderRadius: '12px',
+        padding: '16px',
+        marginBottom: '20px'
+      }}>
+        <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#1e40af', fontWeight: '600' }}>
+          💡 Smart Distribution
+        </p>
+        <p style={{ margin: 0, fontSize: '13px', color: '#0c4a6e', lineHeight: '1.6' }}>
+          Enter the total amount, and the system will automatically calculate:
+          <br/>• Admin: <strong>5%</strong>
+          <br/>• Each Co-Founder: <strong>20%</strong> (4 people)
+          <br/>• Reserve Fund: <strong>15%</strong> (emergency fund)
+        </p>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{
+          display: 'block',
+          fontWeight: '600',
+          color: '#1e293b',
+          marginBottom: '8px',
+          fontSize: windowWidth <= 480 ? '14px' : '15px'
+        }}>
+          Total Amount to Distribute (RM):
+        </label>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          value={distributionFormData.totalAmount}
+          onChange={(e) => handleTotalAmountChange(e.target.value)}
+          placeholder="Enter total amount (e.g., 1000)"
+          style={{
+            width: '100%',
+            padding: windowWidth <= 480 ? '14px' : '16px',
+            borderRadius: '10px',
+            border: '2px solid #e2e8f0',
+            fontSize: windowWidth <= 480 ? '16px' : '18px',
+            boxSizing: 'border-box',
+            fontWeight: '600'
+          }}
+        />
+      </div>
+
+      {/* Auto-Calculated Distribution Preview */}
+      {distributionFormData.totalAmount && parseFloat(distributionFormData.totalAmount) > 0 && (
+        <div style={{
+          backgroundColor: '#f8fafc',
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '20px',
+          border: '1px solid #e2e8f0'
+        }}>
+          <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', color: '#1e293b' }}>
+            📊 Distribution Breakdown
+          </h4>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* Admin */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              padding: '10px 12px',
+              backgroundColor: '#eff6ff',
+              borderRadius: '8px',
+              border: '1px solid #bfdbfe'
+            }}>
+              <span style={{ fontSize: '14px', color: '#1e40af' }}>
+                {distributionFormData.distributions.admin.name} (5%)
+              </span>
+              <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e40af' }}>
+                RM{distributionFormData.distributions.admin.amount.toFixed(2)}
+              </span>
+            </div>
+
+            {/* Co-Founders */}
+            {['coFounder1', 'coFounder2', 'coFounder3', 'coFounder4'].map((key) => (
+              <div key={key} style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                padding: '10px 12px',
+                backgroundColor: 'white',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0'
+              }}>
+                <span style={{ fontSize: '14px', color: '#64748b' }}>
+                  {distributionFormData.distributions[key].name} (20%)
+                </span>
+                <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                  RM{distributionFormData.distributions[key].amount.toFixed(2)}
+                </span>
+              </div>
+            ))}
+
+            {/* Reserve Fund */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              padding: '12px',
+              backgroundColor: '#fefce8',
+              borderRadius: '8px',
+              border: '2px solid #fbbf24'
+            }}>
+              <span style={{ fontSize: '14px', color: '#92400e', fontWeight: '600' }}>
+                💰 Reserve Fund (15%)
+              </span>
+              <span style={{ fontSize: '15px', fontWeight: '700', color: '#b45309' }}>
+                RM{distributionFormData.distributions.systemReserve.amount.toFixed(2)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{
+          display: 'block',
+          fontWeight: '600',
+          color: '#1e293b',
+          marginBottom: '8px',
+          fontSize: windowWidth <= 480 ? '14px' : '15px'
+        }}>
+          Date:
+        </label>
+        <input
+          type="date"
+          value={distributionFormData.date}
+          onChange={(e) => setDistributionFormData({ 
+            ...distributionFormData, 
+            date: e.target.value 
+          })}
+          style={{
+            width: '100%',
+            padding: windowWidth <= 480 ? '12px' : '14px',
+            borderRadius: '10px',
+            border: '2px solid #e2e8f0',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            boxSizing: 'border-box'
+          }}
+        />
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        <label style={{
+          display: 'block',
+          fontWeight: '600',
+          color: '#1e293b',
+          marginBottom: '8px',
+          fontSize: windowWidth <= 480 ? '14px' : '15px'
+        }}>
+          Admin Passcode:
+        </label>
+        <input
+          type="password"
+          value={distributionPasscode}
+          onChange={(e) => setDistributionPasscode(e.target.value)}
+          placeholder="Enter admin passcode"
+          style={{
+            width: '100%',
+            padding: windowWidth <= 480 ? '12px' : '14px',
+            borderRadius: '10px',
+            border: '2px solid #e2e8f0',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            boxSizing: 'border-box'
+          }}
+        />
+      </div>
+
+      <div style={{
+        display: 'flex',
+        gap: '12px',
+        flexDirection: windowWidth <= 480 ? 'column' : 'row'
+      }}>
+        <button
+          onClick={() => {
+            setShowDistributionModal(false);
+            setDistributionPasscode('');
+          }}
+          style={{
+            flex: 1,
+            padding: windowWidth <= 480 ? '14px' : '16px',
+            borderRadius: '12px',
+            border: '2px solid #e2e8f0',
+            backgroundColor: 'white',
+            color: '#64748b',
+            fontWeight: '600',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            cursor: 'pointer'
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSaveDistribution}
+          style={{
+            flex: 1,
+            padding: windowWidth <= 480 ? '14px' : '16px',
+            borderRadius: '12px',
+            border: 'none',
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            color: 'white',
+            fontWeight: '600',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+          }}
+        >
+          {editingDistribution ? 'Update' : 'Record'} Distribution
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* Admin Name Change Modal */}
+{showAdminNameModal && (
+  <div style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10001,
+    padding: '20px'
+  }}>
+    <div style={{
+      backgroundColor: 'white',
+      borderRadius: '20px',
+      padding: windowWidth <= 480 ? '20px' : '32px',
+      maxWidth: '500px',
+      width: '100%',
+      boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '20px'
+      }}>
+        <Edit size={28} color="#3b82f6" />
+        <h3 style={{
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '20px' : '24px',
+          color: '#1e293b',
+          fontWeight: '700'
+        }}>
+          Change Admin Name
+        </h3>
+      </div>
+
+      <div style={{
+        backgroundColor: '#fef3c7',
+        border: '2px solid #f59e0b',
+        borderRadius: '12px',
+        padding: '12px',
+        marginBottom: '20px'
+      }}>
+        <p style={{ margin: 0, fontSize: '13px', color: '#92400e', lineHeight: '1.5' }}>
+          ⚠️ This will change the admin name for all future distributions. 
+          Past distributions will retain their original admin name.
+        </p>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{
+          display: 'block',
+          fontWeight: '600',
+          color: '#1e293b',
+          marginBottom: '8px',
+          fontSize: '15px'
+        }}>
+          New Admin Name:
+        </label>
+        <input
+          type="text"
+          value={tempAdminName}
+          onChange={(e) => setTempAdminName(e.target.value)}
+          placeholder="Enter new admin name"
+          style={{
+            width: '100%',
+            padding: '14px',
+            borderRadius: '10px',
+            border: '2px solid #e2e8f0',
+            fontSize: '16px',
+            boxSizing: 'border-box'
+          }}
+        />
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        <label style={{
+          display: 'block',
+          fontWeight: '600',
+          color: '#1e293b',
+          marginBottom: '8px',
+          fontSize: '15px'
+        }}>
+          Admin Passcode:
+        </label>
+        <input
+          type="password"
+          value={adminNamePasscode}
+          onChange={(e) => setAdminNamePasscode(e.target.value)}
+          placeholder="Enter admin passcode"
+          style={{
+            width: '100%',
+            padding: '14px',
+            borderRadius: '10px',
+            border: '2px solid #e2e8f0',
+            fontSize: '16px',
+            boxSizing: 'border-box'
+          }}
+        />
+      </div>
+
+      <div style={{
+        display: 'flex',
+        gap: '12px',
+        flexDirection: windowWidth <= 480 ? 'column' : 'row'
+      }}>
+        <button
+          onClick={() => {
+            setShowAdminNameModal(false);
+            setAdminNamePasscode('');
+          }}
+          style={{
+            flex: 1,
+            padding: '14px',
+            borderRadius: '12px',
+            border: '2px solid #e2e8f0',
+            backgroundColor: 'white',
+            color: '#64748b',
+            fontWeight: '600',
+            fontSize: '15px',
+            cursor: 'pointer'
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSaveAdminName}
+          style={{
+            flex: 1,
+            padding: '14px',
+            borderRadius: '12px',
+            border: 'none',
+            backgroundColor: '#3b82f6',
+            color: 'white',
+            fontWeight: '600',
+            fontSize: '15px',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+          }}
+        >
+          Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
           {/* History Charts */}
           <div style={{ 

@@ -501,3 +501,115 @@ export const updateDailyDriverCost = async (deliveryDate, cost) => {
     throw error;
   }
 };
+
+export const addMoneyDistribution = async (distributionData) => {
+  try {
+    const distributionEntry = {
+      ...distributionData,
+      timestamp: new Date().toISOString(),
+      date: distributionData.date || new Date().toLocaleDateString('en-CA'),
+      adminName: distributionData.adminName // Store admin name
+    };
+    const docRef = await addDoc(collection(db, 'moneyDistributions'), distributionEntry);
+    return docRef.id;
+  } catch (e) {
+    console.error('Error adding money distribution: ', e);
+    throw e;
+  }
+};
+
+export const getMoneyDistributions = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'moneyDistributions'));
+    const distributions = querySnapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data() 
+    }));
+    return distributions.sort((a, b) => new Date(b.date) - new Date(a.date));
+  } catch (e) {
+    console.error('Error getting money distributions: ', e);
+    return [];
+  }
+};
+
+export const updateMoneyDistribution = async (distributionId, updates) => {
+  try {
+    if (!distributionId || typeof distributionId !== 'string') {
+      throw new Error('Invalid distribution ID');
+    }
+    const distributionRef = doc(db, 'moneyDistributions', distributionId);
+    await updateDoc(distributionRef, {
+      ...updates,
+      lastUpdated: new Date().toISOString()
+    });
+    console.log(`Money distribution ${distributionId} updated successfully`);
+  } catch (e) {
+    console.error('Error updating money distribution: ', e);
+    throw e;
+  }
+};
+
+export const deleteMoneyDistribution = async (distributionId) => {
+  try {
+    if (!distributionId || typeof distributionId !== 'string') {
+      throw new Error('Invalid distribution ID');
+    }
+    const distributionRef = doc(db, 'moneyDistributions', distributionId);
+    await deleteDoc(distributionRef);
+    console.log(`Money distribution ${distributionId} deleted successfully`);
+  } catch (e) {
+    console.error('Error deleting money distribution: ', e);
+    throw e;
+  }
+};
+
+export const getSystemSettings = async () => {
+  try {
+    const settingsQuery = query(collection(db, 'systemSettings'), limit(1));
+    const querySnapshot = await getDocs(settingsQuery);
+    
+    if (!querySnapshot.empty) {
+      return { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() };
+    }
+    
+    // Create default settings if none exist
+    const defaultSettings = {
+      adminName: 'Admin',
+      coFounders: ['Bryan Ngu', 'Yiek Siew Hao', 'Yeoh Sheng Ze', 'Charmaine Yong'],
+      createdAt: new Date().toISOString()
+    };
+    
+    const docRef = await addDoc(collection(db, 'systemSettings'), defaultSettings);
+    return { id: docRef.id, ...defaultSettings };
+  } catch (e) {
+    console.error('Error getting system settings: ', e);
+    return {
+      adminName: 'Admin',
+      coFounders: ['Bryan Ngu', 'Yiek Siew Hao', 'Yeoh Sheng Ze', 'Charmaine Yong']
+    };
+  }
+};
+
+export const updateAdminName = async (settingsId, newAdminName) => {
+  try {
+    if (!settingsId) {
+      // Create new settings document
+      const docRef = await addDoc(collection(db, 'systemSettings'), {
+        adminName: newAdminName,
+        coFounders: ['Bryan Ngu', 'Yiek Siew Hao', 'Yeoh Sheng Ze', 'Charmaine Yong'],
+        updatedAt: new Date().toISOString()
+      });
+      return docRef.id;
+    } else {
+      const settingsRef = doc(db, 'systemSettings', settingsId);
+      await updateDoc(settingsRef, {
+        adminName: newAdminName,
+        updatedAt: new Date().toISOString()
+      });
+      return settingsId;
+    }
+  } catch (e) {
+    console.error('Error updating admin name: ', e);
+    throw e;
+  }
+};
