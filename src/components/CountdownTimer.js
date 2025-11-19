@@ -1,24 +1,37 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Clock, CheckCircle, MapPin } from 'lucide-react';
+import { Clock, CheckCircle, MapPin, Image as ImageIcon } from 'lucide-react'; // Added ImageIcon
 
-const CountdownTimer = ({ targetTime = "19:00" }) => {
+const CountdownTimer = ({ 
+  targetTime = "19:00", 
+  deliveryDate = null,
+  currentOrder = null,
+  onViewImage = null
+}) => {
     const calculateTimeLeft = useCallback(() => {
-        const now = new Date();
-        const target = new Date();
+    const now = new Date();
+    
+    // If deliveryDate is provided, use it as the target date
+    let target;
+    if (deliveryDate) {
+        target = new Date(deliveryDate + 'T' + targetTime + ':00');
+    } else {
+        // Fallback to today
+        target = new Date();
         const [targetHour, targetMinute] = targetTime.split(':');
         target.setHours(parseInt(targetHour), parseInt(targetMinute), 0, 0);
+    }
 
-        if (now > target) {
-            return { hours: 0, minutes: 0, seconds: 0, isReady: true };
-        }
+    if (now > target) {
+        return { hours: 0, minutes: 0, seconds: 0, isReady: true };
+    }
 
-        const diff = target - now;
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const minutes = Math.floor((diff / (1000 * 60)) % 60);
-        const seconds = Math.floor((diff / 1000) % 60);
+    const diff = target - now;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff / (1000 * 60)) % 60);
+    const seconds = Math.floor((diff / 1000) % 60);
 
-        return { hours, minutes, seconds, isReady: false };
-    }, [targetTime]);
+    return { hours, minutes, seconds, isReady: false };
+}, [targetTime, deliveryDate]);
 
     const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
 
@@ -28,6 +41,9 @@ const CountdownTimer = ({ targetTime = "19:00" }) => {
         }, 1000);
         return () => clearInterval(timer);
     }, [calculateTimeLeft]);
+
+    // NEW: Helper variable for checking images
+    const orderImages = currentOrder?.orderImageURLs || [];
 
     return (
         <div style={{
@@ -50,7 +66,7 @@ const CountdownTimer = ({ targetTime = "19:00" }) => {
                 gap: '8px'
             }}>
                 {timeLeft.isReady ? (
-                    <><CheckCircle size={20} color="#059669" /> Ready for pickup!</>
+                    <><CheckCircle size={20} color="#059669" /> Estimated time for pickup!</>
                 ) : (
                     <><Clock size={20} color="#dc2626" /> Time until pickup:</>
                 )}
@@ -63,7 +79,8 @@ const CountdownTimer = ({ targetTime = "19:00" }) => {
                 letterSpacing: '0.025em',
                 display: 'flex',
                 justifyContent: 'center',
-                gap: '4px'
+                gap: '4px',
+                marginBottom: '16px' // Added margin for spacing
             }}>
                 {['hours', 'minutes', 'seconds'].map((unit) => (
                     <div key={unit} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -82,6 +99,7 @@ const CountdownTimer = ({ targetTime = "19:00" }) => {
                     </div>
                 ))}
             </div>
+
             {!timeLeft.isReady && (
                 <p style={{
                     fontSize: '14px',
@@ -92,8 +110,7 @@ const CountdownTimer = ({ targetTime = "19:00" }) => {
                     justifyContent: 'center',
                     gap: '6px'
                 }}>
-                    <MapPin size={16} color="#64748b" />
-                    Please arrive at the main gate by 7:00 PM
+                    Please wait for the admin to update in the group before picking up your order. (Around 7:30 PM)
                 </p>
             )}
         </div>
