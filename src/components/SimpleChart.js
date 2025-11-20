@@ -53,6 +53,7 @@ const RechartsCharts = ({ data, type = 'bar', title, height = 300 }) => {
         }
     };
 
+    const defaultColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa'];
     if (type === 'pie') {
         const total = data.reduce((sum, item) => sum + item.value, 0);
         const pieData = data.map((item,index) => ({
