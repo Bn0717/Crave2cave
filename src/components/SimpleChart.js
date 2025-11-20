@@ -110,7 +110,7 @@ const RechartsCharts = ({ data, type = 'bar', title, height = 300 }) => {
             </g>
         );
     };
-    
+
     if (type === 'pie') {
         const total = data.reduce((sum, item) => sum + item.value, 0);
         const pieData = data.map((item,index) => ({
@@ -168,23 +168,75 @@ const RechartsCharts = ({ data, type = 'bar', title, height = 300 }) => {
         );
     }
 
+    if (type === 'line') {
+        const lineData = data.map((item, index) => ({
+            name: item.label, // X-axis label
+            value: item.value, // Y-axis value
+            color: item.color || defaultColors[0] // Line color, usually one for the whole line
+        }));
+
+        return (
+            <div ref={containerRef} style={styles.container}>
+                <h3 style={styles.title}>{title}</h3>
+                <div style={styles.chartWrapper}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                            data={lineData}
+                            margin={{
+                                top: 10, right: isMobile ? 10 : 30, left: isMobile ? 0 : 20, bottom: 0,
+                            }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                            <XAxis dataKey="name" angle={isMobile ? -45 : 0} textAnchor={isMobile ? 'end' : 'middle'} height={isMobile ? 60 : 30} tick={{ fontSize: isMobile ? 9 : 12, fill: '#6b7280' }} />
+                            <YAxis tick={{ fontSize: isMobile ? 9 : 12, fill: '#6b7280' }} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Legend />
+                            <Line
+                                type="monotone"
+                                dataKey="value"
+                                stroke={lineData[0]?.color || defaultColors[0]}
+                                activeDot={{ r: 8 }}
+                                name="Value" // Label for the line in tooltip/legend
+                                strokeWidth={2}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+        );
+    }
+
+    const barData = data.map((item, index) => ({
+        name: item.label, // X-axis label
+        value: item.value, // Y-axis value
+        fill: item.color || defaultColors[index % defaultColors.length] // Bar color
+    }));
+
     return (
         <div ref={containerRef} style={styles.container}>
             <h3 style={styles.title}>{title}</h3>
-            <div style={styles.chartArea}>
-                {data.map((item, index) => (
-                    <div
-                        key={index}
-                        style={{
-                            ...styles.bar,
-                            height: `${(item.value / maxValue) * (chartHeight - 60)}px`,
-                            backgroundColor: item.color || '#3b82f6'
+            <div style={styles.chartWrapper}>
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                        data={barData}
+                        margin={{
+                            top: 10, right: isMobile ? 10 : 30, left: isMobile ? 0 : 20, bottom: 0,
                         }}
                     >
-                        <span style={styles.barValue}>{item.value}</span>
-                        <span style={styles.barLabel}>{item.label}</span>
-                    </div>
-                ))}
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                        <XAxis dataKey="name" angle={isMobile ? -45 : 0} textAnchor={isMobile ? 'end' : 'middle'} height={isMobile ? 60 : 30} interval={0} tick={{ fontSize: isMobile ? 9 : 12, fill: '#6b7280' }} />
+                        <YAxis tick={{ fontSize: isMobile ? 9 : 12, fill: '#6b7280' }} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend />
+                        <Bar dataKey="value" name="Count">
+                            {
+                                barData.map((entry, index) => (
+                                    <Bar key={`bar-${index}`} fill={entry.fill} />
+                                ))
+                            }
+                        </Bar>
+                    </BarChart>
+                </ResponsiveContainer>
             </div>
         </div>
     );
