@@ -54,6 +54,30 @@ const RechartsCharts = ({ data, type = 'bar', title, height = 300 }) => {
     };
 
     const defaultColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa'];
+    const CustomTooltip = ({ active, payload, label }) => {
+        if (active && payload && payload.length) {
+            return (
+                <div style={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e7eb',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+                }}>
+                    <p style={{ margin: 0, fontWeight: 'bold', color: '#1f2937' }}>{label}</p>
+                    {payload.map((entry, index) => (
+                        <p key={`item-${index}`} style={{ color: entry.color, margin: '4px 0 0 0' }}>
+                            {entry.name}: {entry.value}
+                            {type === 'pie' && payload[0].payload.total &&
+                             ` (${((entry.value / payload[0].payload.total) * 100).toFixed(1)}%)`}
+                        </p>
+                    ))}
+                </div>
+            );
+        }
+        return null;
+    };
+    
     if (type === 'pie') {
         const total = data.reduce((sum, item) => sum + item.value, 0);
         const pieData = data.map((item,index) => ({
