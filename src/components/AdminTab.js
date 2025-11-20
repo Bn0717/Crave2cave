@@ -20,6 +20,7 @@ import AuthScreen from './AuthScreen';
 import SimpleChart from './SimpleChart';
 import EditHistoryModal from './EditHistoryModal';
 import * as firebaseService from '../services/firebase';
+import RechartsCharts from './SimpleChart';
 
 const AdminTab = ({
   prebookUsers,
@@ -2413,7 +2414,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
             width: '100%',
             overflow: 'hidden'
           }}>
-            <SimpleChart
+            <RechartsCharts
               type="bar"
               title="Today's Order Distribution by Amount"
               data={[
@@ -2424,7 +2425,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
               ]}
             />
 
-            <SimpleChart
+            <RechartsCharts
               type="pie"
               title="Today's Revenue Breakdown"
               data={[
@@ -2579,6 +2580,52 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                 </p>
               </div>
             </div>
+          </div>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginBottom: '24px',
+            gap: '12px'
+          }}>
+            <button
+              onClick={() => setTimePeriod('weeks')}
+              style={{
+                padding: '12px 24px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                backgroundColor: timePeriod === 'weeks' ? '#8b5cf6' : '#e2e8f0',
+                color: timePeriod === 'weeks' ? 'white' : '#64748b',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              By Weeks
+            </button>
+            <button
+              onClick={() => setTimePeriod('months')}
+              style={{
+                padding: '12px 24px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                backgroundColor: timePeriod === 'months' ? '#8b5cf6' : '#e2e8f0',
+                color: timePeriod === 'months' ? 'white' : '#64748b',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              By Months
+            </button>
+          </div>
+
+          {/* NEW: Time Series AVERAGE Profit Chart */}
+          <div style={{ marginBottom: '32px' }}>
+            <RechartChart // Changed to RechartChart
+              type="line"
+              title={`Average Profit Trend (${timePeriod === 'weeks' ? 'Last 7 Weeks' : 'Last 6 Months'})`}
+              data={getTimSeriesProfitData(timePeriod)}
+            />
           </div>
 
 {/* Money Distribution Section */}
