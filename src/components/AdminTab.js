@@ -958,6 +958,7 @@ const displayDeliveryFees = liveDeliveryFees;
     return sortedMerchants.length > 0 ? { name: sortedMerchants[0][0], orders: sortedMerchants[0][1] } : { name: 'N/A', orders: 0 };
   }//remeber to remove this shit and move it to the end of edits
   // NEW: Get highest spender
+  const mostOrderedMerchant = getMostOrderedMerchant();
   const getHighestSpender = () => {
     const userSpending = {};
     todayOrders.forEach(order => {
@@ -2622,13 +2623,40 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
 
           {/* NEW: Time Series AVERAGE Profit Chart */}
           <div style={{ marginBottom: '32px' }}>
-            <RechartsCharts // Changed to RechartChart
+            <RechartsCharts // Changed to RechartsCharts
               type="line"
               title={`Average Profit Trend (${timePeriod === 'weeks' ? 'Last 7 Weeks' : 'Last 6 Months'})`}
               data={getTimSeriesProfitData(timePeriod)}
             />
           </div>
-          
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: windowWidth <= 768 ? '1fr' : 'repeat(2, 1fr)',
+            gap: '24px',
+            marginBottom: '32px'
+          }}>
+            <div style={styles.card}>
+              <div style={styles.cardHeader}>
+                {/* Ensure 'Store' is imported from your icon library (e.g., lucide-react) */}
+                <Store color="#8b5cf6" size={28} />
+                <h3 style={{ ...styles.cardTitle, fontSize: '20px' }}>Most Ordered Merchant</h3>
+              </div>
+              <div style={{
+                backgroundColor: '#f5f3ff',
+                padding: '24px',
+                borderRadius: '16px',
+                textAlign: 'center'
+              }}>
+                {/* Ensure 'mostOrderedMerchant' variable is defined in your component */}
+                <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#8b5cf6', margin: 0 }}>
+                  {mostOrderedMerchant.name}
+                </p>
+                <p style={{ fontSize: '18px', color: '#64748b', marginTop: '8px' }}>
+                  {mostOrderedMerchant.orders} orders
+                </p>
+              </div>
+            </div>
+          </div>
 
 {/* Money Distribution Section */}
 <div style={styles.card}>
@@ -3594,7 +3622,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
             />
           </div>
           <div style={{ marginBottom: '32px' }}>
-            <RechartChart
+            <RechartsCharts
               type="bar" // Use a bar chart for this
               title="Average Order Price by Merchant (All Time)"
               data={getAverageOrderPriceByMerchant()}
