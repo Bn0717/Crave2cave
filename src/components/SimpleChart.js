@@ -77,6 +77,39 @@ const RechartsCharts = ({ data, type = 'bar', title, height = 300 }) => {
         }
         return null;
     };
+
+    const renderActiveShape = (props) => {
+        const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent, value } = props;
+
+        return (
+            <g>
+                <text x={cx} y={cy} dy={8} textAnchor="middle" fill="#1f2937" fontWeight="bold">
+                    {payload.label}
+                </text>
+                <Sector
+                    cx={cx}
+                    cy={cy}
+                    innerRadius={innerRadius}
+                    outerRadius={outerRadius + 10}
+                    startAngle={startAngle}
+                    endAngle={endAngle}
+                    fill={fill}
+                />
+                <Sector
+                    cx={cx}
+                    cy={cy}
+                    innerRadius={outerRadius + 6}
+                    outerRadius={outerRadius + 10}
+                    startAngle={startAngle}
+                    endAngle={endAngle}
+                    fill={fill}
+                />
+                <text x={cx} y={cy - 10} dy={8} textAnchor="middle" fill="#1f2937" fontWeight="bold">
+                    {`${(percent * 100).toFixed(1)}%`}
+                </text>
+            </g>
+        );
+    };
     
     if (type === 'pie') {
         const total = data.reduce((sum, item) => sum + item.value, 0);
