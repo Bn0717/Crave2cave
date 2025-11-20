@@ -1412,7 +1412,7 @@ const displayDeliveryFees = liveDeliveryFees;
               </div>
             </div>
           </div>
-
+          
           {/* Profit Breakdown - Add responsive wrapper */}
 <div style={{
   ...styles.card,
@@ -2581,6 +2581,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
               </div>
             </div>
           </div>
+          
           <div style={{
             display: 'flex',
             justifyContent: 'center',
@@ -2621,12 +2622,13 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
 
           {/* NEW: Time Series AVERAGE Profit Chart */}
           <div style={{ marginBottom: '32px' }}>
-            <RechartChart // Changed to RechartChart
+            <RechartsCharts // Changed to RechartChart
               type="line"
               title={`Average Profit Trend (${timePeriod === 'weeks' ? 'Last 7 Weeks' : 'Last 6 Months'})`}
               data={getTimSeriesProfitData(timePeriod)}
             />
           </div>
+          
 
 {/* Money Distribution Section */}
 <div style={styles.card}>
@@ -2991,7 +2993,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                   </span>
                 </div>
               </div>
-
+              
               {/* Action Buttons */}
               <div style={{
                 display: 'flex',
@@ -3514,7 +3516,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
             width: '100%',
             overflow: 'hidden'
           }}>
-            <SimpleChart
+            <RechartsCharts
               type="bar"
               title="Daily Orders Trend (Last 7 Days)"
               data={historyData.slice(0, 7).reverse().map(entry => ({
@@ -3524,7 +3526,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
               }))}
             />
 
-            <SimpleChart
+            <RechartsCharts
               type="bar"
               title="Daily Profit Trend (Last 7 Days)"
               data={historyData.slice(0, 7).reverse().map(entry => ({
@@ -3545,7 +3547,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
             width: '100%',
             overflow: 'hidden'
           }}>
-            <SimpleChart
+            <RechartsCharts
               type="bar"
               title="Monthly Order Trends"
               data={(() => {
@@ -3568,7 +3570,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
               })()}
             />
 
-            <SimpleChart
+            <RechartsCharts
               type="bar"
               title="Monthly Profit Trends"
               data={(() => {
@@ -3589,6 +3591,13 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                     color: profit >= 0 ? '#10b981' : '#ef4444'
                   }));
               })()}
+            />
+          </div>
+          <div style={{ marginBottom: '32px' }}>
+            <RechartChart
+              type="bar" // Use a bar chart for this
+              title="Average Order Price by Merchant (All Time)"
+              data={getAverageOrderPriceByMerchant()}
             />
           </div>
 
