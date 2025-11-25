@@ -8,6 +8,8 @@ import {
   Loader2, 
   AlertCircle,
   UserCheck,
+  Store,
+  Crown,
   Camera,
   Image,
   Edit,
@@ -18,6 +20,7 @@ import AuthScreen from './AuthScreen';
 import SimpleChart from './SimpleChart';
 import EditHistoryModal from './EditHistoryModal';
 import * as firebaseService from '../services/firebase';
+import RechartsCharts from './SimpleChart';
 
 const AdminTab = ({
   prebookUsers,
@@ -43,6 +46,7 @@ const AdminTab = ({
   dailySettings,
 }) => {
   const [showHistory, setShowHistory] = useState(false);
+  const [timePeriod, setTimePeriod] = useState('months');
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
@@ -934,7 +938,169 @@ const displayDeliveryFees = liveDeliveryFees;
 
     return { totalRegistered, totalRevenue, totalProfit: netTotalProfit, totalOrders };
   };
+  // NEW: Get most ordered merchant
+  const getMostOrderedMerchant = () => {
+    const merchantCounts = {};
+    todayOrders.forEach(order => {
+      const merchant = order.vendor || order.merchant || 'Unknown';
+      merchantCounts[merchant] = (merchantCounts[merchant] || 0) + 1;
+    });
 
+    historyData.forEach(entry => {
+      if (entry.orders && Array.isArray(entry.orders)) {
+        entry.orders.forEach(order => {
+          const merchant = order.vendor || order.merchant || 'Unknown';
+          merchantCounts[merchant] = (merchantCounts[merchant] || 0) + 1;
+        });
+      }
+    });
+    const sortedMerchants = Object.entries(merchantCounts).sort((a, b) => b[1] - a[1]);
+    return sortedMerchants.length > 0 ? { name: sortedMerchants[0][0], orders: sortedMerchants[0][1] } : { name: 'N/A', orders: 0 };
+  }//remeber to remove this shit and move it to the end of edits
+  // NEW: Get highest spender
+  const mostOrderedMerchant = getMostOrderedMerchant();
+  const getHighestSpender = () => {
+    const userSpending = {};
+    todayOrders.forEach(order => {
+      const userId = order.userId || order.studentId;
+      const userName = order.userName || 'Unknown';
+      const amount = order.orderTotal || 0;
+
+      if (!userSpending[userId]) {
+        userSpending[userId] = { name: userName, total: 0 };
+      }
+      userSpending[userId].total += amount;
+    });
+
+    const sortedSpenders = Object.values(userSpending).sort((a, b) => b.total - a.total);
+    return sortedSpenders.length > 0 ? sortedSpenders[0] : { name: 'N/A', total: 0 };
+  };
+
+  // UPDATED: Get time series average profit data
+  const getTimSeriesProfitData = (period) => {
+    const data = {};
+
+    historyData.forEach(entry => {
+      const entryDate = new Date(entry.date);
+      let label;
+
+      if (period === 'weeks') {
+        // Calculate week number or a consistent week label
+        const startOfWeek = new Date(entryDate);
+        startOfWeek.setDate(entryDate.getDate() - entryDate.getDay()); // Sunday as start of week
+        label = `Week of ${startOfWeek.getDate()}/${startOfWeek.getMonth() + 1}`;
+      } else { // 'months'
+        label = entryDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      }
+
+      if (!data[label]) {
+        data[label] = { totalProfit: 0, count: 0 };
+      }
+      data[label].totalProfit += entry.profit || 0;
+      data[label].count += 1;
+    });
+
+    // Calculate averages and format for chart
+    const averagedData = Object.entries(data).map(([label, { totalProfit, count }]) => ({
+      label,
+      value: (totalProfit / count).toFixed(2), // Calculate average and format to 2 decimal places
+      color: (totalProfit / count) >= 0 ? '#10b981' : '#ef4444'
+    }));
+
+    // Sort by date (important for line charts)
+    averagedData.sort((a, b) => {
+      const dateA = new Date(a.label.replace('Week of ', ''));
+      const dateB = new Date(b.label.replace('Week of ', ''));
+      return dateA - dateB;
+    });
+
+    // Limit to last 6 months or 7 weeks (adjust as needed)
+    if (period === 'weeks') {
+      return averagedData.slice(-7);
+    } else {
+      return averagedData.slice(-6);
+    }
+  };
+
+
+  // NEW: Get merchant order distribution for all time
+  const getMerchantDistribution = () => {
+    const merchantCounts = {};
+
+    historyData.forEach(entry => {
+      if (entry.orders && Array.isArray(entry.orders)) {
+        entry.orders.forEach(order => {
+          const merchant = order.vendor || order.merchant || 'Unknown';
+          merchantCounts[merchant] = (merchantCounts[merchant] || 0) + 1;
+        });
+      }
+    });
+
+    // Add today's orders if not in history
+    const todayString = new Date().toISOString().split('T')[0];
+    const todayInHistory = historyData.some(entry => entry.date === todayString);
+
+    if (!todayInHistory) {
+      todayOrders.forEach(order => {
+        const merchant = order.vendor || order.merchant || 'Unknown';
+        merchantCounts[merchant] = (merchantCounts[merchant] || 0) + 1;
+      });
+    }
+
+    return Object.entries(merchantCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => ({
+        label: name,
+        value: count,
+        color: '#8b5cf6'
+      }));
+  };
+
+  // NEW: Get average order price by merchant (all time)
+  const getAverageOrderPriceByMerchant = () => {
+    const merchantStats = {}; // { merchantName: { totalRevenue: 0, orderCount: 0 } }
+
+    // Process today's orders
+    todayOrders.forEach(order => {
+      const merchant = order.vendor || order.merchant || 'Unknown';
+      const orderTotal = order.orderTotal || 0;
+
+      if (!merchantStats[merchant]) {
+        merchantStats[merchant] = { totalRevenue: 0, orderCount: 0 };
+      }
+      merchantStats[merchant].totalRevenue += orderTotal;
+      merchantStats[merchant].orderCount += 1;
+    });
+
+    // Process historical orders
+    historyData.forEach(entry => {
+      if (entry.orders && Array.isArray(entry.orders)) {
+        entry.orders.forEach(order => {
+          const merchant = order.vendor || order.merchant || 'Unknown';
+          const orderTotal = order.orderTotal || 0;
+
+          if (!merchantStats[merchant]) {
+            merchantStats[merchant] = { totalRevenue: 0, orderCount: 0 };
+          }
+          merchantStats[merchant].totalRevenue += orderTotal;
+          merchantStats[merchant].orderCount += 1;
+        });
+      }
+    });
+
+    // Calculate average and format for chart
+    const chartData = Object.entries(merchantStats)
+      .filter(([, stats]) => stats.orderCount > 0) // Only include merchants with at least one order
+      .map(([merchantName, stats]) => ({
+        label: merchantName,
+        value: (stats.totalRevenue / stats.orderCount).toFixed(2), // Average order price
+        color: '#84cc16' // A nice green color for this chart
+      }))
+      .sort((a, b) => b.value - a.value); // Sort by average price descending
+
+    return chartData.slice(0, 7); // Show top 7 merchants by average order price
+  };
     if (!isAuthenticated) {
     // This wrapper will center the AuthScreen component
     return (
@@ -1247,7 +1413,7 @@ const displayDeliveryFees = liveDeliveryFees;
               </div>
             </div>
           </div>
-
+          
           {/* Profit Breakdown - Add responsive wrapper */}
 <div style={{
   ...styles.card,
@@ -2249,7 +2415,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
             width: '100%',
             overflow: 'hidden'
           }}>
-            <SimpleChart
+            <RechartsCharts
               type="bar"
               title="Today's Order Distribution by Amount"
               data={[
@@ -2260,7 +2426,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
               ]}
             />
 
-            <SimpleChart
+            <RechartsCharts
               type="pie"
               title="Today's Revenue Breakdown"
               data={[
@@ -2412,6 +2578,81 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                   fontSize: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '20px' : '24px'
                 }}>
                   RM{getTotalHistoryStats().totalProfit.toFixed(2)}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginBottom: '24px',
+            gap: '12px'
+          }}>
+            <button
+              onClick={() => setTimePeriod('weeks')}
+              style={{
+                padding: '12px 24px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                backgroundColor: timePeriod === 'weeks' ? '#8b5cf6' : '#e2e8f0',
+                color: timePeriod === 'weeks' ? 'white' : '#64748b',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              By Weeks
+            </button>
+            <button
+              onClick={() => setTimePeriod('months')}
+              style={{
+                padding: '12px 24px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                backgroundColor: timePeriod === 'months' ? '#8b5cf6' : '#e2e8f0',
+                color: timePeriod === 'months' ? 'white' : '#64748b',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              By Months
+            </button>
+          </div>
+
+          {/* NEW: Time Series AVERAGE Profit Chart */}
+          <div style={{ marginBottom: '32px' }}>
+            <RechartsCharts // Changed to RechartsCharts
+              type="line"
+              title={`Average Profit Trend (${timePeriod === 'weeks' ? 'Last 7 Weeks' : 'Last 6 Months'})`}
+              data={getTimSeriesProfitData(timePeriod)}
+            />
+          </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: windowWidth <= 768 ? '1fr' : 'repeat(2, 1fr)',
+            gap: '24px',
+            marginBottom: '32px'
+          }}>
+            <div style={styles.card}>
+              <div style={styles.cardHeader}>
+                {/* Ensure 'Store' is imported from your icon library (e.g., lucide-react) */}
+                <Store color="#8b5cf6" size={28} />
+                <h3 style={{ ...styles.cardTitle, fontSize: '20px' }}>Most Ordered Merchant</h3>
+              </div>
+              <div style={{
+                backgroundColor: '#f5f3ff',
+                padding: '24px',
+                borderRadius: '16px',
+                textAlign: 'center'
+              }}>
+                {/* Ensure 'mostOrderedMerchant' variable is defined in your component */}
+                <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#8b5cf6', margin: 0 }}>
+                  {mostOrderedMerchant.name}
+                </p>
+                <p style={{ fontSize: '18px', color: '#64748b', marginTop: '8px' }}>
+                  {mostOrderedMerchant.orders} orders
                 </p>
               </div>
             </div>
@@ -2780,7 +3021,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                   </span>
                 </div>
               </div>
-
+              
               {/* Action Buttons */}
               <div style={{
                 display: 'flex',
@@ -3303,7 +3544,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
             width: '100%',
             overflow: 'hidden'
           }}>
-            <SimpleChart
+            <RechartsCharts
               type="bar"
               title="Daily Orders Trend (Last 7 Days)"
               data={historyData.slice(0, 7).reverse().map(entry => ({
@@ -3313,7 +3554,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
               }))}
             />
 
-            <SimpleChart
+            <RechartsCharts
               type="bar"
               title="Daily Profit Trend (Last 7 Days)"
               data={historyData.slice(0, 7).reverse().map(entry => ({
@@ -3334,7 +3575,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
             width: '100%',
             overflow: 'hidden'
           }}>
-            <SimpleChart
+            <RechartsCharts
               type="bar"
               title="Monthly Order Trends"
               data={(() => {
@@ -3357,7 +3598,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
               })()}
             />
 
-            <SimpleChart
+            <RechartsCharts
               type="bar"
               title="Monthly Profit Trends"
               data={(() => {
@@ -3378,6 +3619,13 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                     color: profit >= 0 ? '#10b981' : '#ef4444'
                   }));
               })()}
+            />
+          </div>
+          <div style={{ marginBottom: '32px' }}>
+            <RechartsCharts
+              type="bar" // Use a bar chart for this
+              title="Average Order Price by Merchant (All Time)"
+              data={getAverageOrderPriceByMerchant()}
             />
           </div>
 

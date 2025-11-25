@@ -11,7 +11,7 @@
 
 ## Live Demo
 
-👉 [Visit Crave2Cave](https://crave2cave-project.vercel.app/)
+👉 [Visit Crave2Cave](https://crave2cave.vercel.app/)
 
 ## Technologies Used
 
