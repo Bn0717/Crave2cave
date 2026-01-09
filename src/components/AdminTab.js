@@ -196,12 +196,12 @@ const [distributionPasscode, setDistributionPasscode] = useState('');
   const todayString = new Date().toLocaleDateString('en-CA', { timeZone: "Asia/Kuala_Lumpur" });
   const todayDate = new Date(todayString + 'T00:00:00');
   const todayDayOfWeek = todayDate.getDay();
-  const DELIVERY_DAYS = [2, 5]; // Tuesday=2, Friday=5
+  const DELIVERY_DAYS = [2, 5, 6]; // Tuesday=2, Friday=5, Saturday=6
   
   if (!DELIVERY_DAYS.includes(todayDayOfWeek)) {
     showSuccessAnimation(
       'Not a Delivery Day',
-      'System extension is only available on delivery days (Tuesday and Friday).',
+      'System extension is only available on delivery days (Tuesday, Friday, and Saturday).',
       null,
       3000,
       true
@@ -3898,8 +3898,8 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
     if (entryDate > today) {
       return false; // Hide future entries
     }
-    
-    return [2, 5].includes(dayOfWeek); // Only Tuesday and Friday
+
+    return [2, 5, 6].includes(dayOfWeek); // Only Tuesday, Friday, and Saturday
   })
   .map((entry, index) => (
       <div key={index} style={{
