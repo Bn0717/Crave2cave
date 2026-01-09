@@ -13,6 +13,7 @@ import {
   Camera,
   Image,
   Edit,
+  FileSpreadsheet,
   Clock
 } from 'lucide-react';
 
@@ -21,6 +22,8 @@ import SimpleChart from './SimpleChart';
 import EditHistoryModal from './EditHistoryModal';
 import * as firebaseService from '../services/firebase';
 import RechartsCharts from './SimpleChart';
+
+const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1PydOwXd4EA_pp6g3AB0-E1dYvXHY768h/edit?usp=sharing&ouid=102038458839648014695&rtpof=true&sd=true";
 
 const AdminTab = ({
   prebookUsers,
@@ -1135,9 +1138,9 @@ const displayDeliveryFees = liveDeliveryFees;
   const paidUsers = todayUsers.filter(u => u.commitmentPaid).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
   return (
-    <div>
-      {!showHistory ? (
-        <>
+ <div>
+    {!showHistory ? (
+      <>
           {/* Header */}
 <div style={{ 
   display: 'flex', 
@@ -2453,6 +2456,26 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                 All-time data and analytics
               </p>
             </div>
+
+            {/* ADD THE NEW BUTTONS HERE */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => window.open(GOOGLE_SHEET_URL, '_blank')}
+                style={{
+                  ...styles.button,
+                  width: 'auto',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', // Green gradient
+                  color: 'white',
+                  padding: '14px 28px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <FileSpreadsheet size={20} />
+                Google Sheets
+            </button>
+
             <button
               onClick={() => setShowHistory(false)}
               style={{
@@ -2466,6 +2489,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
               Back to Today
             </button>
           </div>
+        </div>
 
           {/* History Statistics */}
           <div style={{ 
