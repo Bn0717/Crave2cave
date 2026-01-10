@@ -9,6 +9,7 @@ import FeeBreakdown from './FeeBreakdown';
 import UnifiedQRCodeDisplay from './UnifiedQRCodeDisplay';
 import imageCompression from 'browser-image-compression';
 import LoadingAnimation from './LoadingAnimation';
+import deliveryAnimation from '../assets/mascot.mp4';
 
 const StudentTab = ({
   prebookUsers,
@@ -1131,10 +1132,43 @@ const isSubmitDisabled =
           </div>
         )}
       </>
-      <div style={styles.cardHeader}>
-        <Users color="#3b82f6" size={28} />
-        <h2 style={styles.cardTitle}>Food Delivery Registration</h2>
-      </div>
+      <div style={{
+  ...styles.cardHeader,
+  // We override the default styles here to force everything to the center
+  flexDirection: 'column',
+  alignItems: 'center',
+  textAlign: 'center',
+  gap: '20px', // Adds space between the circle and the text
+  marginBottom: '32px' // Adds space below the title before the next section
+}}>
+  
+  {/* Video Circle Container */}
+  <div style={{ 
+    width: '180px',   
+    height: '180px',  
+    borderRadius: '50%', 
+    overflow: 'hidden',
+    boxShadow: '0 10px 25px rgba(0,0,0,0.15)', // Nice shadow depth
+    border: '4px solid white', // Adds a clean white ring around the video
+    backgroundColor: '#f1f5f9' // Background color while video loads
+  }}>
+    <video
+      src={deliveryAnimation} // Make sure you imported this at the top!
+      autoPlay
+      loop
+      muted
+      playsInline
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover' // Ensures video covers the whole circle
+      }}
+    />
+  </div>
+
+  {/* Title */}
+  <h2 style={styles.cardTitle}>Food Delivery Registration</h2>
+</div>
 
         {/* 1. ADD THIS ENTIRE DIV BLOCK */}
       <div style={{
