@@ -14,7 +14,8 @@ import {
   Image,
   Edit,
   FileSpreadsheet,
-  Clock
+  Clock,
+  Plus
 } from 'lucide-react';
 
 import AuthScreen from './AuthScreen';
@@ -84,6 +85,7 @@ const [systemSettings, setSystemSettings] = useState({
   adminName: 'Admin',
   coFounders: ['Bryan Ngu', 'Yiek Siew Hao', 'Yeoh Sheng Ze', 'Charmaine Yong']
 });
+const [isManualDistributionEdit, setIsManualDistributionEdit] = useState(false);
 const [tempAdminName, setTempAdminName] = useState('');
 const [adminNamePasscode, setAdminNamePasscode] = useState('');
 const [distributionFormData, setDistributionFormData] = useState({
@@ -100,6 +102,13 @@ const [distributionFormData, setDistributionFormData] = useState({
   date: new Date().toLocaleDateString('en-CA')
 });
 const [distributionPasscode, setDistributionPasscode] = useState('');
+const [showAddHistoryModal, setShowAddHistoryModal] = useState(false);
+const [addHistoryForm, setAddHistoryForm] = useState({
+  date: '',
+  orders: '',
+  revenue: '',
+  profit: ''
+});
 
   const VENDOR_MAP = {
   'mixue': { name: 'Mixue', icon: '🧋' },
@@ -430,37 +439,43 @@ const handleSaveLoss = async () => {
 
 const calculateDistributions = (totalAmount, adminName) => {
   const total = parseFloat(totalAmount) || 0;
+
+  const calc = (pct) => parseFloat((total * (pct / 100)).toFixed(2));
   
   return {
     admin: { 
       name: adminName || 'Admin', 
-      amount: total * 0.05, 
-      percentage: 5 
+      amount: total * 0.08, 
+      percentage: 8 
     },
+    // Siew Hao (24%)
     coFounder1: { 
-      name: 'Bryan Ngu', 
-      amount: total * 0.20, 
-      percentage: 20 
-    },
-    coFounder2: { 
       name: 'Yiek Siew Hao', 
-      amount: total * 0.20, 
-      percentage: 20 
+      amount: total * 0.24, 
+      percentage: 24 
     },
+    // Bryan (23%)
+    coFounder2: { 
+      name: 'Bryan Ngu', 
+      amount: total * 0.23, 
+      percentage: 23 
+    },
+    // Charmaine (20%)
     coFounder3: { 
-      name: 'Yeoh Sheng Ze', 
+      name: 'Charmaine Yong', 
       amount: total * 0.20, 
       percentage: 20 
     },
+    // Sheng Ze (20%)
     coFounder4: { 
-      name: 'Charmaine Yong', 
+      name: 'Yeoh Sheng Ze', 
       amount: total * 0.20, 
       percentage: 20 
     },
     systemReserve: { 
       name: 'Reserve Fund', 
-      amount: total * 0.15, 
-      percentage: 15 
+      amount: total * 0.05, 
+      percentage: 5 
     }
   };
 };
@@ -522,6 +537,7 @@ const handleTotalAmountChange = (value) => {
   });
 };
 
+
 const handleSaveDistribution = async () => {
   if (distributionPasscode !== 'byycky') {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
@@ -534,7 +550,24 @@ const handleSaveDistribution = async () => {
     return;
   }
 
-  // ✅ NEW: Check if distribution amount exceeds available balance
+  // --- NEW VALIDATION LOGIC ---
+  // Calculate the sum of all individual amounts
+  const currentSum = Object.values(distributionFormData.distributions)
+    .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+  // Check if they match (allowing for tiny floating point rounding differences of 0.02)
+  if (Math.abs(currentSum - totalAmount) > 0.02) {
+    showSuccessAnimation(
+      'Amount Mismatch',
+      `The breakdown total (RM${currentSum.toFixed(2)}) must equal the Total Amount (RM${totalAmount.toFixed(2)}).`,
+      <p style={{ color: '#ef4444', marginTop: '8px' }}>Difference: RM{(currentSum - totalAmount).toFixed(2)}</p>,
+      4000,
+      true
+    );
+    return;
+  }
+
+  // Check available balance logic
   const availableBalance = getTotalHistoryStats().totalProfit - 
     moneyDistributions.reduce((sum, dist) => sum + (dist.totalAmount || 0), 0);
   
@@ -549,7 +582,6 @@ const handleSaveDistribution = async () => {
     return;
   }
 
-  // If editing, check adjusted balance
   if (editingDistribution) {
     const adjustedBalance = availableBalance + editingDistribution.totalAmount;
     if (totalAmount > adjustedBalance) {
@@ -570,22 +602,23 @@ const handleSaveDistribution = async () => {
     const distributionData = {
       totalAmount: totalAmount,
       adminName: distributionFormData.adminName,
-      distributions: distributionFormData.distributions,
-      date: distributionFormData.date
+      // Ensure all amounts are saved as Numbers, not strings
+      distributions: Object.entries(distributionFormData.distributions).reduce((acc, [key, val]) => {
+        acc[key] = { ...val, amount: parseFloat(val.amount) || 0 };
+        return acc;
+      }, {}),
+      date: distributionFormData.date,
+      isCustom: isManualDistributionEdit // <--- SAVE THIS FLAG
     };
 
     if (editingDistribution) {
       await firebaseService.updateMoneyDistribution(editingDistribution.id, distributionData);
-      // ✅ Update local state
       const updatedDistributions = moneyDistributions.map(dist =>
-        dist.id === editingDistribution.id
-          ? { ...dist, ...distributionData }
-          : dist
+        dist.id === editingDistribution.id ? { ...dist, ...distributionData } : dist
       );
       setMoneyDistributions(updatedDistributions);
     } else {
       const distributionId = await firebaseService.addMoneyDistribution(distributionData);
-      // ✅ Update local state
       const newDistribution = {
         id: distributionId,
         ...distributionData,
@@ -597,6 +630,8 @@ const handleSaveDistribution = async () => {
     hideLoadingAnimation();
     setShowDistributionModal(false);
     setDistributionPasscode('');
+    setIsManualDistributionEdit(false); 
+    
     showSuccessAnimation(
       editingDistribution ? 'Updated!' : 'Recorded!',
       `Money distribution has been ${editingDistribution ? 'updated' : 'recorded'}.`,
@@ -724,6 +759,62 @@ const handleDeleteUser = async (userId) => {
   setLocalHistoryData(historyData);
 }, [historyData, driverCost]); // Add driverCost here
 
+const handleAddHistorySubmit = async () => {
+  if (adminPasscodeInput !== 'byycky') { // Re-using your existing passcode state variable
+    showSuccessAnimation('Invalid Passcode', 'Please enter admin passcode in the modal.', null, 2000, true);
+    return;
+  }
+  if (!addHistoryForm.date || !addHistoryForm.orders || !addHistoryForm.revenue || !addHistoryForm.profit) {
+    showSuccessAnimation('Missing Fields', 'Please fill in all fields.', null, 2000, true);
+    return;
+  }
+
+  showLoadingAnimation('Adding history entry...');
+  try {
+    await firebaseService.addManualHistoryEntry({
+      date: addHistoryForm.date,
+      totalOrders: addHistoryForm.orders,
+      totalRevenue: addHistoryForm.revenue,
+      profit: addHistoryForm.profit
+    });
+    
+    // Refresh local data logic (simplified for manual entry)
+    // Ideally you call a refresh function, but we can manually push to state to see it instantly
+    const newEntry = {
+      id: addHistoryForm.date,
+      date: addHistoryForm.date,
+      totalOrders: Number(addHistoryForm.orders),
+      totalRevenue: Number(addHistoryForm.revenue),
+      profit: Number(addHistoryForm.profit),
+      registeredUsers: 0
+    };
+    
+    setLocalHistoryData(prev => [newEntry, ...prev].sort((a,b) => new Date(b.date) - new Date(a.date)));
+
+    hideLoadingAnimation();
+    setShowAddHistoryModal(false);
+    setAddHistoryForm({ date: '', orders: '', revenue: '', profit: '' });
+    setAdminPasscodeInput(''); // Clear passcode
+    showSuccessAnimation('Success', 'History entry added successfully!');
+  } catch (error) {
+    hideLoadingAnimation();
+    showSuccessAnimation('Error', 'Failed to add entry.', null, 2000, true);
+  }
+};
+
+const handleIndividualAmountChange = (key, newAmount) => {
+  // Store the raw string value while editing to allow typing "10." or "0.5"
+  setDistributionFormData(prev => ({
+    ...prev,
+    distributions: {
+      ...prev.distributions,
+      [key]: {
+        ...prev.distributions[key],
+        amount: newAmount // Keep as string temporarily while typing
+      }
+    }
+  }));
+};
 
 useEffect(() => {
   const fetchEmergencyLosses = async () => {
@@ -924,6 +1015,29 @@ const displayDeliveryFees = liveDeliveryFees;
       console.error(error);
     }
   };
+
+  const handleDeleteHistoryEntry = async (entryId, entryDate) => {
+  const passcode = prompt('Enter admin passcode to delete this history entry:');
+  if (passcode !== 'byycky') {
+    showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
+    return;
+  }
+
+  if (!window.confirm(`Are you sure you want to delete the history entry for ${entryDate}? This action cannot be undone.`)) {
+    return;
+  }
+
+  showLoadingAnimation('Deleting history entry...');
+  try {
+    await firebaseService.deleteHistoryEntry(entryId);
+    setLocalHistoryData(prevHistory => prevHistory.filter(entry => entry.id !== entryId));
+    hideLoadingAnimation();
+    showSuccessAnimation('Deleted!', 'History entry has been removed.', null, 2500);
+  } catch (error) {
+    hideLoadingAnimation();
+    showSuccessAnimation('Error', 'Failed to delete history entry.', null, 2500, true);
+  }
+};
 
   const getTotalHistoryStats = () => {
     const totalRegistered = historyData.reduce((sum, entry) => sum + (entry.registeredUsers || 0), 0);
@@ -1202,6 +1316,7 @@ const displayDeliveryFees = liveDeliveryFees;
         ...styles.button, 
         flex: windowWidth <= 768 ? '1 1 calc(50% - 4px)' : '0 0 auto',
         minWidth: windowWidth <= 768 ? '0' : '140px',
+        // CHANGED TO PURPLE GRADIENT
         background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', 
         color: 'white', 
         padding: windowWidth <= 480 ? '12px 16px' : windowWidth <= 768 ? '12px 20px' : '14px 24px',
@@ -2871,7 +2986,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
     fontWeight: '600',
     marginBottom: '6px'
   }}>
-    System Reserve (15%)
+    System Reserve (5%)
   </div>
   <div style={{
     fontSize: windowWidth <= 480 ? '18px' : '22px',
@@ -2918,29 +3033,43 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                 padding: windowWidth <= 480 ? '12px' : '16px'
               }}
             >
-              {/* Header */}
+              {/* Header inside map */}
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center',
+                alignItems: 'flex-start', // Align to top
                 marginBottom: '12px',
-                flexWrap: 'wrap',
                 gap: '8px'
               }}>
                 <div>
-                  <span style={{
-                    fontSize: windowWidth <= 480 ? '13px' : '18px',
-                    color: '#64748b',
-                    fontWeight: '500',
-                    display: 'block',
-                    marginBottom: '4px'
-                  }}>
-                    {new Date(distribution.date + 'T00:00:00').toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span style={{
+                      fontSize: windowWidth <= 480 ? '13px' : '18px',
+                      color: '#64748b',
+                      fontWeight: '500',
+                    }}>
+                      {new Date(distribution.date + 'T00:00:00').toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </span>
+                    {/* NEW BADGE */}
+                    {distribution.isCustom && (
+                      <span style={{
+                        backgroundColor: '#fef3c7',
+                        color: '#b45309',
+                        fontSize: '10px',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontWeight: '700',
+                        border: '1px solid #fcd34d',
+                        textTransform: 'uppercase'
+                      }}>
+                        Edited
+                      </span>
+                    )}
+                  </div>
                   <span style={{
                     fontSize: windowWidth <= 480 ? '10px' : '15px',
                     color: '#94a3b8',
@@ -2980,44 +3109,49 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                     color: '#1e40af',
                     fontWeight: '600'
                   }}>
-                    Admin (5%)
+                    {distribution.distributions?.admin?.name || 'Admin'} (8%)
                   </span>
                   <span style={{ 
                     fontSize: windowWidth <= 480 ? '13px' : '14px', 
                     fontWeight: '700', 
                     color: '#1e40af' 
                   }}>
-                    RM{(distribution.distributions?.admin?.amount || 0).toFixed(2)}
+                    RM{(parseFloat(distribution.distributions?.admin?.amount) || 0).toFixed(2)}
                   </span>
                 </div>
 
-                {/* Co-Founders Combined */}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: windowWidth <= 480 ? '8px 10px' : '10px 12px',
-                  backgroundColor: 'white',
-                  borderRadius: '8px',
-                  border: '1px solid #e2e8f0'
-                }}>
-                  <span style={{ 
-                    fontSize: windowWidth <= 480 ? '11px' : '14px', 
-                    color: '#64748b',
-                    fontWeight: '600'
-                  }}>
-                    Founders (20% each)
-                  </span>
-                  <span style={{ 
-                    fontSize: windowWidth <= 480 ? '12px' : '14px', 
-                    fontWeight: '700', 
-                    color: '#1e293b' 
-                  }}>
-                    RM{(
-                      (distribution.distributions?.coFounder1?.amount || 0) 
-                    ).toFixed(2)} x 4
-                  </span>
-                </div>
+                {/* Co-Founders */}
+                {['coFounder1', 'coFounder2', 'coFounder3', 'coFounder4'].map((key) => {
+                  const founder = distribution.distributions?.[key];
+                  if (!founder) return null;
+                  
+                  return (
+                    <div key={key} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: windowWidth <= 480 ? '8px 10px' : '10px 12px',
+                      backgroundColor: 'white',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      <span style={{ 
+                        fontSize: windowWidth <= 480 ? '11px' : '14px', 
+                        color: '#64748b',
+                        fontWeight: '600'
+                      }}>
+                        {founder.name} ({founder.percentage}%)
+                      </span>
+                      <span style={{ 
+                        fontSize: windowWidth <= 480 ? '12px' : '14px', 
+                        fontWeight: '700', 
+                        color: '#1e293b' 
+                      }}>
+                        RM{(parseFloat(founder.amount) || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })}
 
                 {/* System Reserve */}
                 <div style={{
@@ -3034,14 +3168,14 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                     color: '#92400e',
                     fontWeight: '600'
                   }}>
-                    System Reserve (15%)
+                    System Reserve (5%)
                   </span>
                   <span style={{ 
                     fontSize: windowWidth <= 480 ? '12px' : '14px', 
                     fontWeight: '700', 
                     color: '#b45309' 
                   }}>
-                    RM{(distribution.distributions?.systemReserve?.amount || 0).toFixed(2)}
+                    RM{(parseFloat(distribution.distributions?.systemReserve?.amount) || 0).toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -3171,6 +3305,16 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
       maxHeight: '90vh',
       overflowY: 'auto'
     }}>
+      <style>{`
+  input[type=number]::-webkit-inner-spin-button, 
+  input[type=number]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+  }
+  input[type=number] {
+    -moz-appearance: textfield;
+  }
+`}</style>
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -3200,10 +3344,11 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
           💡 Smart Distribution
         </p>
         <p style={{ margin: 0, fontSize: '13px', color: '#0c4a6e', lineHeight: '1.6' }}>
-          Enter the total amount, and the system will automatically calculate:
-          <br/>• Admin: <strong>5%</strong>
-          <br/>• Each Co-Founder: <strong>20%</strong> (4 people)
-          <br/>• Reserve Fund: <strong>15%</strong> (emergency fund)
+          System automatically calculates:
+          <br/>• Admin: <strong>8%</strong>
+          <br/>• Siew Hao: <strong>24%</strong> | Bryan: <strong>23%</strong>
+          <br/>• Charmaine: <strong>20%</strong> | Sheng Ze: <strong>20%</strong>
+          <br/>• Reserve Fund: <strong>5%</strong>
         </p>
       </div>
 
@@ -3236,7 +3381,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
         />
       </div>
 
-      {/* Auto-Calculated Distribution Preview */}
+      {/* Distribution Breakdown with Edit Toggle */}
       {distributionFormData.totalAmount && parseFloat(distributionFormData.totalAmount) > 0 && (
         <div style={{
           backgroundColor: '#f8fafc',
@@ -3245,64 +3390,88 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
           marginBottom: '20px',
           border: '1px solid #e2e8f0'
         }}>
-          <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', color: '#1e293b' }}>
-            📊 Distribution Breakdown
-          </h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h4 style={{ margin: 0, fontSize: '15px', color: '#1e293b' }}>
+              📊 Breakdown
+            </h4>
+            <button
+              onClick={() => setIsManualDistributionEdit(!isManualDistributionEdit)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#3b82f6',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <Edit size={14} />
+              {isManualDistributionEdit ? 'Disable Editing' : 'Edit Amounts'}
+            </button>
+          </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {/* Admin */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              padding: '10px 12px',
-              backgroundColor: '#eff6ff',
-              borderRadius: '8px',
-              border: '1px solid #bfdbfe'
-            }}>
-              <span style={{ fontSize: '14px', color: '#1e40af' }}>
-                {distributionFormData.distributions.admin.name} (5%)
-              </span>
-              <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e40af' }}>
-                RM{distributionFormData.distributions.admin.amount.toFixed(2)}
-              </span>
-            </div>
+            {/* Helper to render rows */}
+            {Object.entries(distributionFormData.distributions).map(([key, data]) => {
+              // Determine style based on row type
+              let bg = 'white';
+              let border = '#e2e8f0';
+              let textColor = '#1e293b';
+              
+              if (key === 'admin') { bg = '#eff6ff'; border = '#bfdbfe'; textColor = '#1e40af'; }
+              if (key === 'systemReserve') { bg = '#fefce8'; border = '#fbbf24'; textColor = '#b45309'; }
 
-            {/* Co-Founders */}
-            {['coFounder1', 'coFounder2', 'coFounder3', 'coFounder4'].map((key) => (
-              <div key={key} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '10px 12px',
-                backgroundColor: 'white',
-                borderRadius: '8px',
-                border: '1px solid #e2e8f0'
-              }}>
-                <span style={{ fontSize: '14px', color: '#64748b' }}>
-                  {distributionFormData.distributions[key].name} (20%)
-                </span>
-                <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                  RM{distributionFormData.distributions[key].amount.toFixed(2)}
-                </span>
-              </div>
-            ))}
-
-            {/* Reserve Fund */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              padding: '12px',
-              backgroundColor: '#fefce8',
-              borderRadius: '8px',
-              border: '2px solid #fbbf24'
-            }}>
-              <span style={{ fontSize: '14px', color: '#92400e', fontWeight: '600' }}>
-                💰 Reserve Fund (15%)
-              </span>
-              <span style={{ fontSize: '15px', fontWeight: '700', color: '#b45309' }}>
-                RM{distributionFormData.distributions.systemReserve.amount.toFixed(2)}
-              </span>
-            </div>
+              return (
+                <div key={key} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '10px 12px',
+                  backgroundColor: bg,
+                  borderRadius: '8px',
+                  border: `1px solid ${border}`
+                }}>
+                  <span style={{ fontSize: '14px', color: textColor, fontWeight: '500' }}>
+                    {data.name} ({data.percentage}%)
+                  </span>
+                  
+                  {isManualDistributionEdit ? (
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ marginRight: '4px', fontSize: '14px', color: textColor }}>RM</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={data.amount}
+                        onChange={(e) => handleIndividualAmountChange(key, e.target.value)}
+                        style={{
+                          width: '80px',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          textAlign: 'right'
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: '14px', fontWeight: '700', color: textColor }}>
+                      RM{parseFloat(data.amount).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
+          
+          {isManualDistributionEdit && (
+             <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '12px', textAlign: 'right' }}>
+               * Custom edits active. Totals may no longer match percentages.
+             </p>
+          )}
         </div>
       )}
 
@@ -3869,7 +4038,35 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
 
           {/* History Table */}
           <div style={styles.card}>
-            <h3 style={{ fontSize: '22px', marginBottom: '24px' }}>Daily History</h3>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '24px',
+              flexWrap: 'wrap',
+              gap: '12px'
+            }}>
+              <h3 style={{ fontSize: '22px', margin: 0 }}>Daily History</h3>
+              <button
+                onClick={() => setShowAddHistoryModal(true)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                fontWeight: '600',
+                fontSize: '14px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <Plus size={16} />
+              Add Entry
+            </button>
+            </div>
             {historyData.length === 0 ? (
   <div style={{ 
     textAlign: 'center', 
@@ -3899,7 +4096,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
       return false; // Hide future entries
     }
 
-    return [2, 5, 6].includes(dayOfWeek); // Only Tuesday, Friday, and Saturday
+    return true
   })
   .map((entry, index) => (
       <div key={index} style={{
@@ -3925,7 +4122,8 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
             {new Date(entry.date).toLocaleDateString('en-US', { 
               weekday: 'short', 
               month: 'short', 
-              day: 'numeric' 
+              day: 'numeric',
+              year: 'numeric'
             })}
           </h4>
           <span style={{
@@ -4021,6 +4219,39 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
         >
           <Edit size={18} />
           Edit Data
+        </button>
+
+        <button
+          onClick={() => handleDeleteHistoryEntry(entry.id, entry.date)}
+          style={{
+            width: '100%',
+            marginTop: '8px',
+            padding: '12px',
+            background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '10px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(239, 68, 68, 0.4)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.3)';
+          }}
+        >
+          <AlertCircle size={18} />
+          Delete Entry
         </button>
       </div>
     ))}
@@ -4731,6 +4962,337 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
           }}
         >
           {selectedOrderForAction.orderNumber ? 'Delete Order' : 'Delete User'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+{/* Manual History Entry Modal */}
+{showAddHistoryModal && (
+  <div style={{
+    position: 'fixed', 
+    top: 0, 
+    left: 0, 
+    right: 0, 
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)', 
+    backdropFilter: 'blur(8px)',
+    zIndex: 10000,
+    display: 'flex', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: '20px'
+  }}>
+    <div style={{
+      backgroundColor: 'white', 
+      borderRadius: '24px', 
+      padding: windowWidth <= 480 ? '24px' : '36px',
+      maxWidth: '500px', 
+      width: '100%', 
+      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
+      border: '3px solid #3b82f6',
+      maxHeight: '85vh',
+      overflowY: 'auto'
+    }}>
+      {/* Header */}
+      <div style={{
+        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+        margin: windowWidth <= 480 ? '-24px -24px 24px' : '-36px -36px 28px',
+        padding: windowWidth <= 480 ? '24px' : '28px',
+        borderRadius: '21px 21px 0 0',
+        borderBottom: '3px solid #2563eb'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <div style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            borderRadius: '50%',
+            padding: '10px',
+            display: 'flex'
+          }}>
+            <Plus color="white" size={24} />
+          </div>
+          <div>
+            <h2 style={{
+              margin: 0,
+              fontSize: windowWidth <= 480 ? '20px' : '24px',
+              fontWeight: '800',
+              color: 'white',
+              textShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}>
+              Add Past History
+            </h2>
+            <p style={{
+              color: 'rgba(255, 255, 255, 0.9)',
+              margin: '4px 0 0 0',
+              fontSize: '13px'
+            }}>
+              Manually add a historical entry
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Form Fields */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Date */}
+        <div>
+          <label style={{
+            display: 'block',
+            marginBottom: '8px',
+            fontWeight: '600',
+            color: '#1e293b',
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <div style={{
+              width: '4px',
+              height: '16px',
+              backgroundColor: '#3b82f6',
+              borderRadius: '2px'
+            }}></div>
+            Date
+          </label>
+          <input 
+            type="date" 
+            style={{
+              width: '100%',
+              padding: '14px',
+              borderRadius: '12px',
+              border: '2px solid #e2e8f0',
+              fontSize: '15px',
+              boxSizing: 'border-box',
+              transition: 'border-color 0.2s',
+              fontWeight: '500'
+            }}
+            value={addHistoryForm.date} 
+            onChange={e => setAddHistoryForm({...addHistoryForm, date: e.target.value})}
+            onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+            onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+          />
+        </div>
+
+        {/* Total Orders */}
+        <div>
+          <label style={{
+            display: 'block',
+            marginBottom: '8px',
+            fontWeight: '600',
+            color: '#1e293b',
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <div style={{
+              width: '4px',
+              height: '16px',
+              backgroundColor: '#ef4444',
+              borderRadius: '2px'
+            }}></div>
+            Total Orders
+          </label>
+          <input 
+            type="number" 
+            style={{
+              width: '100%',
+              padding: '14px',
+              borderRadius: '12px',
+              border: '2px solid #e2e8f0',
+              fontSize: '15px',
+              boxSizing: 'border-box',
+              fontWeight: '500'
+            }}
+            placeholder="e.g. 5" 
+            value={addHistoryForm.orders} 
+            onChange={e => setAddHistoryForm({...addHistoryForm, orders: e.target.value})}
+            onFocus={(e) => e.target.style.borderColor = '#ef4444'}
+            onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+          />
+        </div>
+
+        {/* Total Revenue */}
+        <div>
+          <label style={{
+            display: 'block',
+            marginBottom: '8px',
+            fontWeight: '600',
+            color: '#1e293b',
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <div style={{
+              width: '4px',
+              height: '16px',
+              backgroundColor: '#f59e0b',
+              borderRadius: '2px'
+            }}></div>
+            Total Revenue (RM)
+          </label>
+          <input 
+            type="number" 
+            step="0.01" 
+            style={{
+              width: '100%',
+              padding: '14px',
+              borderRadius: '12px',
+              border: '2px solid #e2e8f0',
+              fontSize: '15px',
+              boxSizing: 'border-box',
+              fontWeight: '500'
+            }}
+            placeholder="e.g. 150.00" 
+            value={addHistoryForm.revenue} 
+            onChange={e => setAddHistoryForm({...addHistoryForm, revenue: e.target.value})}
+            onFocus={(e) => e.target.style.borderColor = '#f59e0b'}
+            onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+          />
+        </div>
+
+        {/* Total Profit */}
+        <div>
+          <label style={{
+            display: 'block',
+            marginBottom: '8px',
+            fontWeight: '600',
+            color: '#1e293b',
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <div style={{
+              width: '4px',
+              height: '16px',
+              backgroundColor: '#10b981',
+              borderRadius: '2px'
+            }}></div>
+            Total Profit (RM)
+          </label>
+          <input 
+            type="number" 
+            step="0.01" 
+            style={{
+              width: '100%',
+              padding: '14px',
+              borderRadius: '12px',
+              border: '2px solid #e2e8f0',
+              fontSize: '15px',
+              boxSizing: 'border-box',
+              fontWeight: '500'
+            }}
+            placeholder="e.g. 45.00" 
+            value={addHistoryForm.profit} 
+            onChange={e => setAddHistoryForm({...addHistoryForm, profit: e.target.value})}
+            onFocus={(e) => e.target.style.borderColor = '#10b981'}
+            onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+          />
+        </div>
+
+        {/* Admin Passcode */}
+        <div>
+          <label style={{
+            display: 'block',
+            marginBottom: '8px',
+            fontWeight: '600',
+            color: '#1e293b',
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <div style={{
+              width: '4px',
+              height: '16px',
+              backgroundColor: '#6366f1',
+              borderRadius: '2px'
+            }}></div>
+            Admin Passcode
+          </label>
+          <input 
+            type="password" 
+            style={{
+              width: '100%',
+              padding: '14px',
+              borderRadius: '12px',
+              border: '2px solid #e2e8f0',
+              fontSize: '15px',
+              boxSizing: 'border-box',
+              fontWeight: '500'
+            }}
+            placeholder="Enter admin passcode"
+            value={adminPasscodeInput} 
+            onChange={e => setAdminPasscodeInput(e.target.value)}
+            onFocus={(e) => e.target.style.borderColor = '#6366f1'}
+            onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+          />
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '12px', 
+        marginTop: '28px',
+        flexDirection: windowWidth <= 480 ? 'column' : 'row'
+      }}>
+        <button 
+          onClick={() => {
+            setShowAddHistoryModal(false);
+            setAddHistoryForm({ date: '', orders: '', revenue: '', profit: '' });
+            setAdminPasscodeInput('');
+          }}
+          style={{ 
+            flex: 1,
+            padding: '14px',
+            borderRadius: '12px',
+            border: '2px solid #e2e8f0',
+            backgroundColor: 'white',
+            color: '#64748b',
+            fontWeight: '600',
+            fontSize: '15px',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+          onMouseOver={(e) => {
+            e.target.style.backgroundColor = '#f8fafc';
+            e.target.style.borderColor = '#cbd5e1';
+          }}
+          onMouseOut={(e) => {
+            e.target.style.backgroundColor = 'white';
+            e.target.style.borderColor = '#e2e8f0';
+          }}
+        >
+          Cancel
+        </button>
+        <button 
+  onClick={handleAddHistorySubmit}
+  style={{ 
+    flex: 1,
+    padding: '14px',
+    borderRadius: '12px',
+    border: 'none',
+    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+    color: 'white',
+    fontWeight: '600',
+    fontSize: '15px',
+    cursor: 'pointer',
+    boxShadow: '0 6px 20px rgba(59, 130, 246, 0.4)',
+    transition: 'all 0.2s'
+  }}
+  onMouseOver={(e) => {
+    e.target.style.transform = 'translateY(-2px)';
+    e.target.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.5)';
+  }}
+        >
+          Save Entry
         </button>
       </div>
     </div>

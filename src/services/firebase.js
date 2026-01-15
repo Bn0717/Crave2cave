@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, deleteDoc, addDoc, query, where, writeBatch, doc, updateDoc, limit, orderBy, setDoc, deleteField } from 'firebase/firestore';
+import { getFirestore, collection, getDoc, getDocs, deleteDoc, addDoc, query, where, writeBatch, doc, updateDoc, limit, orderBy, setDoc, deleteField } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
@@ -170,56 +170,71 @@ export const updateOrdersStatus = async (orderIds, status) => {
 
 export const updateDailyHistory = async (targetDeliveryDate) => {
   try {
-    // ✅ CHANGE: Accept the delivery date as a parameter instead of using "today"
-    // This ensures we only update history for actual delivery dates
     if (!targetDeliveryDate) {
       console.log('No delivery date provided, skipping history update');
       return;
     }
 
-    // Fetch only users and orders for the TARGET delivery date
+    // 1. Fetch Users and Orders
     const usersQuery = query(collection(db, 'prebookUsers'), where("deliveryDate", "==", targetDeliveryDate));
     const ordersQuery = query(collection(db, 'orders'), where("deliveryDate", "==", targetDeliveryDate));
 
-    const [usersSnapshot, ordersSnapshot] = await Promise.all([
+    // 2. Fetch Daily Settings to get the REAL Driver Cost
+    const settingsRef = doc(db, 'dailySettings', targetDeliveryDate);
+    
+    const [usersSnapshot, ordersSnapshot, settingsSnapshot] = await Promise.all([
       getDocs(usersQuery),
-      getDocs(ordersQuery)
+      getDocs(ordersQuery),
+      getDoc(settingsRef) // Fetch settings
     ]);
 
     const todayUsersTemp = usersSnapshot.docs.map(doc => ({ id: doc.id, firestoreId: doc.id, ...doc.data() }));
     const todayOrdersTemp = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    // Get cost from settings, or default to 30 if not set
+    const settingsData = settingsSnapshot.exists() ? settingsSnapshot.data() : {};
+    const currentDriverCost = settingsData.driverCost !== undefined ? settingsData.driverCost : 30;
 
-    // Now all calculations are correctly based on the delivery date
-    const todayRevenue = todayUsersTemp.filter(u => u.commitmentPaid).length * 10 +
-      todayOrdersTemp.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
-    const driverCost = todayOrdersTemp.length > 0 ? 30 : 0;
-    const todayProfit = todayRevenue - driverCost;
+    // 3. Calculate Financials
+    const commitmentFees = todayUsersTemp.filter(u => u.commitmentPaid).length * 10;
+    const deliveryFees = todayOrdersTemp.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
+    const todayRevenue = commitmentFees + deliveryFees;
+    
+    // Use the dynamic cost (only if there are orders)
+    const totalDriverCost = todayOrdersTemp.length > 0 ? currentDriverCost : 0;
+    const todayProfit = todayRevenue - totalDriverCost;
 
+    // 4. Update History
     const historyQuery = query(collection(db, 'history'), where('date', '==', targetDeliveryDate));
     const historySnapshot = await getDocs(historyQuery);
 
     const historyDataPayload = {
       date: targetDeliveryDate,
       timestamp: new Date().toISOString(),
-      orders: todayOrdersTemp, // Storing filtered orders
-      users: todayUsersTemp, // Storing filtered users
+      orders: todayOrdersTemp,
+      users: todayUsersTemp,
       totalOrders: todayOrdersTemp.length,
       totalUsers: todayUsersTemp.length,
-      registeredUsers: todayUsersTemp.length, // This is now correct
+      registeredUsers: todayUsersTemp.length,
       paidUsers: todayUsersTemp.filter(u => u.commitmentPaid).length,
       totalRevenue: todayRevenue,
-      driverCost: driverCost,
+      driverCost: totalDriverCost, // Save the specific cost used
       profit: todayProfit,
-      commitmentFees: todayUsersTemp.filter(u => u.commitmentPaid).length * 10,
-      deliveryFees: todayOrdersTemp.reduce((sum, order) => sum + (order.deliveryFee || 0), 0)
+      commitmentFees: commitmentFees,
+      deliveryFees: deliveryFees
     };
 
     if (historySnapshot.empty) {
-      await addDoc(collection(db, 'history'), historyDataPayload);
+      // Only create if there is actual data to record
+      if (todayOrdersTemp.length > 0) {
+        await addDoc(collection(db, 'history'), historyDataPayload);
+      }
     } else {
       const docId = historySnapshot.docs[0].id;
       await updateDoc(doc(db, 'history', docId), historyDataPayload);
     }
+    
+    console.log(`History updated for ${targetDeliveryDate} with Driver Cost: RM${totalDriverCost}`);
   } catch (error) {
     console.error('Error updating daily history:', error);
   }
@@ -494,8 +509,13 @@ export const updateDailyDriverCost = async (deliveryDate, cost) => {
     await setDoc(settingsRef, {
       driverCost: cost,
       updatedAt: new Date().toISOString()
-    }, { merge: true }); // Use merge to avoid overwriting other settings like extendedCutoffTime
+    }, { merge: true });
+    
     console.log(`Driver cost set to ${cost} for ${deliveryDate}`);
+    
+    // TRIGGER RECALCULATION OF HISTORY IMMEDIATELY
+    await updateDailyHistory(deliveryDate);
+    
   } catch (error) {
     console.error('Error updating daily driver cost:', error);
     throw error;
@@ -611,5 +631,37 @@ export const updateAdminName = async (settingsId, newAdminName) => {
   } catch (e) {
     console.error('Error updating admin name: ', e);
     throw e;
+  }
+};
+
+
+export const addManualHistoryEntry = async (data) => {
+  try {
+    const historyRef = doc(db, 'history', data.date);
+    const payload = {
+      date: data.date,
+      totalOrders: Number(data.totalOrders),
+      totalRevenue: Number(data.totalRevenue),
+      profit: Number(data.profit),
+      registeredUsers: 0, // Default to 0 for manual entries
+      timestamp: new Date().toISOString()
+    };
+    
+    // setDoc with merge:true will create if doesn't exist, or update if it does
+    await setDoc(historyRef, payload, { merge: true }); 
+    console.log(`Manual history entry added for ${data.date}`);
+  } catch (e) {
+    console.error("Error adding manual history: ", e);
+    throw e;
+  }
+};
+
+export const deleteHistoryEntry = async (entryId) => {
+  try {
+    await deleteDoc(doc(db, 'history', entryId));
+    console.log('History entry deleted successfully:', entryId);
+  } catch (error) {
+    console.error('Error deleting history entry:', error);
+    throw error;
   }
 };
