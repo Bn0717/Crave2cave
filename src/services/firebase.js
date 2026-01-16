@@ -211,6 +211,7 @@ export const updateDailyHistory = async (targetDeliveryDate) => {
     const historyDataPayload = {
       date: targetDeliveryDate,
       timestamp: new Date().toISOString(),
+      isSpecialOrder: await checkIfSpecialOrderDay(targetDeliveryDate),
       orders: todayOrdersTemp,
       users: todayUsersTemp,
       totalOrders: todayOrdersTemp.length,
@@ -663,5 +664,31 @@ export const deleteHistoryEntry = async (entryId) => {
   } catch (error) {
     console.error('Error deleting history entry:', error);
     throw error;
+  }
+};
+
+export const activateSpecialOrderDay = async (dateString) => {
+  try {
+    const specialOrderRef = doc(db, 'specialOrderDays', dateString);
+    await setDoc(specialOrderRef, {
+      date: dateString,
+      isSpecialOrder: true,
+      activatedAt: new Date().toISOString()
+    });
+    console.log(`Special order day activated for ${dateString}`);
+  } catch (error) {
+    console.error('Error activating special order day:', error);
+    throw error;
+  }
+};
+
+export const checkIfSpecialOrderDay = async (dateString) => {
+  try {
+    const specialOrderRef = doc(db, 'specialOrderDays', dateString);
+    const docSnap = await getDoc(specialOrderRef);
+    return docSnap.exists() && docSnap.data().isSpecialOrder;
+  } catch (error) {
+    console.error('Error checking special order day:', error);
+    return false;
   }
 };

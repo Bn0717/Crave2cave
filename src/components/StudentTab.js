@@ -1172,8 +1172,8 @@ const isSubmitDisabled =
 
         {/* 1. ADD THIS ENTIRE DIV BLOCK */}
       <div style={{
-        backgroundColor: '#eef2ff',
-        border: '2px solid #818cf8',
+        backgroundColor: systemAvailability.isSpecialOrder ? '#fdf2f8' : '#eef2ff',
+        border: systemAvailability.isSpecialOrder ? '2px solid #ec4899' : '2px solid #818cf8',
         borderRadius: '16px',
         padding: '20px',
         textAlign: 'center',
@@ -1181,7 +1181,7 @@ const isSubmitDisabled =
       }}>
         <h3 style={{
           margin: '0 0 8px 0',
-          color: '#4338ca',
+          color: systemAvailability.isSpecialOrder ? '#831843' : '#4338ca',
           fontSize: windowWidth <= 480 ? '16px' : '20px'
         }}>
           You are ordering for delivery on:
@@ -1190,11 +1190,14 @@ const isSubmitDisabled =
           margin: 0,
           fontSize: windowWidth <= 480 ? '20px' : '24px',
           fontWeight: 'bold',
-          color: '#3730a3',
+          color: systemAvailability.isSpecialOrder ? '#831843' : '#3730a3',
           background: 'white',
           padding: '8px 16px',
           borderRadius: '12px',
-          display: 'inline-block'
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+          justifyContent: 'center'
         }}>
           {new Date(systemAvailability.deliveryDate + 'T00:00:00').toLocaleDateString('en-US', {
             weekday: 'long',
@@ -1202,6 +1205,20 @@ const isSubmitDisabled =
             month: 'long',
             day: 'numeric',
           })}
+          {systemAvailability.isSpecialOrder && (
+            <span style={{
+              backgroundColor: '#fdf2f8',
+              color: '#ec4899',
+              fontSize: windowWidth <= 480 ? '10px' : '11px',
+              fontWeight: '700',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              border: '1.5px solid #ec4899',
+              marginLeft: '4px'
+            }}>
+              ⭐ SPECIAL
+            </span>
+          )}
         </p>
       </div>
       
@@ -1944,12 +1961,32 @@ const isSubmitDisabled =
               border: '1px solid #e2e8f0'
             }}>
               <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Delivery Date</div>
-              <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>
+              <div style={{ 
+                fontSize: '15px', 
+                fontWeight: '700', 
+                color: '#1e293b',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
                 {new Date(systemAvailability.deliveryDate + 'T00:00:00').toLocaleDateString('en-US', {
                   weekday: 'long',
                   month: 'long',
                   day: 'numeric',
                 })}
+                {systemAvailability.isSpecialOrder && (
+                  <span style={{
+                    backgroundColor: '#fdf2f8',
+                    color: '#ec4899',
+                    fontSize: '9px',
+                    fontWeight: '700',
+                    padding: '3px 6px',
+                    borderRadius: '4px',
+                    border: '1px solid #ec4899'
+                  }}>
+                    ⭐ SPECIAL
+                  </span>
+                )}
               </div>
             </div>
 

@@ -103,6 +103,9 @@ const [distributionFormData, setDistributionFormData] = useState({
 });
 const [distributionPasscode, setDistributionPasscode] = useState('');
 const [showAddHistoryModal, setShowAddHistoryModal] = useState(false);
+const [showSpecialOrderModal, setShowSpecialOrderModal] = useState(false);
+const [specialOrderDate, setSpecialOrderDate] = useState('');
+const [specialOrderPasscode, setSpecialOrderPasscode] = useState('');
 const [addHistoryForm, setAddHistoryForm] = useState({
   date: '',
   orders: '',
@@ -816,6 +819,79 @@ const handleIndividualAmountChange = (key, newAmount) => {
   }));
 };
 
+const handleActivateSpecialOrder = async () => {
+  if (specialOrderPasscode !== 'byycky') {
+    showSuccessAnimation(
+      'Invalid Passcode',
+      'Please enter the correct admin passcode.',
+      null,
+      2500,
+      true
+    );
+    return;
+  }
+
+  if (!specialOrderDate) {
+    showSuccessAnimation(
+      'No Date Selected',
+      'Please select a special order date.',
+      null,
+      2500,
+      true
+    );
+    return;
+  }
+
+  const selectedDate = new Date(specialOrderDate + 'T00:00:00');
+  const dayOfWeek = selectedDate.getDay();
+  
+  // Check if it's already a delivery day (Tuesday=2, Friday=5, Saturday=6)
+  if ([2, 5, 6].includes(dayOfWeek)) {
+    showSuccessAnimation(
+      'Already a Delivery Day',
+      'This date is already a regular delivery day. No need for special order activation.',
+      null,
+      3000,
+      true
+    );
+    return;
+  }
+
+  showLoadingAnimation('Activating special order day...');
+  
+  try {
+    await firebaseService.activateSpecialOrderDay(specialOrderDate);
+    
+    hideLoadingAnimation();
+    setShowSpecialOrderModal(false);
+    setSpecialOrderPasscode('');
+    setSpecialOrderDate('');
+    
+    showSuccessAnimation(
+      'Special Order Activated!',
+      `${selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} is now active for orders.`,
+      <p style={{ marginTop: '8px', fontSize: '13px', color: '#059669' }}>
+        Please reload the page to switch to this date.
+      </p>,
+      4000
+    );
+    
+    // Auto reload after 4 seconds
+    setTimeout(() => {
+      window.location.reload();
+    }, 4000);
+  } catch (error) {
+    hideLoadingAnimation();
+    showSuccessAnimation(
+      'Activation Failed',
+      error.message || 'Could not activate special order day. Please try again.',
+      null,
+      3000,
+      true
+    );
+  }
+};
+
 useEffect(() => {
   const fetchEmergencyLosses = async () => {
     if (!isAuthenticated) return;
@@ -1356,49 +1432,50 @@ const displayDeliveryFees = liveDeliveryFees;
     </button>
 
     <button 
-  onClick={() => setShowOpenSystemModal(true)} 
-  style={{ 
-    ...styles.button, 
-    flex: windowWidth <= 768 ? '1 1 calc(50% - 4px)' : '0 0 auto',
-    minWidth: windowWidth <= 768 ? '0' : '140px',
-    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
-    color: 'white', 
-    padding: windowWidth <= 480 ? '12px 16px' : windowWidth <= 768 ? '12px 20px' : '14px 24px',
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'center',
-    gap: '8px',
-    fontSize: windowWidth <= 480 ? '14px' : '15px',
-    whiteSpace: 'nowrap',
-    width: windowWidth <= 768 ? 'auto' : 'auto'
-  }}
->
-  <UserCheck size={windowWidth <= 480 ? 18 : 20} /> 
-  Open System
-</button>
-    
-    <button 
-      onClick={() => setShowConfirmPopup(true)}
+      onClick={() => setShowOpenSystemModal(true)} 
       style={{ 
         ...styles.button, 
-        flex: windowWidth <= 768 ? '1 1 100%' : '0 0 auto',
+        flex: windowWidth <= 768 ? '1 1 calc(50% - 4px)' : '0 0 auto',
         minWidth: windowWidth <= 768 ? '0' : '140px',
-        backgroundColor: '#ef4444', 
+        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
         color: 'white', 
         padding: windowWidth <= 480 ? '12px 16px' : windowWidth <= 768 ? '12px 20px' : '14px 24px',
-        display: 'flex',
-        alignItems: 'center',
+        display: 'flex', 
+        alignItems: 'center', 
         justifyContent: 'center',
         gap: '8px',
         fontSize: windowWidth <= 480 ? '14px' : '15px',
         whiteSpace: 'nowrap',
-        width: windowWidth <= 768 ? '100%' : 'auto'
+        width: windowWidth <= 768 ? 'auto' : 'auto'
       }}
     >
-      {windowWidth <= 480 ? 'Clear Sessions' : 'Clear All Sessions'}
+      <UserCheck size={windowWidth <= 480 ? 18 : 20} /> 
+      Open System
     </button>
-  </div>
-</div>
+        
+        <button 
+          onClick={() => setShowSpecialOrderModal(true)}
+          style={{ 
+            ...styles.button, 
+            flex: windowWidth <= 768 ? '1 1 100%' : '0 0 auto',
+            minWidth: windowWidth <= 768 ? '0' : '140px',
+            background: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)', 
+            color: 'white', 
+            padding: windowWidth <= 480 ? '12px 16px' : windowWidth <= 768 ? '12px 20px' : '14px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            fontSize: windowWidth <= 480 ? '14px' : '15px',
+            whiteSpace: 'nowrap',
+            width: windowWidth <= 768 ? '100%' : 'auto'
+          }}
+        >
+          <Crown size={windowWidth <= 480 ? 18 : 20} />
+          Special Order
+        </button>
+      </div>
+    </div>
 
           {/* Statistics Cards */}
           <div style={{ 
@@ -2552,6 +2629,79 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                 { label: 'Delivery Fees', value: todayOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0) }
               ]}
             />
+
+            {/* Clear Session Button - Moved to bottom */}
+              <div style={{
+                ...styles.card,
+                padding: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '20px' : '24px',
+                marginTop: '24px'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  marginBottom: '16px'
+                }}>
+                  <AlertCircle color="#ef4444" size={24} />
+                  <h3 style={{
+                    margin: 0,
+                    fontSize: windowWidth <= 480 ? '16px' : '18px',
+                    fontWeight: '700',
+                    color: '#1e293b'
+                  }}>
+                    Danger Zone
+                  </h3>
+                </div>
+                
+                <div style={{
+                  backgroundColor: '#fef2f2',
+                  border: '2px solid #fecaca',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  marginBottom: '16px'
+                }}>
+                  <p style={{
+                    margin: 0,
+                    fontSize: '13px',
+                    color: '#991b1b',
+                    lineHeight: '1.5'
+                  }}>
+                    ⚠️ <strong>Warning:</strong> Clearing all sessions will log out all users (students, drivers, and admins) from the system. This action cannot be undone.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setShowConfirmPopup(true)}
+                  style={{
+                    width: '100%',
+                    padding: windowWidth <= 480 ? '14px' : '16px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    color: 'white',
+                    fontWeight: '600',
+                    fontSize: windowWidth <= 480 ? '14px' : '15px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(239, 68, 68, 0.4)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.3)';
+                  }}
+                >
+                  <AlertCircle size={20} />
+                  Clear All Sessions
+                </button>
+              </div>
           </div>
         </>
       ) : (
@@ -4117,7 +4267,10 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
             margin: 0, 
             fontSize: '18px', 
             color: '#1e293b',
-            fontWeight: '600'
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
             {new Date(entry.date).toLocaleDateString('en-US', { 
               weekday: 'short', 
@@ -4125,6 +4278,19 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
               day: 'numeric',
               year: 'numeric'
             })}
+            {entry.isSpecialOrder && (
+              <span style={{
+                backgroundColor: '#fdf2f8',
+                color: '#ec4899',
+                fontSize: '11px',
+                fontWeight: '700',
+                padding: '2px 8px',
+                borderRadius: '6px',
+                border: '1.5px solid #ec4899'
+              }}>
+                ⭐ SPECIAL
+              </span>
+            )}
           </h4>
           <span style={{
             backgroundColor: entry.profit >= 0 ? '#d1fae5' : '#fee2e2',
@@ -5293,6 +5459,191 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
   }}
         >
           Save Entry
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+{/* Special Order Modal */}
+{showSpecialOrderModal && (
+  <div style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10000,
+    padding: '20px'
+  }}>
+    <div style={{
+      backgroundColor: 'white',
+      borderRadius: '20px',
+      padding: windowWidth <= 480 ? '20px' : '32px',
+      maxWidth: '500px',
+      width: '100%',
+      boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+      maxHeight: '90vh',
+      overflowY: 'auto'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '20px'
+      }}>
+        <Crown size={28} color="#ec4899" />
+        <h3 style={{
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '20px' : '24px',
+          color: '#1e293b',
+          fontWeight: '700'
+        }}>
+          Activate Special Order Day
+        </h3>
+      </div>
+
+      <div style={{
+        backgroundColor: '#fdf2f8',
+        border: '2px solid #ec4899',
+        borderRadius: '12px',
+        padding: windowWidth <= 480 ? '12px' : '16px',
+        marginBottom: '20px'
+      }}>
+        <p style={{
+          margin: '0 0 12px 0',
+          fontSize: windowWidth <= 480 ? '13px' : '14px',
+          color: '#831843',
+          lineHeight: '1.5',
+          fontWeight: '600'
+        }}>
+          📌 What is a Special Order Day?
+        </p>
+        <p style={{
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '13px' : '14px',
+          color: '#9f1239',
+          lineHeight: '1.5'
+        }}>
+          This allows you to open the system on non-delivery days (Monday, Wednesday, Thursday, Sunday). 
+          <br/><br/>
+          The selected date will be marked with a ⭐ badge in history records.
+          <br/><br/>
+          <strong>Note:</strong> Regular delivery days (Tuesday, Friday, Saturday) don't need special activation.
+        </p>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{
+          display: 'block',
+          fontWeight: '600',
+          color: '#1e293b',
+          marginBottom: '8px',
+          fontSize: windowWidth <= 480 ? '14px' : '15px'
+        }}>
+          Select Special Order Date:
+        </label>
+        <input
+          type="date"
+          value={specialOrderDate}
+          onChange={(e) => setSpecialOrderDate(e.target.value)}
+          min={new Date().toISOString().split('T')[0]}
+          style={{
+            width: '100%',
+            padding: windowWidth <= 480 ? '12px' : '14px',
+            borderRadius: '10px',
+            border: '2px solid #e2e8f0',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            boxSizing: 'border-box',
+            fontWeight: '500'
+          }}
+        />
+        {specialOrderDate && (
+          <p style={{
+            margin: '8px 0 0 0',
+            fontSize: '13px',
+            color: '#64748b'
+          }}>
+            Selected: {new Date(specialOrderDate + 'T00:00:00').toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric'
+            })}
+          </p>
+        )}
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        <label style={{
+          display: 'block',
+          fontWeight: '600',
+          color: '#1e293b',
+          marginBottom: '8px',
+          fontSize: windowWidth <= 480 ? '14px' : '15px'
+        }}>
+          Admin Passcode:
+        </label>
+        <input
+          type="password"
+          value={specialOrderPasscode}
+          onChange={(e) => setSpecialOrderPasscode(e.target.value)}
+          placeholder="Enter admin passcode"
+          style={{
+            width: '100%',
+            padding: windowWidth <= 480 ? '12px' : '14px',
+            borderRadius: '10px',
+            border: '2px solid #e2e8f0',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            boxSizing: 'border-box'
+          }}
+        />
+      </div>
+
+      <div style={{
+        display: 'flex',
+        gap: '12px',
+        flexDirection: windowWidth <= 480 ? 'column' : 'row'
+      }}>
+        <button
+          onClick={() => {
+            setShowSpecialOrderModal(false);
+            setSpecialOrderPasscode('');
+            setSpecialOrderDate('');
+          }}
+          style={{
+            flex: 1,
+            padding: windowWidth <= 480 ? '14px' : '16px',
+            borderRadius: '12px',
+            border: '2px solid #e2e8f0',
+            backgroundColor: 'white',
+            color: '#64748b',
+            fontWeight: '600',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            cursor: 'pointer'
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleActivateSpecialOrder}
+          style={{
+            flex: 1,
+            padding: windowWidth <= 480 ? '14px' : '16px',
+            borderRadius: '12px',
+            border: 'none',
+            background: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
+            color: 'white',
+            fontWeight: '600',
+            fontSize: windowWidth <= 480 ? '15px' : '16px',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(236, 72, 153, 0.3)'
+          }}
+        >
+          Activate Special Order
         </button>
       </div>
     </div>

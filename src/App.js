@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import logoForAnimation from './assets/logo(1).png';
 import * as firebaseService from './services/firebase';
+import { checkIfSpecialOrderDay } from './services/firebase';
 import { db } from './services/firebase'; // We need direct db access
 import { collection, query, where, onSnapshot, doc } from "firebase/firestore";
 import Navigation from './components/Navigation';
@@ -55,6 +56,7 @@ function App() {
   const [currentDate, setCurrentDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [allOrders, setAllOrders] = useState([]);
   const [driverCost, setDriverCost] = useState(30);
+  const [isSpecialOrder, setIsSpecialOrder] = useState(false);
 
   const handleDriverCostChange = async (cost) => {
   setDriverCost(cost); // Update the local state immediately for a responsive UI
@@ -234,6 +236,22 @@ const handleNavigateWithTransition = (config, navigationAction) => {
     setTransitionConfig(null);
   }, 1600);
 };
+
+// Check if current delivery date is a special order day
+useEffect(() => {
+  const checkSpecialOrder = async () => {
+    if (systemAvailability?.deliveryDate) {
+      try {
+        const isSpecial = await checkIfSpecialOrderDay(systemAvailability.deliveryDate);
+        setIsSpecialOrder(isSpecial);
+      } catch (error) {
+        console.error('Error checking special order day:', error);
+        setIsSpecialOrder(false);
+      }
+    }
+  };
+  checkSpecialOrder();
+}, [systemAvailability.deliveryDate]);
 
 useEffect(() => {
     if (!showMainApp) return;
@@ -696,7 +714,7 @@ useEffect(() => {
     setUserForEmail,
     rememberedStudent,
   setRememberedStudent,
-  systemAvailability,
+  systemAvailability: { ...systemAvailability, isSpecialOrder },
   setSelectedImages: setSelectedImages,
   handleMultipleImages: handleMultipleImages,
   setShowImageCarousel: setShowImageCarousel,
