@@ -100,8 +100,8 @@ useEffect(() => {
   const getSystemAvailability = (settings = {}) => {
     const DELIVERY_DAYS = [2, 3, 5, 6]; // Tuesday=2, Friday=5, Saturday=6
     
-    let CUTOFF_HOUR = 13; 
-    let CUTOFF_MINUTE = 30; 
+    let CUTOFF_HOUR = 14; 
+    let CUTOFF_MINUTE = 0; 
   
     if (settings.extendedCutoffTime) {
       const [hours, minutes] = settings.extendedCutoffTime.split(':').map(Number);
