@@ -12,7 +12,7 @@ const FeeBreakdown = ({
   const deliveryFee = calculateDeliveryFee(orderTotal);
 
   // ✅ FIX: The typo is removed. It now correctly uses the prop.
-  const commitmentFeeDeducted = (isEligibleForDeduction && deliveryFee > 0) ? 7 : 0;
+  const commitmentFeeDeducted = (isEligibleForDeduction && deliveryFee > 0) ? 10 : 0;
   
   const amountToPay = Math.max(0, deliveryFee - commitmentFeeDeducted);
   // --- End of corrected logic ---

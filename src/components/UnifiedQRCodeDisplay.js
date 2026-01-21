@@ -5,7 +5,7 @@ import qrImage from '../assets/Adminqr.jpg';
 const UnifiedQRCodeDisplay = ({ amount, isCommitmentFee = false, userIndex = 0, registrationOrder = [], selectedUserId = '' }) => {
     const userOrder = registrationOrder.find(order => order.userId === selectedUserId);
     const isFourthUser = userOrder ? userOrder.order === 4 : userIndex === 3;
-    const displayAmount = isCommitmentFee ? (isFourthUser ? 0 : 7) : amount;
+    const displayAmount = isCommitmentFee ? (isFourthUser ? 0 : 10) : amount;
 
     if (!isCommitmentFee && amount === 0) {
         return (
