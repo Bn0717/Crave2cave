@@ -3933,6 +3933,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                 
                 return Object.entries(monthlyData)
                   .slice(-6)
+                  .reverse()
                   .map(([month, orders]) => ({
                     label: month,
                     value: orders,
