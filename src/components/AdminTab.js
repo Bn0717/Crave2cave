@@ -1253,6 +1253,7 @@ const displayDeliveryFees = liveDeliveryFees;
   // NEW: Get average order price by merchant (all time)
   const getAverageOrderPriceByMerchant = () => {
     const merchantStats = {}; // { merchantName: { totalRevenue: 0, orderCount: 0 } }
+    const allData = [...todayOrders, ...historyData.flatMap(h => h.orders || [])];
 
     // Process today's orders
     todayOrders.forEach(order => {
@@ -1287,7 +1288,8 @@ const displayDeliveryFees = liveDeliveryFees;
       .filter(([, stats]) => stats.orderCount > 0) // Only include merchants with at least one order
       .map(([merchantName, stats]) => ({
         label: merchantName,
-        value: (stats.totalRevenue / stats.orderCount).toFixed(2), // Average order price
+        value: parseFloat((stats.totalRevenue / stats.orderCount).toFixed(2)), // Average order price
+        count: stats.orderCount,
         color: '#84cc16' // A nice green color for this chart
       }))
       .sort((a, b) => b.value - a.value); // Sort by average price descending
@@ -3957,6 +3959,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                 
                 return Object.entries(monthlyData)
                   .slice(-6)
+                  .reverse()
                   .map(([month, profit]) => ({
                     label: month,
                     value: profit,
@@ -3967,7 +3970,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
           </div>
           <div style={{ marginBottom: '32px' }}>
             <RechartsCharts
-              type="bar" // Use a bar chart for this
+              type="composed" // Use a composed chart for this
               title="Average Order Price by Merchant (All Time)"
               data={getAverageOrderPriceByMerchant()}
             />
