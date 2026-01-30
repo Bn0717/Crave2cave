@@ -1269,9 +1269,8 @@ const displayDeliveryFees = liveDeliveryFees;
   intervals.sort((a, b) => a - b);
 
   // 3. Calculate Median
-  const lowMiddle = Math.floor((intervals.length - 1) / 2);
-  const highMiddle = Math.ceil((intervals.length - 1) / 2);
-  const median = (intervals[lowMiddle] + intervals[highMiddle]) / 2;
+  const mid = Math.floor(intervals.length / 2);
+  return intervals.length % 2 !== 0 ? intervals[mid] : (intervals[mid - 1] + intervals[mid]) / 2;
 
   return median;
 };
@@ -2953,28 +2952,58 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
             gap: '24px',
             marginBottom: '32px'
           }}>
-            <div style={styles.card}>
-              <div style={styles.cardHeader}>
-                {/* Ensure 'Store' is imported from your icon library (e.g., lucide-react) */}
-                <Store color="#8b5cf6" size={28} />
-                <h3 style={{ ...styles.cardTitle, fontSize: '20px' }}>Most Ordered Merchant</h3>
-              </div>
-              <div style={{
-                backgroundColor: '#f5f3ff',
-                padding: '24px',
-                borderRadius: '16px',
-                textAlign: 'center'
-              }}>
-                {/* Ensure 'mostOrderedMerchant' variable is defined in your component */}
-                <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#8b5cf6', margin: 0 }}>
-                  {mostOrderedMerchant.name}
-                </p>
-                <p style={{ fontSize: '18px', color: '#64748b', marginTop: '8px' }}>
-                  {mostOrderedMerchant.orders} orders
-                </p>
-              </div>
-            </div>
-          </div>
+            {/* Card 1: Most Ordered Merchant (Your existing code) */}
+  <div style={styles.card}>
+    <div style={styles.cardHeader}>
+      <Store color="#8b5cf6" size={28} />
+      <h3 style={{ ...styles.cardTitle, fontSize: '20px' }}>Most Ordered Merchant</h3>
+    </div>
+    <div style={{
+      backgroundColor: '#f5f3ff',
+      padding: '24px',
+      borderRadius: '16px',
+      textAlign: 'center',
+      minHeight: '130px', // Match heights
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center'
+    }}>
+      <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#8b5cf6', margin: 0, textTransform: 'capitalize' }}>
+        {mostOrderedMerchant.name}
+      </p>
+      <p style={{ fontSize: '18px', color: '#64748b', marginTop: '8px' }}>
+        {mostOrderedMerchant.orders} orders
+      </p>
+    </div>
+  </div>
+
+  {/* Card 2: Median Upload Delay (The new addition) */}
+  <div style={styles.card}>
+    <div style={styles.cardHeader}>
+      <Clock color="#10b981" size={28} />
+      <h3 style={{ ...styles.cardTitle, fontSize: '20px' }}>Median Upload Delay</h3>
+    </div>
+    <div style={{
+      backgroundColor: '#f0fdf4',
+      padding: '24px',
+      borderRadius: '16px',
+      textAlign: 'center',
+      minHeight: '130px', // Match heights
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center'
+    }}>
+      <p style={{ fontSize: '48px', fontWeight: 'bold', color: '#10b981', margin: 0 }}>
+        {medianInterval < 1 
+          ? `${(medianInterval * 60).toFixed(0)}s` 
+          : `${medianInterval.toFixed(1)}m`}
+      </p>
+      <p style={{ fontSize: '16px', color: '#64748b', marginTop: '4px', fontWeight: '500' }}>
+        From Pre-book to Payment
+      </p>
+    </div>
+  </div>
+</div>
           
 {/* Median preorder vs receiptupload Stat */}
 <div style={{
