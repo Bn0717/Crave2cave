@@ -1249,7 +1249,34 @@ const displayDeliveryFees = liveDeliveryFees;
         color: '#8b5cf6'
       }));
   };
+  // NEW: Get time interval between preorder and receipt upload (median) 30/1/26
+  const getMedianReceiptInterval = () => {
+  if (!prebookUsers || prebookUsers.length === 0) return 0;
 
+
+  const intervals = prebookUsers
+    .filter(u => u.receiptUploadTime && u.receiptUploadTime !== 0)
+    .map(u => {
+      const prebookTime = new Date(u.timestamp).getTime();
+      const uploadTime = new Date(u.receiptUploadTime).getTime();
+      // Calculate absolute difference in minutes
+      return Math.abs(uploadTime - prebookTime) / (1000 * 60);
+    });
+
+  if (intervals.length === 0) return 0;
+
+  // 2. Sort intervals numerically
+  intervals.sort((a, b) => a - b);
+
+  // 3. Calculate Median
+  const lowMiddle = Math.floor((intervals.length - 1) / 2);
+  const highMiddle = Math.ceil((intervals.length - 1) / 2);
+  const median = (intervals[lowMiddle] + intervals[highMiddle]) / 2;
+
+  return median;
+};
+
+const medianInterval = getMedianReceiptInterval();
   // NEW: Get average order price by merchant (all time)
   const getAverageOrderPriceByMerchant = () => {
     const merchantStats = {}; // { merchantName: { totalRevenue: 0, orderCount: 0 } }
@@ -2948,6 +2975,36 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
               </div>
             </div>
           </div>
+          
+{/* Median preorder vs receiptupload Stat */}
+<div style={{
+  ...styles.statCard,
+  ...(windowWidth <= 768 ? {
+    padding: windowWidth <= 480 ? '12px' : '16px',
+    gap: windowWidth <= 480 ? '10px' : '12px',
+  } : {})
+}}>
+  <div style={{ 
+    ...styles.statIcon, 
+    background: 'linear-gradient(135deg, #f5f3ff 0%, #ddd6fe 100%)' 
+  }}>
+    <Clock size={windowWidth <= 480 ? 20 : 32} color="#8b5cf6" />
+  </div>
+  <div style={styles.statContent}>
+    <p style={{
+      ...styles.statLabel,
+      ...(windowWidth <= 480 ? { fontSize: '11px' } : {})
+    }}>Median Upload Delay</p>
+    <p style={{
+      ...styles.statValue,
+      ...(windowWidth <= 480 ? { fontSize: '18px' } : {})
+    }}>
+      {medianInterval < 1 
+        ? `${(medianInterval * 60).toFixed(0)}seconds` 
+        : `${medianInterval.toFixed(1)}minutes`}
+    </p>
+  </div>
+</div>
 
 {/* Money Distribution Section */}
 <div style={styles.card}>
