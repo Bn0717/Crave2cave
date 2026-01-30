@@ -1270,9 +1270,9 @@ const displayDeliveryFees = liveDeliveryFees;
 
   // 3. Calculate Median
   const mid = Math.floor(intervals.length / 2);
-  return intervals.length % 2 !== 0 ? intervals[mid] : (intervals[mid - 1] + intervals[mid]) / 2;
+  const calculatedMedian = intervals.length % 2 !== 0 ? intervals[mid] : (intervals[mid - 1] + intervals[mid]) / 2;
 
-  return median;
+  return calculatedMedian;
 };
 
 const medianInterval = getMedianReceiptInterval();
@@ -3005,35 +3005,6 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
   </div>
 </div>
           
-{/* Median preorder vs receiptupload Stat */}
-<div style={{
-  ...styles.statCard,
-  ...(windowWidth <= 768 ? {
-    padding: windowWidth <= 480 ? '12px' : '16px',
-    gap: windowWidth <= 480 ? '10px' : '12px',
-  } : {})
-}}>
-  <div style={{ 
-    ...styles.statIcon, 
-    background: 'linear-gradient(135deg, #f5f3ff 0%, #ddd6fe 100%)' 
-  }}>
-    <Clock size={windowWidth <= 480 ? 20 : 32} color="#8b5cf6" />
-  </div>
-  <div style={styles.statContent}>
-    <p style={{
-      ...styles.statLabel,
-      ...(windowWidth <= 480 ? { fontSize: '11px' } : {})
-    }}>Median Upload Delay</p>
-    <p style={{
-      ...styles.statValue,
-      ...(windowWidth <= 480 ? { fontSize: '18px' } : {})
-    }}>
-      {medianInterval < 1 
-        ? `${(medianInterval * 60).toFixed(0)}seconds` 
-        : `${medianInterval.toFixed(1)}minutes`}
-    </p>
-  </div>
-</div>
 
 {/* Money Distribution Section */}
 <div style={styles.card}>
