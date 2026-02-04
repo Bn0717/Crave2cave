@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ChevronRight, Truck, UserCog, Shield } from 'lucide-react';
+// 1. IMPORTED NEW ICONS
+import { ChevronRight, Truck, UserCog, Shield, HelpCircle, MessageSquare } from 'lucide-react';
 import logo from '../assets/logo(1).png';
 
 const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
@@ -8,8 +9,11 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
 
   const vendors = [
     { id: 'dominos', name: "Domino's Pizza", logo: '🍕', color: '#0078d4' },
-    { id: 'mcdonalds', name: "McDonald's", logo: '🍟', color: '#ffcc02' },
-    { id: 'mixue', name: 'MIXUE', logo: '🧋', color: '#ff69b4' }
+    { id: 'ayam_gepuk', name: "Ayam Gepuk Pak Gembus", logo: '🍗', color: '#ffcc02' },
+    { id: 'mixue', name: 'MIXUE', logo: '🧋', color: '#ff69b4' },
+    { id: 'family_mart', name: 'Family Mart', logo: '🏪', color: '#009a44' },
+    { id: 'bakers_cottage', name: 'Baker\'s Cottage', logo: '🥐', color: '#D97706' },
+    { id: 'zus_coffee', name: 'Zus Coffee', logo: '☕', color: '#0057A0' }
   ];
 
   const foodItems = [
@@ -71,16 +75,23 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
       marginBottom: '40px', textShadow: '0 2px 10px rgba(0,0,0,0.3)',
     },
     vendorContainer: {
-      display: 'grid', gridTemplateColumns: windowWidth <= 768 ? '1fr' : 'repeat(3, 1fr)',
-      gap: '16px', maxWidth: '1000px',
-      width: '100%', marginBottom: '40px', zIndex: 2, position: 'relative',
+      display: 'flex', // CHANGED FROM 'grid'
+      flexWrap: 'wrap', // ADDED: to allow items to go to the next line
+      justifyContent: 'center', // ADDED: this is the magic that centers each line
+      gap: '16px',
+      maxWidth: '1000px',
+      width: '100%',
+      marginBottom: '40px',
+      zIndex: 2,
+      position: 'relative',
     },
     vendorCard: {
       background: 'rgba(255, 255, 255, 0.95)', borderRadius: '24px',
       padding: windowWidth <= 768 ? '20px' : '32px', textAlign: 'center',
       cursor: 'pointer', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-      border: '2px solid transparent', position: 'relative', overflow: 'hidden',
+      border: '5px solid transparent', position: 'relative', overflow: 'hidden',
       backdropFilter: 'blur(20px)', boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+      width: windowWidth <= 768 ? '100%' : '300px',
     },
     vendorCardSelected: {
       transform: 'scale(1.05)', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
@@ -215,6 +226,30 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
             <UserCog size={20} />
             <span>Admin Portal</span>
           </button>
+
+          {/* 2. ADDED THE NEW MENU ITEMS HERE */}
+          <button
+            className="staff-menu-item"
+            style={styles.staffMenuItem}
+            onClick={() => {
+              onNavigateToPortal('guide');
+              setIsStaffMenuOpen(false);
+            }}
+          >
+            <HelpCircle size={20} />
+            <span>User Guide</span>
+          </button>
+          <button
+            className="staff-menu-item"
+            style={styles.staffMenuItem}
+            onClick={() => {
+              onNavigateToPortal('feedback');
+              setIsStaffMenuOpen(false);
+            }}
+          >
+            <MessageSquare size={20} />
+            <span>Feedback</span>
+          </button>
         </div>
       </div>
 
@@ -253,17 +288,36 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
       </div>
 
       <div style={styles.vendorContainer}>
-        {vendors.map((vendor) => (
-          <div
-            key={vendor.id}
-            style={{ ...styles.vendorCard, ...(selectedVendor === vendor.id ? styles.vendorCardSelected : {}), borderColor: selectedVendor === vendor.id ? vendor.color : 'transparent' }}
-            onClick={() => setSelectedVendor(vendor.id)}
-          >
-            {selectedVendor === vendor.id && <div style={styles.shimmer} />}
-            <div style={styles.vendorLogo}>{vendor.logo}</div>
-            <h3 style={styles.vendorName}>{vendor.name}</h3>
-          </div>
-        ))}
+        {vendors.map((vendor) => {
+          const isSelected = selectedVendor === vendor.id;
+          const hasSelection = selectedVendor !== '';
+
+          // Define dynamic styles here for clarity
+          const dynamicStyles = {
+            borderColor: isSelected ? vendor.color : 'transparent',
+            opacity: hasSelection && !isSelected ? 0.6 : 1, // Fade if another card is selected
+            ... (isSelected && {
+              // Apply a colored glow ONLY when selected
+              boxShadow: `0 0 30px -5px ${vendor.color}, 0 10px 30px -10px rgba(0,0,0,0.3)`
+            })
+          };
+
+          return (
+            <div
+              key={vendor.id}
+              style={{
+                ...styles.vendorCard,
+                ...(isSelected ? styles.vendorCardSelected : {}),
+                ...dynamicStyles
+              }}
+              onClick={() => setSelectedVendor(vendor.id)}
+            >
+              {isSelected && <div style={styles.shimmer} />}
+              <div style={styles.vendorLogo}>{vendor.logo}</div>
+              <h3 style={styles.vendorName}>{vendor.name}</h3>
+            </div>
+          );
+        })}
       </div>
 
       <button

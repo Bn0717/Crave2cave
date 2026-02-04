@@ -1,34 +1,55 @@
 import React from 'react';
+// IMPORT your specific delivery fee logic from the correct file.
 import { calculateDeliveryFee } from '../utils/calculateDeliveryFee';
 
-const FeeBreakdown = ({ orderTotal, userIndex, isCommitmentFeePaid, registrationOrder, selectedUserId }) => {
-    const userOrder = registrationOrder.find(order => order.userId === selectedUserId);
-    const isFourthOrLaterUser = userOrder ? userOrder.order >= 4 : userIndex >= 3;
+const FeeBreakdown = ({
+  orderTotal,
+  isEligibleForDeduction // It accepts the simple true/false value from StudentTab
+}) => {
+  
+  // --- This is the corrected logic ---
+  // It now uses YOUR imported function.
+  const deliveryFee = calculateDeliveryFee(orderTotal);
 
-    const deliveryFee = calculateDeliveryFee(orderTotal);
-    const commitmentFeeDeducted = (!isFourthOrLaterUser && userIndex < 3 && isCommitmentFeePaid && deliveryFee > 0) ? 10 : 0;
-    const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
+  // ✅ FIX: The typo is removed. It now correctly uses the prop.
+  const commitmentFeeDeducted = (isEligibleForDeduction && deliveryFee > 0) ? 10 : 0;
+  
+  const amountToPay = Math.max(0, deliveryFee - commitmentFeeDeducted);
+  // --- End of corrected logic ---
 
-    return (
-        <div style={{
-            backgroundColor: '#fef3c7',
-            padding: '24px',
-            borderRadius: '16px',
-            border: '2px solid #fbbf24',
-            marginBottom: '20px'
-        }}>
-            <h4 style={{ margin: '0 0 16px 0', color: '#92400e', fontSize: '18px' }}>Fee Breakdown</h4>
-            <p style={{ margin: '6px 0' }}>Order Total: RM{orderTotal.toFixed(2)}</p>
-            <p style={{ margin: '6px 0' }}>Delivery Fee: RM{deliveryFee.toFixed(2)}</p>
-            {commitmentFeeDeducted > 0 && (
-                <p style={{ margin: '6px 0', color: '#059669' }}>Commitment Fee Deduction: -RM{commitmentFeeDeducted.toFixed(2)}</p>
-            )}
-            <hr style={{ margin: '12px 0', borderColor: '#fbbf24' }} />
-            <p style={{ margin: '6px 0', fontSize: '18px' }}>
-                <strong>Amount to Pay: RM{actualDeliveryFee.toFixed(2)}</strong>
-            </p>
+  return (
+    <div style={{
+        backgroundColor: '#fffbeb',
+        padding: '24px',
+        borderRadius: '16px',
+        border: '2px solid #fbbf24',
+        marginBottom: '20px'
+    }}>
+        <h4 style={{ margin: '0 0 16px 0', color: '#92400e', fontSize: '18px' }}>Fee Breakdown</h4>
+        <div style={{ display: 'flex', justifyContent: 'space-between', margin: '6px 0' }}>
+            <span>Order Total:</span>
+            <span>RM{orderTotal.toFixed(2)}</span>
         </div>
-    );
+        <div style={{ display: 'flex', justifyContent: 'space-between', margin: '6px 0' }}>
+            <span>Delivery Fee:</span>
+            <span>RM{deliveryFee.toFixed(2)}</span>
+        </div>
+
+        {commitmentFeeDeducted > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', margin: '6px 0', color: '#059669', fontWeight: 'bold' }}>
+                <span>Base Fee Deduction:</span>
+                <span>- RM{commitmentFeeDeducted.toFixed(2)}</span>
+            </div>
+        )}
+
+        <hr style={{ margin: '16px 0 12px 0', border: 0, borderTop: '2px dashed #fbbf24' }} />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', margin: '6px 0', fontSize: '18px', fontWeight: 'bold' }}>
+            <span>Amount to Pay:</span>
+            <span>RM{amountToPay.toFixed(2)}</span>
+        </div>
+    </div>
+  );
 };
 
 export default FeeBreakdown;

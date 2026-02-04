@@ -3,9 +3,9 @@ import { Search } from 'lucide-react';
 
 const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle, windowWidth }) => {
     const [retrieveName, setRetrieveName] = useState('');
-    const [retrieveId, setRetrieveId] = useState('');
+    const [retrieveContact, setRetrieveContact] = useState('');
+const [retrieveContactError, setRetrieveContactError] = useState('');
     const [retrieveNameError, setRetrieveNameError] = useState('');
-    const [retrieveIdError, setRetrieveIdError] = useState('');
 
     const isSmallScreen = windowWidth <= 480;
     const isMediumScreen = windowWidth <= 768;
@@ -23,36 +23,33 @@ const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle, windowWidth }) 
         return true;
     };
 
-    const validateRetrieveId = (id) => {
-        if (!id.trim()) {
-            setRetrieveIdError('Student ID is required');
-            return false;
-        }
-        if (id.length < 4) {
-            setRetrieveIdError('Student ID must be at least 4 characters');
-            return false;
-        }
-        if (!/\d{4}\/\d{2}$/.test(id)) {
-            setRetrieveIdError('Student ID format should be like 0469/24');
-            return false;
-        }
-        setRetrieveIdError('');
-        return true;
-    };
+    const validateRetrieveContact = (number) => {
+    if (!number.trim()) {
+        setRetrieveContactError('Contact number is required');
+        return false;
+    }
+    const digits = number.replace(/\D/g, '');
+    if (digits.length < 10 || digits.length > 11) {
+        setRetrieveContactError('Contact number must be 10-11 digits');
+        return false;
+    }
+    setRetrieveContactError('');
+    return true;
+};
 
     const handleRetrieve = () => {
-        const isNameValid = validateRetrieveName(retrieveName);
-        const isIdValid = validateRetrieveId(retrieveId);
-        if (isNameValid && isIdValid) {
-            onRetrieve(retrieveName.trim(), retrieveId.trim());
-        }
-    };
+    const isNameValid = validateRetrieveName(retrieveName);
+    const isContactValid = validateRetrieveContact(retrieveContact);
+    if (isNameValid && isContactValid) {
+        onRetrieve(retrieveName.trim(), retrieveContact.trim());
+    }
+};
 
     const handleReset = () => {
         setRetrieveName('');
-        setRetrieveId('');
+        setRetrieveContact('');
         setRetrieveNameError('');
-        setRetrieveIdError('');
+        setRetrieveContactError('');
     };
 
     const styles = {
@@ -148,7 +145,7 @@ const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle, windowWidth }) 
                     fontSize: isSmallScreen ? '13px' : '14px',
                     marginBottom: '20px'
                 }}>
-                    Enter your name and student ID to continue where you left off.
+                    Enter your name and contact number to continue where you left off.
                 </p>
                 <input
                     type="text"
@@ -162,16 +159,16 @@ const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle, windowWidth }) 
                 />
                 {retrieveNameError && <p style={styles.errorText}>{retrieveNameError}</p>}
                 <input
-                    type="text"
-                    placeholder="Enter your student ID (0469/24)"
-                    value={retrieveId}
-                    onChange={(e) => {
-                        setRetrieveId(e.target.value);
-                        validateRetrieveId(e.target.value);
-                    }}
-                    style={{ ...styles.input, ...(retrieveIdError && styles.inputError) }}
-                />
-                {retrieveIdError && <p style={styles.errorText}>{retrieveIdError}</p>}
+    type="tel"
+    placeholder="Enter your contact number (0123456789)"
+    value={retrieveContact}
+    onChange={(e) => {
+        setRetrieveContact(e.target.value);
+        validateRetrieveContact(e.target.value);
+    }}
+    style={{ ...styles.input, ...(retrieveContactError && styles.inputError) }}
+/>
+{retrieveContactError && <p style={styles.errorText}>{retrieveContactError}</p>}
                 <div style={styles.buttonGroup}>
                     <button onClick={handleRetrieve} style={{ ...styles.button, ...styles.primaryButton }}>
                         Retrieve Registration
