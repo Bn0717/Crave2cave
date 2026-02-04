@@ -953,6 +953,43 @@ useEffect(() => {
   fetchMoneyDistributions();
 }, [isAuthenticated]);
 
+const getMedianPaymentInterval = () => {
+  // 1. Extract the magnitude of intervals (in minutes) for users who paid
+  const intervals = prebookUsers
+    .filter(u => u.commitmentPaid && u.receiptUploadTime && u.timestamp)
+    .map(u => {
+      const registrationTime = new Date(u.timestamp);
+      const paymentTime = new Date(u.receiptUploadTime);
+      // Magnitude (absolute difference) in minutes
+      return Math.abs(paymentTime - registrationTime) / (1000 * 60);
+    })
+    .sort((a, b) => a - b); // Sort ascending to find the median
+
+  if (intervals.length === 0) return "N/A";
+
+  // 2. Find the Median
+  const half = Math.floor(intervals.length / 2);
+  let medianMinutes;
+
+  if (intervals.length % 2 !== 0) {
+    // Odd number of items: take the middle one
+    medianMinutes = intervals[half];
+  } else {
+    // Even number of items: average the two middle ones
+    medianMinutes = (intervals[half - 1] + intervals[half]) / 2;
+  }
+
+  // 3. Format for display
+  if (medianMinutes < 1) {
+    return `${Math.round(medianMinutes * 60)} secs`;
+  } else if (medianMinutes < 60) {
+    return `${Math.round(medianMinutes)} mins`;
+  } else {
+    const hours = Math.floor(medianMinutes / 60);
+    const mins = Math.round(medianMinutes % 60);
+    return `${hours}h ${mins}m`;
+  }
+};
 const todayHistoryEntry = localHistoryData.find(entry => entry.date === systemAvailability.deliveryDate);
 
 const liveRegisteredUsers = todayUsers.length;
@@ -3971,7 +4008,37 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
               data={getAverageOrderPriceByMerchant()}
             />
           </div>
-
+<div style={{
+  ...styles.statCard,
+  border: '1px solid #ddd6fe', // Light purple border
+  ...(windowWidth <= 768 ? {
+    padding: windowWidth <= 480 ? '12px' : '16px',
+    gap: windowWidth <= 480 ? '10px' : '12px',
+  } : {})
+}}>
+  <div style={{ 
+    ...styles.statIcon, 
+    background: 'linear-gradient(135deg, #f5f3ff 0%, #ddd6fe 100%)',
+    ...(windowWidth <= 768 ? {
+      width: windowWidth <= 480 ? '40px' : '48px',
+      height: windowWidth <= 480 ? '40px' : '48px',
+    } : {})
+  }}>
+    <Clock size={windowWidth <= 480 ? 20 : windowWidth <= 768 ? 24 : 32} color="#8b5cf6" />
+  </div>
+  <div style={styles.statContent}>
+    <p style={{
+      ...styles.statLabel,
+      ...(windowWidth <= 480 ? { fontSize: '11px' } : {})
+    }}>Median Payment Time</p>
+    <p style={{
+      ...styles.statValue,
+      ...(windowWidth <= 480 ? { fontSize: '18px' } : {})
+    }}>
+      {getMedianPaymentInterval()}
+    </p>
+  </div>
+</div>
           {/* Emergency Loss */}
 <div style={styles.card}>
   <div style={styles.cardHeader}>
