@@ -10,8 +10,8 @@ const firebaseConfig = {
   projectId: "crave-2-cave",
   storageBucket: "crave-2-cave.firebasestorage.app",
   messagingSenderId: "291986862315",
-  appId: "1:291986862315:web:5d4c3ee036c175ffa10eae",
-  measurementId: "G-JGR0HQV7SQ"
+  appId: "",
+  measurementId: 
 };
 
 // Initialize Firebase

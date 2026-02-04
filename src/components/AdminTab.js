@@ -2999,7 +2999,6 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
           : `${medianInterval.toFixed(1)}m`}
       </p>
       <p style={{ fontSize: '16px', color: '#64748b', marginTop: '4px', fontWeight: '500' }}>
-        From Pre-book to Payment
       </p>
     </div>
   </div>
