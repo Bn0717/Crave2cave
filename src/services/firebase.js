@@ -5,13 +5,13 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAutoUXgR5v9QSjEsDPkaEBxNzhrVd5r1c",
-  authDomain: "crave-2-cave.firebaseapp.com",
-  projectId: "crave-2-cave",
-  storageBucket: "crave-2-cave.firebasestorage.app",
-  messagingSenderId: "291986862315",
-  appId: "",
-  measurementId: 
+  apiKey: process.env.FIREBASE_apiKey,
+  authDomain: process.env.FIREBASE_authDomain,
+  projectId: process.env.FIREBASE_projectId,
+  storageBucket: process.env.FIREBASE_storageBucket,
+  messagingSenderId: process.env.FIREBASE_messagingSenderId,
+  appId: process.env.FIREBASE_appId,
+  measurementId: process.env.FIREBASE_measurementId
 };
 
 // Initialize Firebase
