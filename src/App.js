@@ -98,9 +98,9 @@ useEffect(() => {
   };
 
   const getSystemAvailability = (settings = {}) => {
-    const DELIVERY_DAYS = [2, 5, 6]; // Tuesday=2, Friday=5, Saturday=6
+    const DELIVERY_DAYS = [2, 4, 5, 6]; // Tuesday=2, Friday=5, Saturday=6
     
-    let CUTOFF_HOUR = 15; 
+    let CUTOFF_HOUR = 17; 
     let CUTOFF_MINUTE = 0; 
   
     if (settings.extendedCutoffTime) {
@@ -211,7 +211,7 @@ const handleTabNavigation = (tabName) => {
 
 // REPLACE your handleNavigationHome function with this:
 const handleNavigationHome = useCallback(() => {
-  const homeConfig = { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' };
+  const homeConfig = { background: 'linear-gradient(135deg, #667eea 1%, #764ba2 100%)' };
   
   scrollToTop();
   
