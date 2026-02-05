@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Sector,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart
 } from 'recharts';
 
 const RechartsCharts = ({ data, type = 'bar', title, height = 300 }) => {
@@ -78,7 +78,35 @@ const RechartsCharts = ({ data, type = 'bar', title, height = 300 }) => {
         }
     };
 
-    
+    if (type === 'composed') {
+        const composedData = data.map(item => ({
+            name: item.label,
+            avgPrice: item.value, // Bar value
+            orderCount: item.count // Line value
+        }));
+
+        return (
+            <div ref={containerRef} style={styles.container}>
+                <h3 style={styles.title}>{title}</h3>
+                <div style={styles.chartWrapper}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={composedData} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                            {/* Left Y-Axis for Price */}
+                            <YAxis yAxisId="left" orientation="left" stroke="#84cc16" tick={{ fontSize: 11 }} />
+                            {/* Right Y-Axis for Order Count */}
+                            <YAxis yAxisId="right" orientation="right" stroke="#3b82f6" tick={{ fontSize: 11 }} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Legend />
+                            <Bar yAxisId="left" dataKey="avgPrice" name="Avg Price ($)" fill="#84cc16" radius={[4, 4, 0, 0]} barSize={40} />
+                            <Line yAxisId="right" type="monotone" dataKey="orderCount" name="Orders Count" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+        );
+    }
 
     const renderActiveShape = (props) => {
         const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent, value } = props;
