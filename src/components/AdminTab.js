@@ -101,6 +101,7 @@ const [distributionFormData, setDistributionFormData] = useState({
   },
   date: new Date().toLocaleDateString('en-CA')
 });
+const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_C2C_PASSWORD || process.env.REACT_APP_C2C_PASSWORD;
 const [distributionPasscode, setDistributionPasscode] = useState('');
 const [showAddHistoryModal, setShowAddHistoryModal] = useState(false);
 const [showSpecialOrderModal, setShowSpecialOrderModal] = useState(false);
@@ -140,7 +141,7 @@ const [addHistoryForm, setAddHistoryForm] = useState({
   };
 
   const handleOpenSystem = async () => {
-  if (openSystemPasscode !== process.env.REACT_APP_C2C_PASSWORD) {
+  if (openSystemPasscode !== ADMIN_PASSWORD) {
     showSuccessAnimation(
       'Invalid Passcode',
       'Please enter the correct admin passcode.',
@@ -221,7 +222,7 @@ const [addHistoryForm, setAddHistoryForm] = useState({
     return;
   }
 
-  if (adminPasscodeInput !== process.env.REACT_APP_C2C_PASSWORD) {
+  if (adminPasscodeInput !== ADMIN_PASSWORD) {
     showSuccessAnimation(
       'Invalid Passcode',
       'Please enter the correct admin passcode.',
@@ -355,7 +356,7 @@ const handleEditLoss = (loss) => {
 
 const handleDeleteLoss = async (lossId) => {
   const passcode = prompt('Enter admin passcode to delete this loss:');
-  if (passcode !== process.env.REACT_APP_C2C_PASSWORD) {
+  if (passcode !== ADMIN_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -378,7 +379,7 @@ const handleDeleteLoss = async (lossId) => {
 };
 
 const handleSaveLoss = async () => {
-  if (lossPasscode !== process.env.REACT_APP_C2C_PASSWORD) {
+  if (lossPasscode !== ADMIN_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -509,7 +510,7 @@ const handleEditDistribution = (distribution) => {
 
 const handleDeleteDistribution = async (distributionId) => {
   const passcode = prompt('Enter admin passcode to delete this distribution:');
-  if (passcode !== process.env.REACT_APP_C2C_PASSWORD) {
+  if (passcode !== ADMIN_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -542,7 +543,7 @@ const handleTotalAmountChange = (value) => {
 
 
 const handleSaveDistribution = async () => {
-  if (distributionPasscode !== process.env.REACT_APP_C2C_PASSWORD) {
+  if (distributionPasscode !== ADMIN_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -654,7 +655,7 @@ const handleChangeAdminName = () => {
 };
 
 const handleSaveAdminName = async () => {
-  if (adminNamePasscode !== process.env.REACT_APP_C2C_PASSWORD) {
+  if (adminNamePasscode !== ADMIN_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -702,7 +703,7 @@ const handleSaveAdminName = async () => {
 
 const handleDeleteOrder = async (orderId) => {
   const passcode = prompt('Enter admin passcode to delete this order:');
-  if (passcode !== process.env.REACT_APP_C2C_PASSWORD) {
+  if (passcode !== ADMIN_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -727,7 +728,7 @@ const handleDeleteOrder = async (orderId) => {
 
 const handleDeleteUser = async (userId) => {
   const passcode = prompt('Enter admin passcode to delete this user:');
-  if (passcode !== process.env.REACT_APP_C2C_PASSWORD) {
+  if (passcode !== ADMIN_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -763,7 +764,7 @@ const handleDeleteUser = async (userId) => {
 }, [historyData, driverCost]); // Add driverCost here
 
 const handleAddHistorySubmit = async () => {
-  if (adminPasscodeInput !== process.env.REACT_APP_C2C_PASSWORD) { // Re-using your existing passcode state variable
+  if (adminPasscodeInput !== ADMIN_PASSWORD) { // Re-using your existing passcode state variable
     showSuccessAnimation('Invalid Passcode', 'Please enter admin passcode in the modal.', null, 2000, true);
     return;
   }
@@ -820,7 +821,7 @@ const handleIndividualAmountChange = (key, newAmount) => {
 };
 
 const handleActivateSpecialOrder = async () => {
-  if (specialOrderPasscode !== process.env.REACT_APP_C2C_PASSWORD) {
+  if (specialOrderPasscode !== ADMIN_PASSWORD) {
     showSuccessAnimation(
       'Invalid Passcode',
       'Please enter the correct admin passcode.',
@@ -1146,7 +1147,7 @@ const displayDeliveryFees = liveDeliveryFees;
 
   const handleDeleteHistoryEntry = async (entryId, entryDate) => {
   const passcode = prompt('Enter admin passcode to delete this history entry:');
-  if (passcode !== process.env.REACT_APP_C2C_PASSWORD) {
+  if (passcode !== ADMIN_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -4913,7 +4914,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
       onClose={() => setIsEditModalOpen(false)}
       entry={editingEntry}
       onSave={handleSaveChanges}
-      adminPasscode={process.env.REACT_APP_C2C_PASSWORD} // Your admin passcode
+      adminPasscode={ADMIN_PASSWORD} // Your admin passcode
     />
 
     {/* Emergency Loss Modal */}
