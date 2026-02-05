@@ -5,15 +5,18 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAutoUXgR5v9QSjEsDPkaEBxNzhrVd5r1c",
-  authDomain: "crave-2-cave.firebaseapp.com",
-  projectId: "crave-2-cave",
-  storageBucket: "crave-2-cave.firebasestorage.app",
-  messagingSenderId: "291986862315",
-  appId: "1:291986862315:web:5d4c3ee036c175ffa10eae",
-  measurementId: "G-JGR0HQV7SQ"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
 };
 
+console.log("Check API Key:", process.env.REACT_APP_FIREBASE_API_KEY);
+
+console.log("Full Config:", firebaseConfig);
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app); // Export db for direct use

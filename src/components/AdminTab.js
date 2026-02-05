@@ -140,7 +140,7 @@ const [addHistoryForm, setAddHistoryForm] = useState({
   };
 
   const handleOpenSystem = async () => {
-  if (openSystemPasscode !== 'byycky') {
+  if (openSystemPasscode !== process.env.REACT_APP_C2C_PASSWORD) {
     showSuccessAnimation(
       'Invalid Passcode',
       'Please enter the correct admin passcode.',
@@ -221,7 +221,7 @@ const [addHistoryForm, setAddHistoryForm] = useState({
     return;
   }
 
-  if (adminPasscodeInput !== 'byycky') {
+  if (adminPasscodeInput !== process.env.REACT_APP_C2C_PASSWORD) {
     showSuccessAnimation(
       'Invalid Passcode',
       'Please enter the correct admin passcode.',
@@ -355,7 +355,7 @@ const handleEditLoss = (loss) => {
 
 const handleDeleteLoss = async (lossId) => {
   const passcode = prompt('Enter admin passcode to delete this loss:');
-  if (passcode !== 'byycky') {
+  if (passcode !== process.env.REACT_APP_C2C_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -378,7 +378,7 @@ const handleDeleteLoss = async (lossId) => {
 };
 
 const handleSaveLoss = async () => {
-  if (lossPasscode !== 'byycky') {
+  if (lossPasscode !== process.env.REACT_APP_C2C_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -509,7 +509,7 @@ const handleEditDistribution = (distribution) => {
 
 const handleDeleteDistribution = async (distributionId) => {
   const passcode = prompt('Enter admin passcode to delete this distribution:');
-  if (passcode !== 'byycky') {
+  if (passcode !== process.env.REACT_APP_C2C_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -542,7 +542,7 @@ const handleTotalAmountChange = (value) => {
 
 
 const handleSaveDistribution = async () => {
-  if (distributionPasscode !== 'byycky') {
+  if (distributionPasscode !== process.env.REACT_APP_C2C_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -654,7 +654,7 @@ const handleChangeAdminName = () => {
 };
 
 const handleSaveAdminName = async () => {
-  if (adminNamePasscode !== 'byycky') {
+  if (adminNamePasscode !== process.env.REACT_APP_C2C_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -702,7 +702,7 @@ const handleSaveAdminName = async () => {
 
 const handleDeleteOrder = async (orderId) => {
   const passcode = prompt('Enter admin passcode to delete this order:');
-  if (passcode !== 'byycky') {
+  if (passcode !== process.env.REACT_APP_C2C_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -727,7 +727,7 @@ const handleDeleteOrder = async (orderId) => {
 
 const handleDeleteUser = async (userId) => {
   const passcode = prompt('Enter admin passcode to delete this user:');
-  if (passcode !== 'byycky') {
+  if (passcode !== process.env.REACT_APP_C2C_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -763,7 +763,7 @@ const handleDeleteUser = async (userId) => {
 }, [historyData, driverCost]); // Add driverCost here
 
 const handleAddHistorySubmit = async () => {
-  if (adminPasscodeInput !== 'byycky') { // Re-using your existing passcode state variable
+  if (adminPasscodeInput !== process.env.REACT_APP_C2C_PASSWORD) { // Re-using your existing passcode state variable
     showSuccessAnimation('Invalid Passcode', 'Please enter admin passcode in the modal.', null, 2000, true);
     return;
   }
@@ -820,7 +820,7 @@ const handleIndividualAmountChange = (key, newAmount) => {
 };
 
 const handleActivateSpecialOrder = async () => {
-  if (specialOrderPasscode !== 'byycky') {
+  if (specialOrderPasscode !== process.env.REACT_APP_C2C_PASSWORD) {
     showSuccessAnimation(
       'Invalid Passcode',
       'Please enter the correct admin passcode.',
@@ -953,6 +953,58 @@ useEffect(() => {
   fetchMoneyDistributions();
 }, [isAuthenticated]);
 
+const getMedianPaymentInterval = () => {
+  const intervals = prebookUsers
+    .filter(u => {
+      // Condition: receiptUploadTime must not be 0, "0", or empty/null
+      const hasReceipt = u.receiptUploadTime && u.receiptUploadTime !== 0 && u.receiptUploadTime !== "0";
+      // We still need the initial timestamp to calculate the difference
+      const hasTimestamp = u.timestamp;
+      
+      return hasReceipt && hasTimestamp;
+    })
+    .map(u => {
+      // Helper to handle both Strings and Firebase Timestamp objects ({seconds: ...})
+      const toDate = (val) => {
+        if (val?.seconds) return new Date(val.seconds * 1000);
+        return new Date(val);
+      };
+
+      const registrationTime = toDate(u.timestamp);
+      const paymentTime = toDate(u.receiptUploadTime);
+
+      // If either date is invalid, skip this user
+      if (isNaN(registrationTime) || isNaN(paymentTime)) return null;
+
+      // Calculate magnitude in minutes
+      return Math.abs(paymentTime - registrationTime) / (1000 * 60);
+    })
+    .filter(val => val !== null) // Remove failed date conversions
+    .sort((a, b) => a - b);
+
+  if (intervals.length === 0) return "N/A";
+
+  // Find the Median
+  const half = Math.floor(intervals.length / 2);
+  let medianMinutes;
+
+  if (intervals.length % 2 !== 0) {
+    medianMinutes = intervals[half];
+  } else {
+    medianMinutes = (intervals[half - 1] + intervals[half]) / 2;
+  }
+
+  // Format for display
+  if (medianMinutes < 1) {
+    return `${Math.round(medianMinutes * 60)} secs`;
+  } else if (medianMinutes < 60) {
+    return `${Math.round(medianMinutes)} mins`;
+  } else {
+    const hours = Math.floor(medianMinutes / 60);
+    const mins = Math.round(medianMinutes % 60);
+    return `${hours}h ${mins}m`;
+  }
+};
 const todayHistoryEntry = localHistoryData.find(entry => entry.date === systemAvailability.deliveryDate);
 
 const liveRegisteredUsers = todayUsers.length;
@@ -1094,7 +1146,7 @@ const displayDeliveryFees = liveDeliveryFees;
 
   const handleDeleteHistoryEntry = async (entryId, entryDate) => {
   const passcode = prompt('Enter admin passcode to delete this history entry:');
-  if (passcode !== 'byycky') {
+  if (passcode !== process.env.REACT_APP_C2C_PASSWORD) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -4861,7 +4913,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
       onClose={() => setIsEditModalOpen(false)}
       entry={editingEntry}
       onSave={handleSaveChanges}
-      adminPasscode={'byycky'} // Your admin passcode
+      adminPasscode={process.env.REACT_APP_C2C_PASSWORD} // Your admin passcode
     />
 
     {/* Emergency Loss Modal */}
