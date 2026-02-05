@@ -1286,10 +1286,37 @@ const displayDeliveryFees = liveDeliveryFees;
         color: '#8b5cf6'
       }));
   };
+  // NEW: Get time interval between preorder and receipt upload (median) 30/1/26
+  const getMedianReceiptInterval = () => {
+  if (!prebookUsers || prebookUsers.length === 0) return 0;
 
+
+  const intervals = prebookUsers
+    .filter(u => u.receiptUploadTime && u.receiptUploadTime !== 0)
+    .map(u => {
+      const prebookTime = new Date(u.timestamp).getTime();
+      const uploadTime = new Date(u.receiptUploadTime).getTime();
+      // Calculate absolute difference in minutes
+      return Math.abs(uploadTime - prebookTime) / (1000 * 60);
+    });
+
+  if (intervals.length === 0) return 0;
+
+  // 2. Sort intervals numerically
+  intervals.sort((a, b) => a - b);
+
+  // 3. Calculate Median
+  const mid = Math.floor(intervals.length / 2);
+  const calculatedMedian = intervals.length % 2 !== 0 ? intervals[mid] : (intervals[mid - 1] + intervals[mid]) / 2;
+
+  return calculatedMedian;
+};
+
+const medianInterval = getMedianReceiptInterval();
   // NEW: Get average order price by merchant (all time)
   const getAverageOrderPriceByMerchant = () => {
     const merchantStats = {}; // { merchantName: { totalRevenue: 0, orderCount: 0 } }
+    const allData = [...todayOrders, ...historyData.flatMap(h => h.orders || [])];
 
     // Process today's orders
     todayOrders.forEach(order => {
@@ -1324,7 +1351,8 @@ const displayDeliveryFees = liveDeliveryFees;
       .filter(([, stats]) => stats.orderCount > 0) // Only include merchants with at least one order
       .map(([merchantName, stats]) => ({
         label: merchantName,
-        value: (stats.totalRevenue / stats.orderCount).toFixed(2), // Average order price
+        value: parseFloat((stats.totalRevenue / stats.orderCount).toFixed(2)), // Average order price
+        count: stats.orderCount,
         color: '#84cc16' // A nice green color for this chart
       }))
       .sort((a, b) => b.value - a.value); // Sort by average price descending
@@ -2961,28 +2989,58 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
             gap: '24px',
             marginBottom: '32px'
           }}>
-            <div style={styles.card}>
-              <div style={styles.cardHeader}>
-                {/* Ensure 'Store' is imported from your icon library (e.g., lucide-react) */}
-                <Store color="#8b5cf6" size={28} />
-                <h3 style={{ ...styles.cardTitle, fontSize: '20px' }}>Most Ordered Merchant</h3>
-              </div>
-              <div style={{
-                backgroundColor: '#f5f3ff',
-                padding: '24px',
-                borderRadius: '16px',
-                textAlign: 'center'
-              }}>
-                {/* Ensure 'mostOrderedMerchant' variable is defined in your component */}
-                <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#8b5cf6', margin: 0 }}>
-                  {mostOrderedMerchant.name}
-                </p>
-                <p style={{ fontSize: '18px', color: '#64748b', marginTop: '8px' }}>
-                  {mostOrderedMerchant.orders} orders
-                </p>
-              </div>
-            </div>
-          </div>
+            {/* Card 1: Most Ordered Merchant (Your existing code) */}
+  <div style={styles.card}>
+    <div style={styles.cardHeader}>
+      <Store color="#8b5cf6" size={28} />
+      <h3 style={{ ...styles.cardTitle, fontSize: '20px' }}>Most Ordered Merchant</h3>
+    </div>
+    <div style={{
+      backgroundColor: '#f5f3ff',
+      padding: '24px',
+      borderRadius: '16px',
+      textAlign: 'center',
+      minHeight: '130px', // Match heights
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center'
+    }}>
+      <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#8b5cf6', margin: 0, textTransform: 'capitalize' }}>
+        {mostOrderedMerchant.name}
+      </p>
+      <p style={{ fontSize: '18px', color: '#64748b', marginTop: '8px' }}>
+        {mostOrderedMerchant.orders} orders
+      </p>
+    </div>
+  </div>
+
+  {/* Card 2: Median Upload Delay (The new addition) */}
+  <div style={styles.card}>
+    <div style={styles.cardHeader}>
+      <Clock color="#10b981" size={28} />
+      <h3 style={{ ...styles.cardTitle, fontSize: '20px' }}>Median Upload Delay</h3>
+    </div>
+    <div style={{
+      backgroundColor: '#f0fdf4',
+      padding: '24px',
+      borderRadius: '16px',
+      textAlign: 'center',
+      minHeight: '130px', // Match heights
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center'
+    }}>
+      <p style={{ fontSize: '48px', fontWeight: 'bold', color: '#10b981', margin: 0 }}>
+        {medianInterval < 1 
+          ? `${(medianInterval * 60).toFixed(0)}s` 
+          : `${medianInterval.toFixed(1)}m`}
+      </p>
+      <p style={{ fontSize: '16px', color: '#64748b', marginTop: '4px', fontWeight: '500' }}>
+      </p>
+    </div>
+  </div>
+</div>
+          
 
 {/* Money Distribution Section */}
 <div style={styles.card}>
@@ -3970,6 +4028,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                 
                 return Object.entries(monthlyData)
                   .slice(-6)
+                  .reverse()
                   .map(([month, orders]) => ({
                     label: month,
                     value: orders,
@@ -3993,6 +4052,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                 
                 return Object.entries(monthlyData)
                   .slice(-6)
+                  .reverse()
                   .map(([month, profit]) => ({
                     label: month,
                     value: profit,
@@ -4003,7 +4063,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
           </div>
           <div style={{ marginBottom: '32px' }}>
             <RechartsCharts
-              type="bar" // Use a bar chart for this
+              type="composed" // Use a composed chart for this
               title="Average Order Price by Merchant (All Time)"
               data={getAverageOrderPriceByMerchant()}
             />
