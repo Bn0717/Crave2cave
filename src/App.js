@@ -211,7 +211,7 @@ const handleTabNavigation = (tabName) => {
 
 // REPLACE your handleNavigationHome function with this:
 const handleNavigationHome = useCallback(() => {
-  const homeConfig = { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' };
+  const homeConfig = { background: 'linear-gradient(135deg, #667eea 1%, #764ba2 100%)' };
   
   scrollToTop();
   
