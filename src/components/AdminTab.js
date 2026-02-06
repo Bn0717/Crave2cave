@@ -101,7 +101,7 @@ const [distributionFormData, setDistributionFormData] = useState({
   },
   date: new Date().toLocaleDateString('en-CA')
 });
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_C2C_PASSWORD || process.env.REACT_APP_C2C_PASSWORD;
+const ADMIN_PASSWORD = “byycky"
 const [distributionPasscode, setDistributionPasscode] = useState('');
 const [showAddHistoryModal, setShowAddHistoryModal] = useState(false);
 const [showSpecialOrderModal, setShowSpecialOrderModal] = useState(false);
