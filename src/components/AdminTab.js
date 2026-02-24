@@ -209,7 +209,7 @@ const [addHistoryForm, setAddHistoryForm] = useState({
   const todayString = new Date().toLocaleDateString('en-CA', { timeZone: "Asia/Kuala_Lumpur" });
   const todayDate = new Date(todayString + 'T00:00:00');
   const todayDayOfWeek = todayDate.getDay();
-  const DELIVERY_DAYS = [1, 3, 6]; // Tuesday=2, Friday=5, Saturday=6
+  const DELIVERY_DAYS = [2, 5, 6]; // Tuesday=2, Friday=5, Saturday=6
   
   if (!DELIVERY_DAYS.includes(todayDayOfWeek)) {
     showSuccessAnimation(
