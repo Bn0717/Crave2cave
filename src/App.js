@@ -101,7 +101,7 @@ useEffect(() => {
     const DELIVERY_DAYS = [2, 5, 6]; // Tuesday=2, Friday=5, Saturday=6
     
     let CUTOFF_HOUR = 16; 
-    let CUTOFF_MINUTE = 45; 
+    let CUTOFF_MINUTE = 30; 
   
     if (settings.extendedCutoffTime) {
       const [hours, minutes] = settings.extendedCutoffTime.split(':').map(Number);
