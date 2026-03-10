@@ -80,9 +80,14 @@ const AuthScreen = ({ title, onAuth }) => {
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    onAuth(passcode);
-  };
+  e.preventDefault();
+
+  // ✅ Save the password in localStorage (use different keys for admin & driver if needed)
+  localStorage.setItem('adminPassword', passcode);
+
+  onAuth(passcode); // continue with existing logic
+};
+
 
   return (
     <div style={styles.authCard}>
