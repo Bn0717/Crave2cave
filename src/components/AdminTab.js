@@ -151,6 +151,20 @@ const [addHistoryForm, setAddHistoryForm] = useState({
   };
 
   const handleOpenSystem = async () => {
+    const todayString = new Date().toLocaleDateString('en-CA', { timeZone: "Asia/Kuala_Lumpur" });
+  const todayDate = new Date(todayString + 'T00:00:00');
+  const todayDayOfWeek = todayDate.getDay();
+  const DELIVERY_DAYS = [2, 5, 6];
+
+  if (!DELIVERY_DAYS.includes(todayDayOfWeek) && !systemAvailability.isSpecialOrder) {
+    showSuccessAnimation(
+      'Not a Delivery Day',
+      'System can only be opened early on delivery days (Tuesday, Friday, Saturday) or special order days.',
+      null, 3000, true
+    );
+    return;
+  }
+  
   if (openSystemPasscode !== ADMIN_PASSWORD) {
     showSuccessAnimation(
       'Invalid Passcode',
