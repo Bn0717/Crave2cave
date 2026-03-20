@@ -57,6 +57,31 @@ function App() {
   const [allOrders, setAllOrders] = useState([]);
   const [driverCost, setDriverCost] = useState(30);
   const [isSpecialOrder, setIsSpecialOrder] = useState(false);
+  const [specialDays, setSpecialDays] = useState([]);
+  const [stableDeliveryDate, setStableDeliveryDate] = useState(() => {
+  const malaysiaTime = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" }));
+  const DELIVERY_DAYS = [2, 5, 6];
+  const currentHour = malaysiaTime.getHours();
+  const currentMinute = malaysiaTime.getMinutes();
+
+  // If today is a delivery day and before 3PM cutoff, use today
+  if (DELIVERY_DAYS.includes(malaysiaTime.getDay())) {
+    if (currentHour < 15 || (currentHour === 15 && currentMinute === 0)) {
+      return malaysiaTime.toLocaleDateString('en-CA');
+    }
+  }
+
+  // Otherwise find next delivery day
+  for (let i = 1; i <= 14; i++) {
+    const checkingDate = new Date(malaysiaTime);
+    checkingDate.setDate(checkingDate.getDate() + i);
+    checkingDate.setHours(0, 0, 0, 0);
+    if (DELIVERY_DAYS.includes(checkingDate.getDay())) {
+      return checkingDate.toLocaleDateString('en-CA');
+    }
+  }
+  return malaysiaTime.toLocaleDateString('en-CA');
+});
 
   const handleDriverCostChange = async (cost) => {
   setDriverCost(cost); // Update the local state immediately for a responsive UI
@@ -69,16 +94,12 @@ function App() {
 };
 
   const [dailySettings, setDailySettings] = useState({});
+  const [todaySettings, setTodaySettings] = useState({});
   const [systemAvailability, setSystemAvailability] = useState({ 
   isSystemOpen: true, 
   nextOpenTime: '', 
   malaysiaTime: new Date() 
 });
-useEffect(() => {
-  // Initialize system availability on component mount
-  setSystemAvailability(getSystemAvailability());
-}, []);
-
 
   const ADMIN_PASSCODE = 'byycky';
   const DRIVER_PASSCODE = 'kyuemc2c1234';
@@ -97,48 +118,46 @@ useEffect(() => {
     }
   };
 
-  const getSystemAvailability = (settings = {}) => {
+  const getSystemAvailability = (todaySettings = {}, targetSettings = {}, specialDaysList = []) => {
     const DELIVERY_DAYS = [2, 5, 6]; // Tuesday=2, Friday=5, Saturday=6
     
-    let CUTOFF_HOUR = 16; 
+    let CUTOFF_HOUR = 15; 
     let CUTOFF_MINUTE = 0; 
   
-    if (settings.extendedCutoffTime) {
-      const [hours, minutes] = settings.extendedCutoffTime.split(':').map(Number);
+    // ALWAYS use todaySettings for the timer so it doesn't break if the system rolls over
+    if (todaySettings.extendedCutoffTime) {
+      const [hours, minutes] = todaySettings.extendedCutoffTime.split(':').map(Number);
       CUTOFF_HOUR = hours;
       CUTOFF_MINUTE = minutes;
-      console.log(`System extended! New cutoff: ${CUTOFF_HOUR}:${CUTOFF_MINUTE}`);
     }
   
     const now = new Date();
     const malaysiaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" }));
     const currentHour = malaysiaTime.getHours();
     const currentMinute = malaysiaTime.getMinutes();
-    const currentDay = malaysiaTime.getDay();
     const todayDateString = malaysiaTime.toLocaleDateString('en-CA');
+
+    const isDeliveryDay = (dateObj) => {
+      const dStr = dateObj.toLocaleDateString('en-CA');
+      return DELIVERY_DAYS.includes(dateObj.getDay()) || specialDaysList.includes(dStr);
+    };
   
-    if (DELIVERY_DAYS.includes(currentDay)) {
+    if (isDeliveryDay(malaysiaTime)) {
       if (currentHour > CUTOFF_HOUR || (currentHour === CUTOFF_HOUR && currentMinute >= CUTOFF_MINUTE)) {
         for (let i = 1; i <= 14; i++) {
           const checkingDate = new Date(malaysiaTime);
           checkingDate.setDate(checkingDate.getDate() + i);
-          const checkingDay = checkingDate.getDay();
           
-          if (DELIVERY_DAYS.includes(checkingDay)) {
+          if (isDeliveryDay(checkingDate)) {
             return {
               isSystemOpen: false,
-              deliveryDate: todayDateString,
+              deliveryDate: checkingDate.toLocaleDateString('en-CA'),
               nextOpenTime: `Midnight tonight (opens for ${checkingDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} delivery)`,
               malaysiaTime,
-              earlySystemOpen: settings.earlySystemOpen || false
+              earlySystemOpen: targetSettings.earlySystemOpen || todaySettings.earlySystemOpen || false
             };
           }
         }
-        return {
-          isSystemOpen: false, deliveryDate: todayDateString,
-          nextOpenTime: 'No delivery dates scheduled in the next 2 weeks', malaysiaTime,
-          earlySystemOpen: settings.earlySystemOpen || false
-        };
       }
     }
   
@@ -146,12 +165,11 @@ useEffect(() => {
       const checkingDate = new Date(malaysiaTime);
       checkingDate.setDate(checkingDate.getDate() + i);
       checkingDate.setHours(0, 0, 0, 0);
-      const checkingDay = checkingDate.getDay();
   
-      if (DELIVERY_DAYS.includes(checkingDay)) {
+      if (isDeliveryDay(checkingDate)) {
         const deliveryDateString = checkingDate.toLocaleDateString('en-CA');
         return { isSystemOpen: true, deliveryDate: deliveryDateString, malaysiaTime,
-          earlySystemOpen: settings.earlySystemOpen || false
+          earlySystemOpen: targetSettings.earlySystemOpen || todaySettings.earlySystemOpen || false
         };
       }
     }
@@ -159,218 +177,238 @@ useEffect(() => {
     return {
       isSystemOpen: false, deliveryDate: todayDateString,
       nextOpenTime: 'No delivery dates scheduled', malaysiaTime,
-      earlySystemOpen: settings.earlySystemOpen || false 
+      earlySystemOpen: targetSettings.earlySystemOpen || todaySettings.earlySystemOpen || false
     };
   };
 
+  // 1. Fetch Special Order Days from Firestore
   useEffect(() => {
-    // Initialize system availability on mount, without settings
-    setSystemAvailability(getSystemAvailability());
+    const unsubscribe = onSnapshot(collection(db, "specialOrderDays"), (snapshot) => {
+      const days = snapshot.docs
+        .filter(doc => doc.data().isSpecialOrder)
+        .map(doc => doc.id);
+      setSpecialDays(days);
+    });
+    return () => unsubscribe();
   }, []);
 
-const scrollToTop = useCallback(() => {
-  // Simple, reliable scroll to top
-  window.scrollTo(0, 0);
-  document.documentElement.scrollTop = 0;
-  document.body.scrollTop = 0;
-  
-  // For iOS devices specifically
-  if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-    document.body.scrollIntoView({ block: 'start', behavior: 'instant' });
-  }
-}, []);
+  // 2. Listen to TODAY'S settings specifically for the Cutoff Extension
+  useEffect(() => {
+    const malaysiaTime = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" }));
+    const todayStr = malaysiaTime.toLocaleDateString('en-CA');
+    const unsubscribe = onSnapshot(doc(db, "dailySettings", todayStr), (docSnap) => {
+      setTodaySettings(docSnap.exists() ? docSnap.data() : {});
+    });
+    return () => unsubscribe();
+  }, []);
 
-// Simple navigation effect
-useEffect(() => {
-  scrollToTop();
-  
-  const timeoutId = setTimeout(() => {
-    scrollToTop();
-  }, 100);
-  
-  return () => clearTimeout(timeoutId);
-}, [activeTab, showMainApp, scrollToTop]);
+  // 3. Centralized Master Timer
+  useEffect(() => {
+    const updateAvailability = () => {
+      const newAvailability = getSystemAvailability(todaySettings, dailySettings, specialDays);
+      setSystemAvailability(newAvailability);
+      
+      // ONLY update the stable date if the actual calendar day has changed
+      setStableDeliveryDate(prev => prev !== newAvailability.deliveryDate ? newAvailability.deliveryDate : prev);
+    };
 
-// Order confirmation effect
-useEffect(() => {
-  if (orderConfirmed) {
-    scrollToTop();
-  }
-}, [orderConfirmed, scrollToTop]);
+    updateAvailability(); 
+    
+    // Check every 30 seconds for faster updates
+    const interval = setInterval(updateAvailability, 10000); 
+    
+    return () => clearInterval(interval);
+  }, [todaySettings, dailySettings, specialDays]);
 
-// REPLACE your handleTabNavigation function with this:
-const handleTabNavigation = (tabName) => {
-  if (tabName === 'student' && !selectedVendor) {
-    handleNavigationHome();
-    return;
-  }
-  
-  scrollToTop();
-  setActiveTab(tabName);
-};
-
-// REPLACE your handleNavigationHome function with this:
-const handleNavigationHome = useCallback(() => {
-  const homeConfig = { background: 'linear-gradient(135deg, #667eea 1%, #764ba2 100%)' };
-  
-  scrollToTop();
-  
-  handleNavigateWithTransition(homeConfig, () => {
-    setShowLandingPage(true);
-    setShowMainApp(false);
-    setActiveTab('student');
-    if (resetStudentForm) {
-      resetStudentForm();
+  const scrollToTop = useCallback(() => {
+    // Simple, reliable scroll to top
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    
+    // For iOS devices specifically
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+      document.body.scrollIntoView({ block: 'start', behavior: 'instant' });
     }
-  });
-}, [resetStudentForm, scrollToTop]);
+  }, []);
 
-// REPLACE your handleNavigateWithTransition function with this:
-const handleNavigateWithTransition = (config, navigationAction) => {
-  scrollToTop();
-  
-  setTransitionConfig(config);
-  setTimeout(() => {
+  // Simple navigation effect
+  useEffect(() => {
     scrollToTop();
-    navigationAction();
-    setTransitionConfig(null);
-  }, 1600);
-};
+    
+    const timeoutId = setTimeout(() => {
+      scrollToTop();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [activeTab, showMainApp, scrollToTop]);
 
-// Check if current delivery date is a special order day
-useEffect(() => {
-  const checkSpecialOrder = async () => {
-    if (systemAvailability?.deliveryDate) {
-      try {
-        const isSpecial = await checkIfSpecialOrderDay(systemAvailability.deliveryDate);
-        setIsSpecialOrder(isSpecial);
-      } catch (error) {
-        console.error('Error checking special order day:', error);
-        setIsSpecialOrder(false);
+  // Order confirmation effect
+  useEffect(() => {
+    if (orderConfirmed) {
+      scrollToTop();
+    }
+  }, [orderConfirmed, scrollToTop]);
+
+  // REPLACE your handleTabNavigation function with this:
+  const handleTabNavigation = (tabName) => {
+    if (tabName === 'student' && !selectedVendor) {
+      handleNavigationHome();
+      return;
+    }
+    
+    scrollToTop();
+    setActiveTab(tabName);
+  };
+
+  // REPLACE your handleNavigationHome function with this:
+  const handleNavigationHome = useCallback(() => {
+    const homeConfig = { background: 'linear-gradient(135deg, #667eea 1%, #764ba2 100%)' };
+    
+    scrollToTop();
+    
+    handleNavigateWithTransition(homeConfig, () => {
+      setShowLandingPage(true);
+      setShowMainApp(false);
+      setActiveTab('student');
+      if (resetStudentForm) {
+        resetStudentForm();
       }
+    });
+  }, [resetStudentForm, scrollToTop]);
+
+  // REPLACE your handleNavigateWithTransition function with this:
+  const handleNavigateWithTransition = (config, navigationAction) => {
+    scrollToTop();
+    
+    setTransitionConfig(config);
+    setTimeout(() => {
+      scrollToTop();
+      navigationAction();
+      setTransitionConfig(null);
+    }, 1600);
+  };
+
+
+  useEffect(() => {
+      if (!showMainApp) return;
+      
+      const targetDeliveryDate = stableDeliveryDate;
+      
+      if (!targetDeliveryDate) {
+        setLoadingUsers(false);
+        setLoadingOrders(false);
+        setLoadingHistory(false);
+        return;
+      }
+    
+      setLoadingUsers(true);
+      setLoadingOrders(true);
+      setLoadingHistory(true);
+
+      setIsSpecialOrder(specialDays.includes(targetDeliveryDate));
+    
+      const usersQuery = query(collection(db, "prebookUsers"), where("deliveryDate", "==", targetDeliveryDate));
+      const unsubscribeUsers = onSnapshot(usersQuery, (querySnapshot) => {
+        const users = querySnapshot.docs.map((doc) => ({ id: doc.id, firestoreId: doc.id, ...doc.data() })).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        setPrebookUsers(users);
+        setRegistrationOrder(users.map((user, index) => ({ userId: user.firestoreId, order: index + 1 })));
+        setLoadingUsers(false);
+      });
+    
+      const ordersQuery = query(collection(db, "orders"));
+      const unsubscribeOrders = onSnapshot(ordersQuery, (querySnapshot) => {
+        const ordersData = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setAllOrders(ordersData);
+        setLoadingOrders(false);
+      });
+      
+      const historyQuery = query(collection(db, "history"));
+      const unsubscribeHistory = onSnapshot(historyQuery, (querySnapshot) => {
+        const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => new Date(b.date) - new Date(a.date));
+        setHistoryData(history);
+        setLoadingHistory(false);
+      });
+    
+      // ==================== NEW DATABASE LISTENER ====================
+      const settingsDocRef = doc(db, "dailySettings", targetDeliveryDate);
+      const unsubscribeSettings = onSnapshot(settingsDocRef, (docSnap) => {
+        const newSettings = docSnap.exists() ? docSnap.data() : {};
+        setDailySettings(newSettings);
+        console.log("Real-time daily settings updated:", newSettings);
+        // Removed manual setSystemAvailability because the new centralized timer handles it instantly!
+      });
+
+      // Cleanup function: This is crucial to prevent memory leaks
+      return () => {
+        unsubscribeUsers();
+        unsubscribeOrders();
+        unsubscribeHistory();
+        unsubscribeSettings(); 
+      };
+    
+ }, [stableDeliveryDate, showMainApp, specialDays]);// Re-run this effect if the date or app visibility changes
+
+
+  const handleMultipleImages = (images) => {
+    if (Array.isArray(images) && images.length > 0) {
+      setSelectedImages(images);
+    } else if (typeof images === 'string') {
+      setSelectedImages([images]);
     }
   };
-  checkSpecialOrder();
-}, [systemAvailability.deliveryDate]);
 
-useEffect(() => {
-    if (!showMainApp) return;
-    
+    const filterTodayData = useCallback(() => {
     const targetDeliveryDate = systemAvailability.deliveryDate;
     
     if (!targetDeliveryDate) {
-      setLoadingUsers(false);
-      setLoadingOrders(false);
-      setLoadingHistory(false);
+      setTodayOrders([]);
+      setTodayUsers([]);
+      setMinOrderReached(false);
+      setSystemActivatedToday(false);
       return;
     }
-  
-    setLoadingUsers(true);
-    setLoadingOrders(true);
-    setLoadingHistory(true);
-  
-    const usersQuery = query(collection(db, "prebookUsers"), where("deliveryDate", "==", targetDeliveryDate));
-    const unsubscribeUsers = onSnapshot(usersQuery, (querySnapshot) => {
-      const users = querySnapshot.docs.map((doc) => ({ id: doc.id, firestoreId: doc.id, ...doc.data() })).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-      setPrebookUsers(users);
-      setRegistrationOrder(users.map((user, index) => ({ userId: user.firestoreId, order: index + 1 })));
-      setLoadingUsers(false);
-    });
-  
-    const ordersQuery = query(collection(db, "orders"));
-    const unsubscribeOrders = onSnapshot(ordersQuery, (querySnapshot) => {
-      const ordersData = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setAllOrders(ordersData);
-      setLoadingOrders(false);
-    });
     
-    const historyQuery = query(collection(db, "history"));
-    const unsubscribeHistory = onSnapshot(historyQuery, (querySnapshot) => {
-      const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => new Date(b.date) - new Date(a.date));
-      setHistoryData(history);
-      setLoadingHistory(false);
-    });
-  
-    // ==================== NEW DATABASE LISTENER ====================
-    const settingsDocRef = doc(db, "dailySettings", targetDeliveryDate);
-    const unsubscribeSettings = onSnapshot(settingsDocRef, (docSnap) => {
-      const newSettings = docSnap.exists() ? docSnap.data() : {};
-      setDailySettings(newSettings);
-      // Re-calculate system availability whenever settings change
-      setSystemAvailability(getSystemAvailability(newSettings));
-      console.log("Real-time daily settings updated:", newSettings);
-    });
+    const todayOrdersFiltered = allOrders.filter(order => order.deliveryDate === targetDeliveryDate);
+    
+    setTodayOrders(todayOrdersFiltered);
+    setTodayUsers(prebookUsers);
+    
+    const paidUsersCount = prebookUsers.filter(u => u.commitmentPaid).length;
+    
+    // MODIFY THIS LOGIC
+    const isActivatedToday = paidUsersCount >= 3 || systemAvailability.earlySystemOpen;
+    setMinOrderReached(isActivatedToday);
+    setSystemActivatedToday(isActivatedToday);
+  }, [allOrders, prebookUsers, systemAvailability.deliveryDate, systemAvailability.earlySystemOpen]);
 
-  // Cleanup function: This is crucial to prevent memory leaks
-  return () => {
-    unsubscribeUsers();
-    unsubscribeOrders();
-    unsubscribeHistory();
-    unsubscribeSettings(); 
+  // ADD this useEffect right below filterTodayData
+  useEffect(() => {
+    filterTodayData();
+  }, [allOrders, prebookUsers, filterTodayData]);
+
+    const getProgressText = (step) => {
+    if (step === 2) return "Awaiting Base Delivery Fee for first 3 users";
+    if (step === 3) return "Awaiting Order Submission"; 
+    if (step === 'order_submitted') return "Email Required";
+    if (step === 'completed') return "Order Confirmed";
+    return "Registered";
   };
-  
-}, [systemAvailability.deliveryDate, showMainApp]); // Re-run this effect if the date or app visibility changes
 
+    const showSuccessAnimation = useCallback((title, message, additionalInfo = null, duration = 2000, showOkButton = true, onCloseCallback = null) => {
+    setSuccessConfig({ title, message, additionalInfo, duration, showOkButton, onClose: onCloseCallback });
+    setShowSuccess(true);
+  }, []); // <-- The empty dependency array is key. It tells React this function never needs to be recreated.
 
-const handleMultipleImages = (images) => {
-  if (Array.isArray(images) && images.length > 0) {
-    setSelectedImages(images);
-  } else if (typeof images === 'string') {
-    setSelectedImages([images]);
-  }
-};
+    const showLoadingAnimation = (message) => { 
+    setLoadingMessage(message); 
+    setIsLoading(true); 
+  };
 
-  const filterTodayData = useCallback(() => {
-  const targetDeliveryDate = systemAvailability.deliveryDate;
-  
-  if (!targetDeliveryDate) {
-    setTodayOrders([]);
-    setTodayUsers([]);
-    setMinOrderReached(false);
-    setSystemActivatedToday(false);
-    return;
-  }
-  
-  const todayOrdersFiltered = allOrders.filter(order => order.deliveryDate === targetDeliveryDate);
-  
-  setTodayOrders(todayOrdersFiltered);
-  setTodayUsers(prebookUsers);
-  
-  const paidUsersCount = prebookUsers.filter(u => u.commitmentPaid).length;
-  
-  // MODIFY THIS LOGIC
-  const isActivatedToday = paidUsersCount >= 3 || systemAvailability.earlySystemOpen;
-  setMinOrderReached(isActivatedToday);
-  setSystemActivatedToday(isActivatedToday);
-}, [allOrders, prebookUsers, systemAvailability.deliveryDate, systemAvailability.earlySystemOpen]);
-
-// ADD this useEffect right below filterTodayData
-useEffect(() => {
-  filterTodayData();
-}, [allOrders, prebookUsers, filterTodayData]);
-
-  const getProgressText = (step) => {
-  if (step === 2) return "Awaiting Base Delivery Fee for first 3 users";
-  if (step === 3) return "Awaiting Order Submission"; 
-  if (step === 'order_submitted') return "Email Required";
-  if (step === 'completed') return "Order Confirmed";
-  return "Registered";
-};
-
-  const showSuccessAnimation = useCallback((title, message, additionalInfo = null, duration = 2000, showOkButton = true, onCloseCallback = null) => {
-  setSuccessConfig({ title, message, additionalInfo, duration, showOkButton, onClose: onCloseCallback });
-  setShowSuccess(true);
-}, []); // <-- The empty dependency array is key. It tells React this function never needs to be recreated.
-
-  const showLoadingAnimation = (message) => { 
-  setLoadingMessage(message); 
-  setIsLoading(true); 
-};
-
-const hideLoadingAnimation = () => { 
-  setIsLoading(false); 
-  setLoadingMessage(''); 
-};
+  const hideLoadingAnimation = () => { 
+    setIsLoading(false); 
+    setLoadingMessage(''); 
+  };
 
   const handleAuthentication = (passcodeAttempt, tabType) => {
   if (tabType === 'admin' && passcodeAttempt === ADMIN_PASSCODE) {
@@ -394,55 +432,55 @@ const hideLoadingAnimation = () => {
   }
 };
 
-// In App.js, find the handleRestoreSession function and add this line:
+  // In App.js, find the handleRestoreSession function and add this line:
 
-const handleRestoreSession = () => {
-  if (!sessionPrompt) return;
+  const handleRestoreSession = () => {
+    if (!sessionPrompt) return;
 
-  // 1. Immediately set the state needed to navigate
-  setSelectedVendor(sessionPrompt.vendor);
-  setRememberedStudent({
-    ...sessionPrompt.student,
-    sessionStep: sessionPrompt.step
-  });
-  
-  // 2. Navigate instantly without waiting for any data
-  setSessionPrompt(null);
-  setShowLandingPage(false);
-  setShowMainApp(true);
-  
-  // 3. Handle specific "completed" states which don't need eligibility checks
-  if (sessionPrompt.step === 'completed') {
-    const orderDetailsJSON = localStorage.getItem('activeOrderDetails');
-    if (orderDetailsJSON) {
-      const orderDetails = JSON.parse(orderDetailsJSON);
-      setCurrentOrder(orderDetails);
-      setOrderConfirmed(true);
+    // 1. Immediately set the state needed to navigate
+    setSelectedVendor(sessionPrompt.vendor);
+    setRememberedStudent({
+      ...sessionPrompt.student,
+      sessionStep: sessionPrompt.step
+    });
+    
+    // 2. Navigate instantly without waiting for any data
+    setSessionPrompt(null);
+    setShowLandingPage(false);
+    setShowMainApp(true);
+    
+    // 3. Handle specific "completed" states which don't need eligibility checks
+    if (sessionPrompt.step === 'completed') {
+      const orderDetailsJSON = localStorage.getItem('activeOrderDetails');
+      if (orderDetailsJSON) {
+        const orderDetails = JSON.parse(orderDetailsJSON);
+        setCurrentOrder(orderDetails);
+        setOrderConfirmed(true);
+      }
+      return;
     }
-    return;
-  }
 
-  if (sessionPrompt.step === 'order_submitted') {
-    const pendingOrder = localStorage.getItem('pendingOrderDetails');
-    if (pendingOrder) {
-      const orderDetails = JSON.parse(pendingOrder);
-      setCurrentOrder(orderDetails);
-      setUserForEmail({ 
-        firestoreId: sessionPrompt.student.firestoreId, 
-        name: sessionPrompt.student.name 
-      });
-      setShowEmailModal(true);
+    if (sessionPrompt.step === 'order_submitted') {
+      const pendingOrder = localStorage.getItem('pendingOrderDetails');
+      if (pendingOrder) {
+        const orderDetails = JSON.parse(pendingOrder);
+        setCurrentOrder(orderDetails);
+        setUserForEmail({ 
+          firestoreId: sessionPrompt.student.firestoreId, 
+          name: sessionPrompt.student.name 
+        });
+        setShowEmailModal(true);
+      }
+      return;
     }
-    return;
-  }
-};
+  };
 
-const handleStartNewSession = () => {
-  const todayKey = new Date().toLocaleDateString('en-CA');
-  localStorage.removeItem(`userSession-${todayKey}`);
-  localStorage.removeItem('activeOrderDetails');
-  setSessionPrompt(null);
-};
+  const handleStartNewSession = () => {
+    const todayKey = new Date().toLocaleDateString('en-CA');
+    localStorage.removeItem(`userSession-${todayKey}`);
+    localStorage.removeItem('activeOrderDetails');
+    setSessionPrompt(null);
+  };
 
 
   const handleLandingStart = (vendor) => {
@@ -456,6 +494,7 @@ const handleStartNewSession = () => {
     setShowMainApp(true);
   });
 };
+
   const handleNavigateToPortal = (portalName) => {
     const startConfig = { background: '#ffffff' };
     handleNavigateWithTransition(startConfig, () => {
@@ -560,17 +599,6 @@ const handleStartNewSession = () => {
   }
 };
 
-
-useEffect(() => {
-  const checkSystemAvailability = () => {
-    setSystemAvailability(getSystemAvailability());
-  };
-  
-  // Check every minute
-  const interval = setInterval(checkSystemAvailability, 60000);
-  
-  return () => clearInterval(interval);
-}, []);
 
 useEffect(() => {
   const todayKey = new Date().toLocaleDateString('en-CA');

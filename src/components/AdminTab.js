@@ -79,6 +79,16 @@ const [moneyDistributions, setMoneyDistributions] = useState([]);
 const [loadingDistributions, setLoadingDistributions] = useState(true);
 const [showDistributionModal, setShowDistributionModal] = useState(false);
 const [showDistributionList, setShowDistributionList] = useState(false);
+const [showReserveModal, setShowReserveModal] = useState(false);
+const [reserveUsages, setReserveUsages] = useState([]);
+const [showReserveList, setShowReserveList] = useState(false);
+const [reserveFormData, setReserveFormData] = useState({
+  amount: '',
+  reason: '',
+  date: new Date().toLocaleDateString('en-CA')
+});
+const [reservePasscode, setReservePasscode] = useState('');
+const [editingReserve, setEditingReserve] = useState(null);
 const [editingDistribution, setEditingDistribution] = useState(null);
 const [showAdminNameModal, setShowAdminNameModal] = useState(false);
 const [systemSettings, setSystemSettings] = useState({
@@ -92,12 +102,12 @@ const [distributionFormData, setDistributionFormData] = useState({
   totalAmount: '',
   adminName: '',
   distributions: {
-    admin: { name: '', amount: 0, percentage: 5 },
+    admin: { name: '', amount: 0, percentage: 10 },
     coFounder1: { name: 'Bryan Ngu', amount: 0, percentage: 20 },
     coFounder2: { name: 'Yiek Siew Hao', amount: 0, percentage: 20 },
     coFounder3: { name: 'Yeoh Sheng Ze', amount: 0, percentage: 20 },
     coFounder4: { name: 'Charmaine Yong', amount: 0, percentage: 20 },
-    systemReserve: { name: 'Reserve Fund', amount: 0, percentage: 15 }
+    systemReserve: { name: 'Reserve Fund', amount: 0, percentage: 3 }
   },
   date: new Date().toLocaleDateString('en-CA')
 });
@@ -209,9 +219,10 @@ const [addHistoryForm, setAddHistoryForm] = useState({
   const todayString = new Date().toLocaleDateString('en-CA', { timeZone: "Asia/Kuala_Lumpur" });
   const todayDate = new Date(todayString + 'T00:00:00');
   const todayDayOfWeek = todayDate.getDay();
-  const DELIVERY_DAYS = [2, 5, 6]; // Tuesday=2, Friday=5, Saturday=6
-  
-  if (!DELIVERY_DAYS.includes(todayDayOfWeek)) {
+  const DELIVERY_DAYS = [2, 5, 6];
+
+  // Allow extension on special order days too
+  if (!DELIVERY_DAYS.includes(todayDayOfWeek) && !systemAvailability.isSpecialOrder) {
     showSuccessAnimation(
       'Not a Delivery Day',
       'System extension is only available on delivery days (Tuesday, Friday, and Saturday).',
@@ -260,7 +271,8 @@ const [addHistoryForm, setAddHistoryForm] = useState({
   showLoadingAnimation('Extending system...');
   
   try {
-    await firebaseService.extendSystemCutoff(systemAvailability.deliveryDate, extendUntilTime);
+    const todayString = new Date().toLocaleDateString('en-CA', { timeZone: "Asia/Kuala_Lumpur" });
+await firebaseService.extendSystemCutoff(todayString, extendUntilTime);
     hideLoadingAnimation();
     setShowExtendModal(false);
     setAdminPasscodeInput('');
@@ -449,8 +461,8 @@ const calculateDistributions = (totalAmount, adminName) => {
   return {
     admin: { 
       name: adminName || 'Admin', 
-      amount: total * 0.08, 
-      percentage: 8 
+      amount: total * 0.10, 
+      percentage: 10
     },
     // Siew Hao (24%)
     coFounder1: { 
@@ -478,8 +490,8 @@ const calculateDistributions = (totalAmount, adminName) => {
     },
     systemReserve: { 
       name: 'Reserve Fund', 
-      amount: total * 0.05, 
-      percentage: 5 
+      amount: total * 0.03, 
+      percentage: 3
     }
   };
 };
@@ -529,6 +541,48 @@ const handleDeleteDistribution = async (distributionId) => {
   } catch (error) {
     hideLoadingAnimation();
     showSuccessAnimation('Error', 'Failed to delete distribution entry.', null, 2500, true);
+  }
+};
+
+const handleAddReserveUsage = () => {
+  setEditingReserve(null);
+  setReserveFormData({ amount: '', reason: '', date: new Date().toLocaleDateString('en-CA') });
+  setReservePasscode('');
+  setShowReserveModal(true);
+};
+
+const handleSaveReserveUsage = async () => {
+  if (reservePasscode !== ADMIN_PASSWORD) {
+    showSuccessAnimation('Invalid Passcode', 'Please enter the correct admin passcode.', null, 2500, true);
+    return;
+  }
+  const amount = parseFloat(reserveFormData.amount);
+  if (isNaN(amount) || amount <= 0 || !reserveFormData.reason) {
+    showSuccessAnimation('Missing Information', 'Please fill in all fields.', null, 2500, true);
+    return;
+  }
+  const totalReserve = moneyDistributions.reduce((sum, dist) => sum + (dist.distributions?.systemReserve?.amount || 0), 0);
+  const totalUsed = reserveUsages.reduce((sum, u) => sum + (u.amount || 0), 0);
+  if (amount > (totalReserve - totalUsed)) {
+    showSuccessAnimation('Insufficient Reserve', `Available reserve: RM${(totalReserve - totalUsed).toFixed(2)}`, null, 3000, true);
+    return;
+  }
+  showLoadingAnimation(editingReserve ? 'Updating...' : 'Recording usage...');
+  try {
+    if (editingReserve) {
+      await firebaseService.updateEmergencyLoss(editingReserve.id, { amount, reason: reserveFormData.reason.trim(), date: reserveFormData.date });
+      setReserveUsages(prev => prev.map(u => u.id === editingReserve.id ? { ...u, amount, reason: reserveFormData.reason.trim(), date: reserveFormData.date } : u));
+    } else {
+      const id = await firebaseService.addEmergencyLoss({ amount, reason: `[RESERVE] ${reserveFormData.reason.trim()}`, date: reserveFormData.date });
+      setReserveUsages(prev => [{ id, amount, reason: reserveFormData.reason.trim(), date: reserveFormData.date }, ...prev]);
+    }
+    hideLoadingAnimation();
+    setShowReserveModal(false);
+    setReservePasscode('');
+    showSuccessAnimation('Recorded!', 'Reserve usage has been saved.', null, 2500);
+  } catch (e) {
+    hideLoadingAnimation();
+    showSuccessAnimation('Error', 'Failed to save.', null, 2500, true);
   }
 };
 
@@ -952,6 +1006,17 @@ useEffect(() => {
   };
 
   fetchMoneyDistributions();
+}, [isAuthenticated]);
+
+useEffect(() => {
+  const fetchReserveUsages = async () => {
+    if (!isAuthenticated) return;
+    try {
+      const losses = await firebaseService.getEmergencyLosses();
+      setReserveUsages(losses.filter(l => l.reason?.startsWith('[RESERVE]')).map(l => ({ ...l, reason: l.reason.replace('[RESERVE] ', '') })));
+    } catch (e) { console.error(e); }
+  };
+  fetchReserveUsages();
 }, [isAuthenticated]);
 
 const getMedianPaymentInterval = () => {
@@ -1686,6 +1751,16 @@ const medianInterval = getMedianReceiptInterval();
                 }}>
                   RM{displayProfit.toFixed(2)}
                 </p>
+                {displayRevenue > 0 && (
+                  <p style={{
+                    margin: '2px 0 0 0',
+                    fontSize: windowWidth <= 480 ? '11px' : '13px',
+                    fontWeight: '600',
+                    color: displayProfit >= 0 ? '#059669' : '#dc2626'
+                  }}>
+                    {((displayProfit / displayRevenue) * 100).toFixed(1)}% margin
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -2801,6 +2876,25 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
               <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '16px' }}>
                 All-time data and analytics
               </p>
+              {historyData.length > 0 && (() => {
+                const sorted = [...historyData].filter(e => {
+                  const d = new Date(e.date + 'T00:00:00');
+                  const today = new Date();
+                  today.setHours(0,0,0,0);
+                  return d <= today;
+                }).sort((a, b) => new Date(a.date) - new Date(b.date));
+                if (sorted.length === 0) return null;
+                const firstDate = new Date(sorted[0].date + 'T00:00:00');
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const formatDate = (d) => d.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+                const totalRunDays = sorted.length;
+                return (
+                  <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: windowWidth <= 480 ? '13px' : '14px' }}>
+                    <strong>{totalRunDays} days</strong> run &nbsp;·&nbsp; {formatDate(firstDate)} – Now ({formatDate(today)})
+                  </p>
+                );
+              })()}
             </div>
 
             {/* ADD THE NEW BUTTONS HERE */}
@@ -2949,6 +3043,16 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                 }}>
                   RM{getTotalHistoryStats().totalProfit.toFixed(2)}
                 </p>
+                {getTotalHistoryStats().totalRevenue > 0 && (
+                  <p style={{
+                    margin: '2px 0 0 0',
+                    fontSize: windowWidth <= 480 ? '10px' : '12px',
+                    fontWeight: '600',
+                    color: getTotalHistoryStats().totalProfit >= 0 ? '#059669' : '#dc2626'
+                  }}>
+                    {((getTotalHistoryStats().totalProfit / getTotalHistoryStats().totalRevenue) * 100).toFixed(1)}% profit margin
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -3233,7 +3337,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
   </div>
 </div>
 
-{/* System Reserve Total */}
+{/* System Reserve (3%) */}
 <div style={{
   background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
   border: '2px solid #f59e0b',
@@ -3241,24 +3345,43 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
   padding: windowWidth <= 480 ? '12px' : '16px',
   gridColumn: windowWidth <= 768 && windowWidth > 480 ? 'span 2' : 'auto'
 }}>
-  <div style={{
-    fontSize: windowWidth <= 480 ? '11px' : '13px',
-    color: '#92400e',
-    fontWeight: '600',
-    marginBottom: '6px'
-  }}>
-    System Reserve (5%)
+  <div style={{ fontSize: windowWidth <= 480 ? '11px' : '13px', color: '#92400e', fontWeight: '600', marginBottom: '6px' }}>
+    System Reserve (3%)
   </div>
-  <div style={{
-    fontSize: windowWidth <= 480 ? '18px' : '22px',
-    fontWeight: 'bold',
-    color: '#b45309',
-    wordBreak: 'break-word'
-  }}>
-    RM{moneyDistributions.reduce((sum, dist) => 
-      sum + (dist.distributions?.systemReserve?.amount || 0), 0
-    ).toFixed(2)}
+  <div style={{ fontSize: windowWidth <= 480 ? '18px' : '22px', fontWeight: 'bold', color: '#b45309', wordBreak: 'break-word' }}>
+    RM{(moneyDistributions.reduce((sum, dist) => sum + (dist.distributions?.systemReserve?.amount || 0), 0) - reserveUsages.reduce((sum, u) => sum + (u.amount || 0), 0)).toFixed(2)}
+    <span style={{ fontSize: windowWidth <= 480 ? '11px' : '13px', color: '#92400e', fontWeight: '500', marginLeft: '4px' }}>available</span>
   </div>
+  <div style={{ fontSize: windowWidth <= 480 ? '10px' : '12px', color: '#b45309', marginTop: '4px' }}>
+    Total: RM{moneyDistributions.reduce((sum, dist) => sum + (dist.distributions?.systemReserve?.amount || 0), 0).toFixed(2)} | Used: RM{reserveUsages.reduce((sum, u) => sum + (u.amount || 0), 0).toFixed(2)}
+  </div>
+  <button
+    onClick={() => { setShowReserveList(!showReserveList); }}
+    style={{ marginTop: '8px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #f59e0b', backgroundColor: 'white', color: '#b45309', fontWeight: '600', fontSize: '11px', cursor: 'pointer' }}
+  >
+    {showReserveList ? 'Hide' : 'View'} Usage
+  </button>
+  <button
+    onClick={handleAddReserveUsage}
+    style={{ marginTop: '8px', marginLeft: '8px', padding: '4px 10px', borderRadius: '6px', border: 'none', backgroundColor: '#f59e0b', color: 'white', fontWeight: '600', fontSize: '11px', cursor: 'pointer' }}
+  >
+    - Deduct
+  </button>
+  {showReserveList && (
+    <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+      {reserveUsages.length === 0 ? (
+        <p style={{ fontSize: '12px', color: '#92400e', margin: 0 }}>No reserve usage recorded.</p>
+      ) : reserveUsages.map(u => (
+        <div key={u.id} style={{ backgroundColor: 'white', borderRadius: '8px', padding: '8px 10px', border: '1px solid #fcd34d', fontSize: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ color: '#92400e', fontWeight: '600' }}>{u.reason}</span>
+            <span style={{ color: '#b45309', fontWeight: '700' }}>-RM{u.amount.toFixed(2)}</span>
+          </div>
+          <div style={{ color: '#b45309', marginTop: '2px' }}>{new Date(u.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+        </div>
+      ))}
+    </div>
+  )}
 </div>
   </div>
 
@@ -3606,10 +3729,10 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
         </p>
         <p style={{ margin: 0, fontSize: '13px', color: '#0c4a6e', lineHeight: '1.6' }}>
           System automatically calculates:
-          <br/>• Admin: <strong>8%</strong>
+          <br/>• Admin: <strong>10%</strong>
           <br/>• Siew Hao: <strong>24%</strong> | Bryan: <strong>23%</strong>
           <br/>• Charmaine: <strong>20%</strong> | Sheng Ze: <strong>20%</strong>
-          <br/>• Reserve Fund: <strong>5%</strong>
+          <br/>• Reserve Fund: <strong>3%</strong>
         </p>
       </div>
 
@@ -4301,7 +4424,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
 
           {/* History Table */}
           <div style={styles.card}>
-            <div style={{
+          <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -4309,7 +4432,44 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
               flexWrap: 'wrap',
               gap: '12px'
             }}>
-              <h3 style={{ fontSize: '22px', margin: 0 }}>Daily History</h3>
+              <div>
+                <h3 style={{ fontSize: windowWidth <= 480 ? '18px' : '22px', margin: '0 0 4px 0' }}>Daily History</h3>
+                {localHistoryData.length > 0 && (() => {
+                  const sorted = [...localHistoryData].filter(e => {
+                    const d = new Date(e.date + 'T00:00:00');
+                    const today = new Date();
+                    today.setHours(0,0,0,0);
+                    return d <= today;
+                  }).sort((a, b) => new Date(a.date) - new Date(b.date));
+                  if (sorted.length === 0) return null;
+                  const firstDate = new Date(sorted[0].date + 'T00:00:00');
+                  const lastDate = new Date(sorted[sorted.length - 1].date + 'T00:00:00');
+                  const today = new Date();
+                  today.setHours(0,0,0,0);
+                  const isLastToday = lastDate.getTime() === today.getTime();
+                  const formatDate = (d) => d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+                  const totalRunDays = sorted.length;
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <p style={{
+                        margin: 0,
+                        fontSize: windowWidth <= 480 ? '11px' : '13px',
+                        color: '#64748b',
+                        fontWeight: '600'
+                      }}>
+                        <span style={{ color: '#3b82f6' }}>{totalRunDays} days</span> run
+                      </p>
+                      <p style={{
+                        margin: 0,
+                        fontSize: windowWidth <= 480 ? '10px' : '12px',
+                        color: '#94a3b8'
+                      }}>
+                        {formatDate(firstDate)} – {isLastToday ? `Now (${formatDate(today)})` : formatDate(lastDate)}
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
               <button
                 onClick={() => setShowAddHistoryModal(true)}
               style={{
@@ -4331,116 +4491,116 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
             </button>
             </div>
             {historyData.length === 0 ? (
-  <div style={{ 
-    textAlign: 'center', 
-    padding: '60px',
-    color: '#64748b'
-  }}>
-    <History size={56} style={{ marginBottom: '20px' }} />
-    <p style={{ fontSize: '18px' }}>No history data available yet.</p>
-  </div>
-) : (
-  <div style={{
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-    gap: '20px'
-  }}>
-    {localHistoryData
-  .filter(entry => {
-    // Only show entries for actual delivery days
-    const entryDate = new Date(entry.date + 'T00:00:00');
-    const dayOfWeek = entryDate.getDay();
-    
-    // Don't show future dates
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (entryDate > today) {
-      return false; // Hide future entries
-    }
-
-    return true
-  })
-  .map((entry, index) => (
-      <div key={index} style={{
-        backgroundColor: '#f8fafc',
-        border: '2px solid #e2e8f0',
-        borderRadius: '16px',
-        padding: '24px',
-        transition: 'all 0.3s ease',
-        position: 'relative'
-      }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '20px'
-        }}>
-          <h4 style={{ 
-            margin: 0, 
-            fontSize: '18px', 
-            color: '#1e293b',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            {new Date(entry.date).toLocaleDateString('en-US', { 
-              weekday: 'short', 
-              month: 'short', 
-              day: 'numeric',
-              year: 'numeric'
-            })}
-            {entry.isSpecialOrder && (
-              <span style={{
-                backgroundColor: '#fdf2f8',
-                color: '#ec4899',
-                fontSize: '11px',
-                fontWeight: '700',
-                padding: '2px 8px',
-                borderRadius: '6px',
-                border: '1.5px solid #ec4899'
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '60px',
+                color: '#64748b'
               }}>
-                ⭐ SPECIAL
-              </span>
-            )}
-          </h4>
-          <span style={{
-            backgroundColor: entry.profit >= 0 ? '#d1fae5' : '#fee2e2',
-            color: entry.profit >= 0 ? '#065f46' : '#991b1b',
-            padding: '4px 12px',
-            borderRadius: '6px',
-            fontSize: '13px',
-            fontWeight: '600'
-          }}>
-            {entry.profit >= 0 ? 'Profit' : 'Loss'}
-          </span>
-        </div>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between',
-            padding: '12px',
-            backgroundColor: 'white',
-            borderRadius: '8px'
-          }}>
-            <span style={{ color: '#64748b', fontSize: '14px' }}>Orders</span>
-            <span style={{ fontWeight: '600', color: '#1e293b' }}>{entry.totalOrders || 0}</span>
-          </div>
-          
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between',
-            padding: '12px',
-            backgroundColor: 'white',
-            borderRadius: '8px'
-          }}>
-            <span style={{ color: '#64748b', fontSize: '14px' }}>Revenue</span>
-            <span style={{ fontWeight: '600', color: '#059669' }}>
-              RM{(entry.totalRevenue || 0).toFixed(2)}
-            </span>
-          </div>
+                <History size={56} style={{ marginBottom: '20px' }} />
+                <p style={{ fontSize: '18px' }}>No history data available yet.</p>
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                gap: '20px'
+              }}>
+                {localHistoryData
+              .filter(entry => {
+                // Only show entries for actual delivery days
+                const entryDate = new Date(entry.date + 'T00:00:00');
+                const dayOfWeek = entryDate.getDay();
+    
+              // Don't show future dates
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              
+              if (entryDate > today) {
+                return false; // Hide future entries
+              }
+
+              return true
+            })
+            .map((entry, index) => (
+                <div key={index} style={{
+                  backgroundColor: '#f8fafc',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '16px',
+                  padding: '24px',
+                  transition: 'all 0.3s ease',
+                  position: 'relative'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '20px'
+                  }}>
+                    <h4 style={{ 
+                      margin: 0, 
+                      fontSize: '18px', 
+                      color: '#1e293b',
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      {new Date(entry.date).toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        month: 'short', 
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                      {entry.isSpecialOrder && (
+                        <span style={{
+                          backgroundColor: '#fdf2f8',
+                          color: '#ec4899',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          border: '1.5px solid #ec4899'
+                        }}>
+                          ⭐ SPECIAL
+                        </span>
+                      )}
+                    </h4>
+                    <span style={{
+                      backgroundColor: entry.profit >= 0 ? '#d1fae5' : '#fee2e2',
+                      color: entry.profit >= 0 ? '#065f46' : '#991b1b',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      fontWeight: '600'
+                    }}>
+                      {entry.profit >= 0 ? 'Profit' : 'Loss'}
+                    </span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between',
+                      padding: '12px',
+                      backgroundColor: 'white',
+                      borderRadius: '8px'
+                    }}>
+                      <span style={{ color: '#64748b', fontSize: '14px' }}>Orders</span>
+                      <span style={{ fontWeight: '600', color: '#1e293b' }}>{entry.totalOrders || 0}</span>
+                    </div>
+                    
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between',
+                      padding: '12px',
+                      backgroundColor: 'white',
+                      borderRadius: '8px'
+                    }}>
+                      <span style={{ color: '#64748b', fontSize: '14px' }}>Revenue</span>
+                      <span style={{ fontWeight: '600', color: '#059669' }}>
+                        RM{(entry.totalRevenue || 0).toFixed(2)}
+                      </span>
+                    </div>
           
           <div style={{ 
             display: 'flex', 
@@ -5762,6 +5922,35 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
     </div>
   </div>
 )}
+    {showReserveModal && (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10000, padding: '20px' }}>
+      <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: windowWidth <= 480 ? '20px' : '32px', maxWidth: '500px', width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
+        <h3 style={{ margin: '0 0 20px 0', fontSize: windowWidth <= 480 ? '20px' : '24px', color: '#1e293b', fontWeight: '700' }}>
+          {editingReserve ? 'Edit' : 'Deduct from'} System Reserve
+        </h3>
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', fontWeight: '600', color: '#1e293b', marginBottom: '8px', fontSize: '14px' }}>Amount (RM):</label>
+          <input type="number" min="0" value={reserveFormData.amount} onChange={e => setReserveFormData({ ...reserveFormData, amount: e.target.value })} placeholder="Enter amount" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '2px solid #e2e8f0', fontSize: '15px', boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', fontWeight: '600', color: '#1e293b', marginBottom: '8px', fontSize: '14px' }}>Reason:</label>
+          <textarea value={reserveFormData.reason} onChange={e => setReserveFormData({ ...reserveFormData, reason: e.target.value })} placeholder="Describe what the reserve was used for..." rows="3" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '2px solid #e2e8f0', fontSize: '15px', boxSizing: 'border-box', fontFamily: 'inherit', resize: 'vertical' }} />
+        </div>
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', fontWeight: '600', color: '#1e293b', marginBottom: '8px', fontSize: '14px' }}>Date:</label>
+          <input type="date" value={reserveFormData.date} onChange={e => setReserveFormData({ ...reserveFormData, date: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '2px solid #e2e8f0', fontSize: '15px', boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ marginBottom: '24px' }}>
+          <label style={{ display: 'block', fontWeight: '600', color: '#1e293b', marginBottom: '8px', fontSize: '14px' }}>Admin Passcode:</label>
+          <input type="password" value={reservePasscode} onChange={e => setReservePasscode(e.target.value)} placeholder="Enter admin passcode" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '2px solid #e2e8f0', fontSize: '15px', boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ display: 'flex', gap: '12px', flexDirection: windowWidth <= 480 ? 'column' : 'row' }}>
+          <button onClick={() => { setShowReserveModal(false); setReservePasscode(''); }} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: 'white', color: '#64748b', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
+          <button onClick={handleSaveReserveUsage} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white', fontWeight: '600', cursor: 'pointer' }}>Save</button>
+        </div>
+      </div>
+    </div>
+  )}
     </div>
   );
 };

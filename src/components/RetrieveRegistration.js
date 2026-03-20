@@ -4,7 +4,7 @@ import { Search } from 'lucide-react';
 const RetrieveRegistration = ({ onRetrieve, isVisible, onToggle, windowWidth }) => {
     const [retrieveName, setRetrieveName] = useState('');
     const [retrieveContact, setRetrieveContact] = useState('');
-const [retrieveContactError, setRetrieveContactError] = useState('');
+    const [retrieveContactError, setRetrieveContactError] = useState('');
     const [retrieveNameError, setRetrieveNameError] = useState('');
 
     const isSmallScreen = windowWidth <= 480;
