@@ -1947,6 +1947,9 @@ const isSubmitDisabled =
                 {selectedVendor === 'dominos' && "🍕 Domino's Pizza"}
                 {selectedVendor === 'ayam_gepuk' && "🍗 Ayam Gepuk"}
                 {selectedVendor === 'mixue' && "🧋 MIXUE"}
+                {selectedVendor === 'family_mart' && "🏪 Family Mart"}
+                {selectedVendor === 'bakers_cottage' && "🥐 Baker's Cottage"}
+                {selectedVendor === 'zus_coffee' && "☕ Zus Coffee"}
               </div>
             </div>
             

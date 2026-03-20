@@ -164,7 +164,7 @@ const [addHistoryForm, setAddHistoryForm] = useState({
     );
     return;
   }
-  
+
   if (openSystemPasscode !== ADMIN_PASSWORD) {
     showSuccessAnimation(
       'Invalid Passcode',
@@ -3507,7 +3507,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                     color: '#1e40af',
                     fontWeight: '600'
                   }}>
-                    {distribution.distributions?.admin?.name || 'Admin'} (8%)
+                    {distribution.distributions?.admin?.name || 'Admin'} (10%)
                   </span>
                   <span style={{ 
                     fontSize: windowWidth <= 480 ? '13px' : '14px', 
@@ -3566,7 +3566,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                     color: '#92400e',
                     fontWeight: '600'
                   }}>
-                    System Reserve (5%)
+                    System Reserve (3%)
                   </span>
                   <span style={{ 
                     fontSize: windowWidth <= 480 ? '12px' : '14px', 
