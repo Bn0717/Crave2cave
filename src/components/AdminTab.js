@@ -968,7 +968,7 @@ useEffect(() => {
     setLoadingLosses(true);
     try {
       const losses = await firebaseService.getEmergencyLosses();
-      setEmergencyLosses(losses);
+      setEmergencyLosses(losses.filter(loss => !loss.reason?.startsWith('[RESERVE]')));
     } catch (error) {
       console.error('Error fetching emergency losses:', error);
     } finally {
