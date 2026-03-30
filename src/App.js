@@ -64,11 +64,9 @@ function App() {
   const currentHour = malaysiaTime.getHours();
   const currentMinute = malaysiaTime.getMinutes();
 
-  // If today is a delivery day and before 3PM cutoff, use today
+  // If today is a delivery day, ALWAYS use today (until 11:59 PM)
   if (DELIVERY_DAYS.includes(malaysiaTime.getDay())) {
-    if (currentHour < 15 || (currentHour === 15 && currentMinute === 0)) {
-      return malaysiaTime.toLocaleDateString('en-CA');
-    }
+    return malaysiaTime.toLocaleDateString('en-CA');
   }
 
   // Otherwise find next delivery day
@@ -151,7 +149,7 @@ function App() {
           if (isDeliveryDay(checkingDate)) {
             return {
               isSystemOpen: false,
-              deliveryDate: checkingDate.toLocaleDateString('en-CA'),
+              deliveryDate: todayDateString, // <--- THIS IS THE FIX: Keep it on today's date!
               nextOpenTime: `Midnight tonight (opens for ${checkingDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} delivery)`,
               malaysiaTime,
               earlySystemOpen: targetSettings.earlySystemOpen || todaySettings.earlySystemOpen || false

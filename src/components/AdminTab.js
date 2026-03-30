@@ -3030,6 +3030,30 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                 }}>
                   RM{getTotalHistoryStats().totalRevenue.toFixed(2)}
                 </p>
+                {/* ADDED: Average Revenue per run */}
+                {(() => {
+                  const runsCount = historyData.length || 1;
+                  const avgRev = (getTotalHistoryStats().totalRevenue / runsCount).toFixed(2);
+                  return (
+                    <p style={{
+                      margin: '2px 0 0 0',
+                      fontSize: windowWidth <= 480 ? '10px' : '12px',
+                      fontWeight: '700',
+                      color: '#10b981' // Green text
+                    }}>
+                      <span style={{ 
+                        fontSize: windowWidth <= 480 ? '9px' : '10px', 
+                        color: '#10b981', 
+                        fontWeight: '500', 
+                        marginRight: '4px',
+                        textTransform: 'uppercase' 
+                      }}>
+                        Revenue:
+                      </span>
+                      RM{avgRev}/run
+                    </p>
+                  );
+                })()}
               </div>
             </div>
 
@@ -3057,16 +3081,41 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
                 }}>
                   RM{getTotalHistoryStats().totalProfit.toFixed(2)}
                 </p>
-                {getTotalHistoryStats().totalRevenue > 0 && (
-                  <p style={{
-                    margin: '2px 0 0 0',
-                    fontSize: windowWidth <= 480 ? '10px' : '12px',
-                    fontWeight: '600',
-                    color: getTotalHistoryStats().totalProfit >= 0 ? '#059669' : '#dc2626'
-                  }}>
-                    {((getTotalHistoryStats().totalProfit / getTotalHistoryStats().totalRevenue) * 100).toFixed(1)}% profit margin
-                  </p>
-                )}
+                {getTotalHistoryStats().totalRevenue > 0 && (() => {
+                  // Calculate total valid runs safely
+                  const runsCount = historyData.length || 1;
+                  const avgProfit = (getTotalHistoryStats().totalProfit / runsCount).toFixed(2);
+
+                  return (
+                    <>
+                      <p style={{
+                        margin: '2px 0 0 0',
+                        fontSize: windowWidth <= 480 ? '10px' : '12px',
+                        fontWeight: '600',
+                        color: getTotalHistoryStats().totalProfit >= 0 ? '#059669' : '#dc2626'
+                      }}>
+                        {((getTotalHistoryStats().totalProfit / getTotalHistoryStats().totalRevenue) * 100).toFixed(1)}% profit margin
+                      </p>
+                      <p style={{
+                        margin: '2px 0 0 0',
+                        fontSize: windowWidth <= 480 ? '10px' : '12px',
+                        fontWeight: '700',
+                        color: '#10b981' // Bright green text
+                      }}>
+                        <span style={{ 
+                          fontSize: windowWidth <= 480 ? '9px' : '10px', 
+                          color: '#10b981', 
+                          fontWeight: '500', 
+                          marginRight: '4px',
+                          textTransform: 'uppercase' 
+                        }}>
+                          Profit:
+                        </span>
+                        RM{avgProfit}/run
+                      </p>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
