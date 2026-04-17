@@ -2105,6 +2105,7 @@ const isSubmitDisabled =
             <li>Wrong pickup location</li>
             <li>Wrong merchant selection</li>
             <li>Errors in order details or contact info</li>
+            <li>Submit two different receipts in one order (You should register for a new account to submit the other receipts)</li>
           </ul>
         </div>
       </div>
