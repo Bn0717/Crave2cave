@@ -53,7 +53,7 @@ const EmailPromptModal = ({ user, onSubmit, onCancel }) => {
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <h2 style={styles.title}>One Last Step!</h2>
         <p style={styles.subtitle}>
-          Enter your email to receive a notification when your order is on its way.
+          Enter your email to receive a notification when your order is on its way. (Check your spam email!)
         </p>
         <form onSubmit={handleSubmit}>
           <div style={styles.inputContainer}>

@@ -98,7 +98,7 @@ const BeautifulMessage = ({ type = 'info', title, message, icon, children, onClo
                     )}
                     <p style={{
                         margin: '0 0 12px 0',
-                        fontSize: window.innerWidth <= 480 ? '14px' : '15px',
+                        fontSize: window.innerWidth <= 375 ? '11px' : window.innerWidth <= 480 ? '13px' : '15px',
                         color: messageStyles.textColor,
                         lineHeight: '1.5'
                     }}>
