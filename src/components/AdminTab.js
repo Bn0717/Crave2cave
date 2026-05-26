@@ -2231,7 +2231,10 @@ const medianInterval = getMedianReceiptInterval();
     .sort((a, b) => new Date(a.receiptUploadTime || a.timestamp) - new Date(b.receiptUploadTime || b.timestamp))
     .slice(0, 3);
   
-  const awaitingUsers = firstThreePaidUsers.filter(user => !user.orderSubmitted);
+  const awaitingUsers = firstThreePaidUsers.filter(user => {
+  const hasOrder = todayOrders.some(order => order.userId === user.firestoreId);
+  return !hasOrder;
+});
   
   return awaitingUsers.length > 0 ? (
               <div style={{ 
