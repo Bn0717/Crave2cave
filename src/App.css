@@ -104,3 +104,20 @@ img {
         transform: translateY(0);
     }
 }
+
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#root {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Prevent zoom on input focus for mobile */
+@media screen and (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
