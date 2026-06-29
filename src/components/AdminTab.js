@@ -2310,8 +2310,9 @@ const medianInterval = getMedianReceiptInterval();
   ? 'repeat(auto-fit, minmax(280px, 1fr))' 
   : windowWidth <= 1200
   ? 'repeat(auto-fit, minmax(320px, 1fr))'
-  : 'repeat(3, 1fr)',
-      gap: windowWidth <= 480 ? '12px' : '16px'
+  : 'repeat(3, minmax(0, 1fr))',
+      gap: windowWidth <= 480 ? '12px' : '16px',
+      paddingTop: '12px'
     }}>
       {todayUsers.map((user, userIndex) => {
         const userOrder = todayOrders.find(order => order.userId === user.firestoreId);
@@ -2326,13 +2327,14 @@ const isFirstThreeUser = firstThreePaidUsers.some(paidUser => paidUser.firestore
         return (
           <div key={user.id} style={{
             backgroundColor: '#f8fafc',
-            border: user.commitmentPaid 
-              ? '2px solid #10b981' 
+            border: userOrder
+              ? '2px solid #10b981'
               : '2px solid #f59e0b',
             borderRadius: '16px',
             padding: windowWidth <= 480 ? '16px' : '20px',
             transition: 'all 0.3s ease',
-            position: 'relative'
+            position: 'relative',
+            minWidth: 0
           }}>
             {/* First Three Users Badge - Only for users who are actually in first 3 paid */}
 {isFirstThreeUser && (
@@ -2402,11 +2404,11 @@ const isFirstThreeUser = firstThreePaidUsers.some(paidUser => paidUser.firestore
                   borderRadius: '16px',
                   fontSize: windowWidth <= 480 ? '10px' : '11px',
                   fontWeight: '700',
-                  backgroundColor: user.commitmentPaid ? '#d1fae5' : '#fef3c7',
-                  color: user.commitmentPaid ? '#065f46' : '#92400e',
-                  border: `2px solid ${user.commitmentPaid ? '#86efac' : '#fcd34d'}`
+                  backgroundColor: userOrder ? '#d1fae5' : '#fef3c7',
+                  color: userOrder ? '#065f46' : '#92400e',
+                  border: `2px solid ${userOrder ? '#86efac' : '#fcd34d'}`
                 }}>
-                  {user.commitmentPaid ? 'PAID' : 'PENDING'}
+                  {userOrder ? 'PAID' : 'PENDING'}
                 </div>
               </div>
 
@@ -2452,75 +2454,88 @@ const isFirstThreeUser = firstThreePaidUsers.some(paidUser => paidUser.firestore
                   
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: windowWidth <= 480 ? '1fr 1fr' : '1fr 1fr 1fr',
+                    gridTemplateColumns: windowWidth <= 480 ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
                     gap: '8px',
-                    marginBottom: '8px'
+                    marginBottom: '8px',
+                    alignItems: 'stretch'
                   }}>
                     <div style={{
                       textAlign: 'center',
                       padding: '8px',
                       backgroundColor: 'white',
-                      borderRadius: '6px'
+                      borderRadius: '6px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
                     }}>
                       <div style={{
                         fontSize: windowWidth <= 480 ? '10px' : '11px',
                         color: '#64748b',
-                        marginBottom: '2px'
+                        marginBottom: '4px',
+                        fontWeight: '700'
                       }}>
-                        Order Total
+                        Order Total (RM)
                       </div>
                       <div style={{
                         fontSize: windowWidth <= 480 ? '13px' : '14px',
                         fontWeight: 'bold',
                         color: '#059669'
                       }}>
-                        RM{userOrder.orderTotal.toFixed(2)}
+                        {userOrder.orderTotal.toFixed(2)}
                       </div>
                     </div>
-                    
+
                     <div style={{
                       textAlign: 'center',
                       padding: '8px',
                       backgroundColor: 'white',
-                      borderRadius: '6px'
+                      borderRadius: '6px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
                     }}>
                       <div style={{
                         fontSize: windowWidth <= 480 ? '10px' : '11px',
                         color: '#64748b',
-                        marginBottom: '2px'
+                        marginBottom: '4px',
+                        fontWeight: '700'
                       }}>
-                        Delivery Fee
+                        Delivery Fee (RM)
                       </div>
                       <div style={{
                         fontSize: windowWidth <= 480 ? '13px' : '14px',
                         fontWeight: 'bold',
                         color: '#f59e0b'
                       }}>
-                        RM{userOrder.deliveryFee.toFixed(2)}
+                        {userOrder.deliveryFee.toFixed(2)}
                       </div>
                     </div>
-                    
+
                     <div style={{
                       textAlign: 'center',
                       padding: '8px',
                       backgroundColor: '#f0fdf4',
                       borderRadius: '6px',
                       border: '1px solid #bbf7d0',
-                      gridColumn: windowWidth <= 480 ? '1 / -1' : 'auto'
+                      gridColumn: windowWidth <= 480 ? '1 / -1' : 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
                     }}>
                       <div style={{
                         fontSize: windowWidth <= 480 ? '10px' : '11px',
                         color: '#166534',
-                        marginBottom: '2px'
+                        marginBottom: '4px',
+                        fontWeight: '700'
                       }}>
-                        Total with Delivery
+                        Total Fee (RM)
                       </div>
                       <div style={{
                         fontSize: windowWidth <= 480 ? '14px' : '16px',
                         fontWeight: 'bold',
                         color: '#166534'
                       }}>
-                        RM{(userOrder.totalWithDelivery + (isFirstThreeUser ? 10 : 0)).toFixed(2)}
+                        {(userOrder.totalWithDelivery + (isFirstThreeUser ? 10 : 0)).toFixed(2)}
                       </div>
                     </div>
                   </div>
@@ -2531,9 +2546,9 @@ const isFirstThreeUser = firstThreePaidUsers.some(paidUser => paidUser.firestore
             {/* Photo Verification Buttons */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: windowWidth <= 768 
-                ? (isFirstThreeUser ? 'repeat(2, 1fr)' : '1fr 1fr')
-                : (isFirstThreeUser ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)'),
+              gridTemplateColumns: windowWidth <= 768
+                ? (isFirstThreeUser ? 'repeat(2, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))')
+                : (isFirstThreeUser ? 'repeat(3, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))'),
               gap: '8px'
             }}>
               {/* Base Delivery Fee (Only for first 3 paid users OR unpaid users when system not active) */}
