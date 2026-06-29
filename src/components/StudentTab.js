@@ -1822,11 +1822,13 @@ const isSubmitDisabled =
       borderRadius: '24px',
       maxWidth: '650px',
       width: '100%',
-      maxHeight: '90vh',
+      maxHeight: '100%',
       overflow: 'hidden',
       boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
       animation: 'slideUp 0.4s ease',
-      border: '3px solid #3b82f6'
+      border: '3px solid #3b82f6',
+      display: 'flex',
+      flexDirection: 'column'
     }}>
       {/* Header with gradient */}
       <div style={{
@@ -1873,7 +1875,8 @@ const isSubmitDisabled =
       {/* Scrollable Content */}
       <div style={{
         padding: windowWidth <= 480 ? '20px' : '28px',
-        maxHeight: 'calc(90vh - 250px)',
+        flex: 1,
+        minHeight: 0,
         overflowY: 'auto'
       }}>
         {/* Order Summary Card */}

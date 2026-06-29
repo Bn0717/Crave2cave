@@ -900,15 +900,14 @@ const getOrdersByVendor = () => {
                       backgroundColor: 'white', 
                       borderRadius: '8px' 
                     }}>
-                      <User size={windowWidth <= 480 ? 14 : 16} color="#64748b" />
-                      <div>
-                        <p style={{ 
-                          margin: 0, 
-                          fontWeight: '500', 
-                          fontSize: windowWidth <= 480 ? '12px' : '14px', 
-                          whiteSpace: 'nowrap', 
-                          overflow: 'hidden', 
-                          textOverflow: 'ellipsis' 
+                      <User size={windowWidth <= 480 ? 14 : 16} color="#64748b" style={{ flexShrink: 0 }} />
+                      <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                        <p style={{
+                          margin: 0,
+                          fontWeight: '500',
+                          fontSize: windowWidth <= 480 ? '12px' : '14px',
+                          wordBreak: 'break-word',
+                          overflowWrap: 'break-word'
                         }}>
                           {order.userName}
                         </p>
