@@ -78,12 +78,20 @@ const [customDriverCostInput, setCustomDriverCostInput] = useState('');
 
 // TEMPORARY: auto-calculate & persist the driver fare from today's orders.
 // See AUTO_DRIVER_FARE_TEMP flag above — set it to false to fully disable this
-// and go back to the manual RM30/33/36/Custom picker below.
+// and go back to the manual RM30/33/36/Custom picker being purely manual.
+// The picker itself stays visible either way — this just drives which button
+// lights up (or falls into "Custom", auto-filled) to match the calculated value.
 useEffect(() => {
   if (!AUTO_DRIVER_FARE_TEMP) return;
   const autoFare = calculateDriverFare(todayOrders);
   if (autoFare !== driverCost) {
     setDriverCost(autoFare);
+  }
+  if ([30, 33, 36].includes(autoFare)) {
+    setShowCustomDriverCost(false);
+  } else {
+    setShowCustomDriverCost(true);
+    setCustomDriverCostInput(String(autoFare));
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [todayOrders, AUTO_DRIVER_FARE_TEMP]);
@@ -1839,8 +1847,6 @@ const medianInterval = getMedianReceiptInterval();
       </div>
     </div>
     
-    {!AUTO_DRIVER_FARE_TEMP && (
-    <>
     <div style={{
   display: 'grid',
   gridTemplateColumns: windowWidth <= 480 ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
@@ -2041,36 +2047,18 @@ const medianInterval = getMedianReceiptInterval();
     </div>
   </div>
 )}
-    </>
-    )}
 
     {AUTO_DRIVER_FARE_TEMP && (
-      <div style={{
-        marginTop: windowWidth <= 480 ? '4px' : '8px',
-        padding: windowWidth <= 480 ? '14px' : windowWidth <= 768 ? '16px' : '20px',
-        backgroundColor: '#eff6ff',
-        border: '2px dashed #3b82f6',
-        borderRadius: windowWidth <= 480 ? '10px' : '12px',
+      <p style={{
+        marginTop: windowWidth <= 480 ? '8px' : '12px',
+        marginBottom: 0,
+        fontSize: windowWidth <= 480 ? '11px' : '12px',
+        fontWeight: '600',
+        color: '#1d4ed8',
+        fontStyle: 'italic'
       }}>
-        <p style={{
-          margin: '0 0 8px 0',
-          fontSize: windowWidth <= 480 ? '11px' : '12px',
-          fontWeight: '700',
-          color: '#1d4ed8',
-          textTransform: 'uppercase',
-          letterSpacing: '0.03em'
-        }}>
-          Auto-Calculated (Temporary)
-        </p>
-        <p style={{
-          margin: 0,
-          fontSize: windowWidth <= 480 ? '13px' : windowWidth <= 768 ? '14px' : '15px',
-          color: '#1e3a8a',
-          lineHeight: '1.6'
-        }}>
-          RM30 base + RM1-3 per distinct vendor ordered from today + order-count bonus, capped at RM59. Computed automatically from today's orders — the manual picker is temporarily disabled.
-        </p>
-      </div>
+        Auto-calculated from today's orders (RM30 base + RM1-3 per distinct vendor + order-count bonus, capped at RM59) — click any button above to override.
+      </p>
     )}
   </div>
 

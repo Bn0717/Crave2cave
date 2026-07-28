@@ -528,7 +528,7 @@ const existingUser = todayUsers.find(user => {
           vendor: null,
         };
 
-        const nextStep = (currentPaidUsersCount >= 3 || systemAvailability.earlySystemOpen) ? 3 : 2;
+        const nextStep = (minOrderReached || currentPaidUsersCount >= 3 || systemAvailability.earlySystemOpen) ? 3 : 2;
         const newUserId = await firebaseService.savePrebookUser(newUser);
         
         updateSession(nextStep, { name: studentName, contactNumber, firestoreId: newUserId }, selectedVendor);

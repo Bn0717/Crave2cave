@@ -102,6 +102,9 @@ function App() {
   const ADMIN_PASSCODE = 'byycky';
   const DRIVER_PASSCODE = 'c2ckyuem123';
 
+  // TEMPORARY — set to false to restore the 3-paid-user minimum before students can order.
+  const SKIP_MINIMUM_ORDER_REQUIREMENT = true;
+
   const styles = {
     container: { 
       minHeight: '100vh', 
@@ -373,9 +376,9 @@ function App() {
     setTodayUsers(prebookUsers);
     
     const paidUsersCount = prebookUsers.filter(u => u.commitmentPaid).length;
-    
+
     // MODIFY THIS LOGIC
-    const isActivatedToday = paidUsersCount >= 3 || systemAvailability.earlySystemOpen;
+    const isActivatedToday = SKIP_MINIMUM_ORDER_REQUIREMENT || paidUsersCount >= 3 || systemAvailability.earlySystemOpen;
     setMinOrderReached(isActivatedToday);
     setSystemActivatedToday(isActivatedToday);
   }, [allOrders, prebookUsers, systemAvailability.deliveryDate, systemAvailability.earlySystemOpen]);
