@@ -11,7 +11,10 @@ const VENDORS = {
     'ayam_gepuk': { name: "Ayam Gepuk", icon: '🍗', shortName: "Ayam Gepuk" },
     'family_mart': { name: 'Family Mart', icon: '🏪', shortName: 'Family Mart' },
     'bakers_cottage': { name: 'Baker\'s Cottage', icon: '🥐', shortName: 'Bakers Cottage' },
-    'zus_coffee': { name: 'Zus Coffee', icon: '☕', shortName: 'Zus Coffee' },  
+    'zus_coffee': { name: 'Zus Coffee', icon: '☕', shortName: 'Zus Coffee' },
+    'kfc': { name: 'KFC', icon: '🍗', shortName: 'KFC' },
+    'mcd': { name: "McDonald's", icon: '🍔', shortName: "McDonald's" },
+    'douglas_street': { name: 'The Douglas Street', icon: '🍽️', shortName: 'Douglas St.' },
 };
 
 // A fallback for any case where the vendor might not be found.
