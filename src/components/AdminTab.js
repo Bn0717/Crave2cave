@@ -23,8 +23,12 @@ import SimpleChart from './SimpleChart';
 import EditHistoryModal from './EditHistoryModal';
 import * as firebaseService from '../services/firebase';
 import RechartsCharts from './SimpleChart';
+import { calculateDriverFare } from '../utils/calculateDriverFare';
 
 const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1PydOwXd4EA_pp6g3AB0-E1dYvXHY768h/edit?usp=sharing&ouid=102038458839648014695&rtpof=true&sd=true";
+
+// TEMPORARY — set to false to restore the manual RM30/33/36/Custom driver-cost picker.
+const AUTO_DRIVER_FARE_TEMP = true;
 
 const AdminTab = ({
   prebookUsers,
@@ -71,6 +75,18 @@ const [lossPasscode, setLossPasscode] = useState('');
 const [visibleLossCount, setVisibleLossCount] = useState(3);
 const [showCustomDriverCost, setShowCustomDriverCost] = useState(false);
 const [customDriverCostInput, setCustomDriverCostInput] = useState('');
+
+// TEMPORARY: auto-calculate & persist the driver fare from today's orders.
+// See AUTO_DRIVER_FARE_TEMP flag above — set it to false to fully disable this
+// and go back to the manual RM30/33/36/Custom picker below.
+useEffect(() => {
+  if (!AUTO_DRIVER_FARE_TEMP) return;
+  const autoFare = calculateDriverFare(todayOrders);
+  if (autoFare !== driverCost) {
+    setDriverCost(autoFare);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [todayOrders, AUTO_DRIVER_FARE_TEMP]);
 const [selectedOrderForAction, setSelectedOrderForAction] = useState(null);
 const [showOrderActionModal, setShowOrderActionModal] = useState(false);
 const [showOpenSystemModal, setShowOpenSystemModal] = useState(false);
@@ -1823,6 +1839,8 @@ const medianInterval = getMedianReceiptInterval();
       </div>
     </div>
     
+    {!AUTO_DRIVER_FARE_TEMP && (
+    <>
     <div style={{
   display: 'grid',
   gridTemplateColumns: windowWidth <= 480 ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
@@ -2023,10 +2041,41 @@ const medianInterval = getMedianReceiptInterval();
     </div>
   </div>
 )}
+    </>
+    )}
+
+    {AUTO_DRIVER_FARE_TEMP && (
+      <div style={{
+        marginTop: windowWidth <= 480 ? '4px' : '8px',
+        padding: windowWidth <= 480 ? '14px' : windowWidth <= 768 ? '16px' : '20px',
+        backgroundColor: '#eff6ff',
+        border: '2px dashed #3b82f6',
+        borderRadius: windowWidth <= 480 ? '10px' : '12px',
+      }}>
+        <p style={{
+          margin: '0 0 8px 0',
+          fontSize: windowWidth <= 480 ? '11px' : '12px',
+          fontWeight: '700',
+          color: '#1d4ed8',
+          textTransform: 'uppercase',
+          letterSpacing: '0.03em'
+        }}>
+          Auto-Calculated (Temporary)
+        </p>
+        <p style={{
+          margin: 0,
+          fontSize: windowWidth <= 480 ? '13px' : windowWidth <= 768 ? '14px' : '15px',
+          color: '#1e3a8a',
+          lineHeight: '1.6'
+        }}>
+          RM30 base + RM1-3 per distinct vendor ordered from today + order-count bonus, capped at RM59. Computed automatically from today's orders — the manual picker is temporarily disabled.
+        </p>
+      </div>
+    )}
   </div>
-  
-  <h3 style={{ 
-    fontSize: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '18px' : '20px', 
+
+  <h3 style={{
+    fontSize: windowWidth <= 480 ? '16px' : windowWidth <= 768 ? '18px' : '20px',
     marginBottom: windowWidth <= 480 ? '12px' : '20px',
     fontWeight: '700',
     color: '#1e293b'
