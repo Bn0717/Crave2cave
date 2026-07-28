@@ -109,13 +109,13 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
       transform: 'scale(1.05)', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
     },
     vendorLogo: {
-      fontSize: windowWidth <= 768 ? '40px' : '56px', marginBottom: '16px',
+      fontSize: windowWidth <= 768 ? '36px' : '56px', marginBottom: '12px',
       display: 'block', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.1))',
     },
     vendorLogoImage: {
-      width: windowWidth <= 768 ? '110px' : '120px',
-      height: windowWidth <= 768 ? '110px' : '120px',
-      marginBottom: '16px',
+      width: windowWidth <= 768 ? '85px' : '120px',
+      height: windowWidth <= 768 ? '85px' : '120px',
+      marginBottom: '12px',
       marginLeft: 'auto',
       marginRight: 'auto',
       display: 'block',
