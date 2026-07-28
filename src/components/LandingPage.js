@@ -99,7 +99,7 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
     },
     vendorCard: {
       background: 'rgba(255, 255, 255, 0.95)', borderRadius: '24px',
-      padding: windowWidth <= 768 ? '20px' : '32px', textAlign: 'center',
+      padding: windowWidth <= 768 ? '11px' : '32px', textAlign: 'center',
       cursor: 'pointer', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
       border: '5px solid transparent', position: 'relative', overflow: 'hidden',
       backdropFilter: 'blur(20px)', boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
