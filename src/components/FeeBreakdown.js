@@ -1,15 +1,20 @@
 import React from 'react';
 // IMPORT your specific delivery fee logic from the correct file.
 import { calculateDeliveryFee } from '../utils/calculateDeliveryFee';
+import { calculateDeliveryFeePromo, FLAT_DELIVERY_FEE_TEMP } from '../utils/calculateDeliveryFeePromo';
 
 const FeeBreakdown = ({
   orderTotal,
   isEligibleForDeduction // It accepts the simple true/false value from StudentTab
 }) => {
-  
+
   // --- This is the corrected logic ---
   // It now uses YOUR imported function.
-  const deliveryFee = calculateDeliveryFee(orderTotal);
+  // TEMPORARY: see calculateDeliveryFeePromo.js — flip FLAT_DELIVERY_FEE_TEMP to false there
+  // to fully restore the original tiered calculateDeliveryFee everywhere it's used.
+  const deliveryFee = FLAT_DELIVERY_FEE_TEMP
+    ? calculateDeliveryFeePromo(orderTotal)
+    : calculateDeliveryFee(orderTotal);
 
   // ✅ FIX: The typo is removed. It now correctly uses the prop.
   const commitmentFeeDeducted = (isEligibleForDeduction && deliveryFee > 0) ? 10 : 0;
