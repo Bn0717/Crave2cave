@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Users, CheckCircle, AlertCircle, PlayCircle, X, Loader2 } from 'lucide-react';
 import * as firebaseService from '../services/firebase';
 import { calculateDeliveryFee } from '../utils/calculateDeliveryFee';
+import { calculateDeliveryFeePromo, FLAT_DELIVERY_FEE_TEMP } from '../utils/calculateDeliveryFeePromo';
 import { isToday } from '../utils/isToday';
 import RetrieveRegistration from './RetrieveRegistration';
 import BeautifulMessage from './BeautifulMessage';
@@ -250,6 +251,34 @@ const StudentTab = ({
       // Dynamically shrink font size for smaller screens
       fontSize: windowWidth <= 480 ? '12px' : '14px',
       transition: 'background-color 0.2s ease',
+    },
+    marqueeBanner: {
+      overflow: 'hidden',
+      position: 'relative',
+      left: '50%',
+      right: '50%',
+      marginLeft: '-50vw',
+      marginRight: '-50vw',
+      width: '100vw',
+      backgroundColor: '#e6007a',
+      marginBottom: '24px',
+      padding: windowWidth <= 480 ? '12px 0' : '16px 0',
+    },
+    marqueeTrack: {
+      display: 'flex',
+      width: 'max-content',
+      animation: 'marqueeScroll 40s linear infinite',
+      whiteSpace: 'nowrap',
+    },
+    marqueeText: {
+      display: 'flex',
+      alignItems: 'center',
+      color: '#ffffff',
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      letterSpacing: '0.5px',
+      fontSize: windowWidth <= 480 ? '15px' : '20px',
+      paddingRight: '16px',
     },
     videoContainer: {
       maxHeight: isVideoVisible ? '500px' : '0',
@@ -712,7 +741,11 @@ const handleCommitmentPayment = async () => {
   }
 
   const totalAmount = parseFloat(orderTotal);
-  const deliveryFee = calculateDeliveryFee(totalAmount);
+  // TEMPORARY: see calculateDeliveryFeePromo.js — flip FLAT_DELIVERY_FEE_TEMP to false there
+  // to fully restore the original tiered calculateDeliveryFee everywhere it's used.
+  const deliveryFee = FLAT_DELIVERY_FEE_TEMP
+    ? calculateDeliveryFeePromo(totalAmount)
+    : calculateDeliveryFee(totalAmount);
   const user = prebookUsers.find(u => u.firestoreId === currentSelectedUserId);
 
   const commitmentFeeDeducted = (user?.eligibleForDeduction && deliveryFee > 0) ? 10 : 0;
@@ -1065,7 +1098,11 @@ useEffect(() => {
 }, [rememberedStudent, prebookUsers, selectedUserId, loadFromSession]);
 
   const parsedOrderTotal = parseFloat(orderTotal) || 0;
-const deliveryFee = calculateDeliveryFee(parsedOrderTotal);
+// TEMPORARY: see calculateDeliveryFeePromo.js — flip FLAT_DELIVERY_FEE_TEMP to false there
+// to fully restore the original tiered calculateDeliveryFee everywhere it's used.
+const deliveryFee = FLAT_DELIVERY_FEE_TEMP
+  ? calculateDeliveryFeePromo(parsedOrderTotal)
+  : calculateDeliveryFee(parsedOrderTotal);
 const commitmentFeeDeducted = (isCurrentUserEligible && deliveryFee > 0) ? 10 : 0;
 
 const actualDeliveryFee = Math.max(0, deliveryFee - commitmentFeeDeducted);
@@ -1083,9 +1120,26 @@ const isSubmitDisabled =
 
   return (
     <>
+    {/* Scrolling limited-time-offer banner */}
+    <div style={styles.marqueeBanner}>
+      <style>{`
+        @keyframes marqueeScroll {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
+        }
+      `}</style>
+      <div style={styles.marqueeTrack}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <span key={i} style={styles.marqueeText}>
+            Limited Time Offer: Enjoy delivery for only RM6!
+          </span>
+        ))}
+      </div>
+    </div>
     <div style={styles.card}>
       {/* Add LoadingAnimation component */}
       {isLoading && <LoadingAnimation message={loadingMessage} />}
+
       <>
         {/* This is the banner that is always visible */}
         <div style={styles.banner}>
