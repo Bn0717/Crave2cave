@@ -13,7 +13,10 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
     { id: 'mixue', name: 'MIXUE', logo: '🧋', color: '#ff69b4' },
     { id: 'family_mart', name: 'Family Mart', logo: '🏪', color: '#009a44' },
     { id: 'bakers_cottage', name: 'Baker\'s Cottage', logo: '🥐', color: '#D97706' },
-    { id: 'zus_coffee', name: 'Zus Coffee', logo: '☕', color: '#0057A0' }
+    { id: 'zus_coffee', name: 'Zus Coffee', logo: '☕', color: '#0057A0' },
+    { id: 'kfc', name: 'KFC', logo: '🍗', color: '#e4002b' },
+    { id: 'mcd', name: "McDonald's", logo: '🍔', color: '#ffc72c' },
+    { id: 'douglas_street', name: 'The Douglas Street', logo: '🍽️', color: '#4b5563' }
   ];
 
   const foodItems = [

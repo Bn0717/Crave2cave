@@ -131,6 +131,9 @@ const [addHistoryForm, setAddHistoryForm] = useState({
   'family_mart': { name: 'Family Mart', icon: '🏪' },
   'bakers_cottage': { name: 'Baker\'s Cottage', icon: '🥐' },
   'zus_coffee': { name: 'Zus Coffee', icon: '☕' },
+  'kfc': { name: 'KFC', icon: '🍗' },
+  'mcd': { name: "McDonald's", icon: '🍔' },
+  'douglas_street': { name: 'The Douglas Street', icon: '🍽️' },
 };
 
   const VENDOR_CATEGORIES = {
