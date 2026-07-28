@@ -2,21 +2,30 @@ import React, { useState } from 'react';
 // 1. IMPORTED NEW ICONS
 import { ChevronRight, Truck, UserCog, Shield, HelpCircle, MessageSquare } from 'lucide-react';
 import logo from '../assets/logo(1).png';
+import dominosLogo from "../assets/merchant_logo/Domino's.png";
+import ayamGepukLogo from '../assets/merchant_logo/Ayam Gepuk Pak Gembus.png';
+import mixueLogo from '../assets/merchant_logo/mixue.png';
+import familyMartLogo from '../assets/merchant_logo/Family Mart.png';
+import bakersCottageLogo from "../assets/merchant_logo/Baker's Cottage.png";
+import zusCoffeeLogo from '../assets/merchant_logo/Zus Coffee.png';
+import kfcLogo from '../assets/merchant_logo/KFC.png';
+import mcdLogo from '../assets/merchant_logo/Mcd.png';
+import douglasStreetLogo from '../assets/merchant_logo/The Douglas Street.jpg';
 
 const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
   const [selectedVendor, setSelectedVendor] = useState('');
   const [isStaffMenuOpen, setIsStaffMenuOpen] = useState(false);
 
   const vendors = [
-    { id: 'dominos', name: "Domino's Pizza", logo: '🍕', color: '#0078d4' },
-    { id: 'ayam_gepuk', name: "Ayam Gepuk Pak Gembus", logo: '🍗', color: '#ffcc02' },
-    { id: 'mixue', name: 'MIXUE', logo: '🧋', color: '#ff69b4' },
-    { id: 'family_mart', name: 'Family Mart', logo: '🏪', color: '#009a44' },
-    { id: 'bakers_cottage', name: 'Baker\'s Cottage', logo: '🥐', color: '#D97706' },
-    { id: 'zus_coffee', name: 'Zus Coffee', logo: '☕', color: '#0057A0' },
-    { id: 'kfc', name: 'KFC', logo: '🍗', color: '#e4002b' },
-    { id: 'mcd', name: "McDonald's", logo: '🍔', color: '#ffc72c' },
-    { id: 'douglas_street', name: 'The Douglas Street', logo: '🍽️', color: '#4b5563' }
+    { id: 'dominos', name: "Domino's Pizza", logo: '🍕', logoImage: dominosLogo, color: '#0078d4' },
+    { id: 'ayam_gepuk', name: "Ayam Gepuk Pak Gembus", logo: '🍗', logoImage: ayamGepukLogo, color: '#ffcc02' },
+    { id: 'mixue', name: 'MIXUE', logo: '🧋', logoImage: mixueLogo, color: '#ff69b4' },
+    { id: 'family_mart', name: 'Family Mart', logo: '🏪', logoImage: familyMartLogo, color: '#009a44' },
+    { id: 'bakers_cottage', name: 'Baker\'s Cottage', logo: '🥐', logoImage: bakersCottageLogo, color: '#D97706' },
+    { id: 'zus_coffee', name: 'Zus Coffee', logo: '☕', logoImage: zusCoffeeLogo, color: '#0057A0' },
+    { id: 'kfc', name: 'KFC', logo: '🍗', logoImage: kfcLogo, color: '#e4002b' },
+    { id: 'mcd', name: "McDonald's", logo: '🍔', logoImage: mcdLogo, color: '#ffc72c' },
+    { id: 'douglas_street', name: 'The Douglas Street', logo: '🍽️', logoImage: douglasStreetLogo, color: '#4b5563' }
   ];
 
   const foodItems = [
@@ -103,8 +112,17 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
       fontSize: windowWidth <= 768 ? '40px' : '56px', marginBottom: '16px',
       display: 'block', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.1))',
     },
+    vendorLogoImage: {
+      width: windowWidth <= 768 ? '110px' : '120px',
+      height: windowWidth <= 768 ? '110px' : '120px',
+      marginBottom: '16px',
+      marginLeft: 'auto',
+      marginRight: 'auto',
+      display: 'block',
+      objectFit: 'contain',
+    },
     vendorName: {
-      fontSize: windowWidth <= 768 ? '1rem' : '1.25rem', fontWeight: '700',
+      fontSize: windowWidth <= 768 ? '1.6rem' : '1.25rem', fontWeight: '700',
       color: '#1a1a1a',
     },
     startButton: {
@@ -316,7 +334,11 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
               onClick={() => setSelectedVendor(vendor.id)}
             >
               {isSelected && <div style={styles.shimmer} />}
-              <div style={styles.vendorLogo}>{vendor.logo}</div>
+              {vendor.logoImage ? (
+                <img src={vendor.logoImage} alt={vendor.name} style={styles.vendorLogoImage} />
+              ) : (
+                <div style={styles.vendorLogo}>{vendor.logo}</div>
+              )}
               <h3 style={styles.vendorName}>{vendor.name}</h3>
             </div>
           );
