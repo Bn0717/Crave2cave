@@ -17,15 +17,15 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
   const [isStaffMenuOpen, setIsStaffMenuOpen] = useState(false);
 
   const vendors = [
+    { id: 'mcd', name: "McDonald's", logo: '🍔', logoImage: mcdLogo, color: '#ffc72c' },
+    { id: 'douglas_street', name: 'The Douglas Street', logo: '🍽️', logoImage: douglasStreetLogo, color: '#4b5563' },
+    { id: 'kfc', name: 'KFC', logo: '🍗', logoImage: kfcLogo, color: '#e4002b' },
     { id: 'dominos', name: "Domino's Pizza", logo: '🍕', logoImage: dominosLogo, color: '#0078d4' },
     { id: 'ayam_gepuk', name: "Ayam Gepuk Pak Gembus", logo: '🍗', logoImage: ayamGepukLogo, color: '#ffcc02' },
     { id: 'mixue', name: 'MIXUE', logo: '🧋', logoImage: mixueLogo, color: '#ff69b4' },
     { id: 'family_mart', name: 'Family Mart', logo: '🏪', logoImage: familyMartLogo, color: '#009a44' },
     { id: 'bakers_cottage', name: 'Baker\'s Cottage', logo: '🥐', logoImage: bakersCottageLogo, color: '#D97706' },
-    { id: 'zus_coffee', name: 'Zus Coffee', logo: '☕', logoImage: zusCoffeeLogo, color: '#0057A0' },
-    { id: 'kfc', name: 'KFC', logo: '🍗', logoImage: kfcLogo, color: '#e4002b' },
-    { id: 'mcd', name: "McDonald's", logo: '🍔', logoImage: mcdLogo, color: '#ffc72c' },
-    { id: 'douglas_street', name: 'The Douglas Street', logo: '🍽️', logoImage: douglasStreetLogo, color: '#4b5563' }
+    { id: 'zus_coffee', name: 'Zus Coffee', logo: '☕', logoImage: zusCoffeeLogo, color: '#0057A0' }
   ];
 
   const foodItems = [
