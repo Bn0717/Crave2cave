@@ -15,7 +15,8 @@ import {
   Edit,
   FileSpreadsheet,
   Clock,
-  Plus
+  Plus,
+  Trash2
 } from 'lucide-react';
 
 import AuthScreen from './AuthScreen';
@@ -97,6 +98,8 @@ useEffect(() => {
 }, [todayOrders, AUTO_DRIVER_FARE_TEMP]);
 const [selectedOrderForAction, setSelectedOrderForAction] = useState(null);
 const [showOrderActionModal, setShowOrderActionModal] = useState(false);
+const [isOrderDeleteMode, setIsOrderDeleteMode] = useState(false);
+const [ordersMarkedForDeletion, setOrdersMarkedForDeletion] = useState([]);
 const [showOpenSystemModal, setShowOpenSystemModal] = useState(false);
 const [openSystemPasscode, setOpenSystemPasscode] = useState('');
 const [moneyDistributions, setMoneyDistributions] = useState([]);
@@ -818,6 +821,41 @@ const handleDeleteOrder = async (orderId) => {
     hideLoadingAnimation();
     showSuccessAnimation('Error', 'Failed to delete order.', null, 2500, true);
     console.error('Delete order error:', error);
+  }
+};
+
+const toggleOrderMarkedForDeletion = (orderId) => {
+  setOrdersMarkedForDeletion(prev =>
+    prev.includes(orderId) ? prev.filter(id => id !== orderId) : [...prev, orderId]
+  );
+};
+
+const handleBulkDeleteOrders = async () => {
+  if (ordersMarkedForDeletion.length === 0) return;
+
+  const passcode = prompt(`Enter admin passcode to delete ${ordersMarkedForDeletion.length} selected order(s):`);
+  if (passcode !== ADMIN_PASSWORD) {
+    showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
+    return;
+  }
+
+  if (!window.confirm(`Are you sure you want to delete ${ordersMarkedForDeletion.length} order(s)? This action cannot be undone.`)) {
+    return;
+  }
+
+  showLoadingAnimation('Deleting orders...');
+  try {
+    for (const orderId of ordersMarkedForDeletion) {
+      await firebaseService.deleteOrder(orderId, systemAvailability.deliveryDate);
+    }
+    hideLoadingAnimation();
+    showSuccessAnimation('Orders Deleted!', `${ordersMarkedForDeletion.length} order(s) have been removed from the system.`, null, 2500);
+    setOrdersMarkedForDeletion([]);
+    setIsOrderDeleteMode(false);
+  } catch (error) {
+    hideLoadingAnimation();
+    showSuccessAnimation('Error', 'Failed to delete some orders.', null, 2500, true);
+    console.error('Bulk delete orders error:', error);
   }
 };
 
@@ -2336,11 +2374,84 @@ const medianInterval = getMedianReceiptInterval();
 
           {/* Payment & Order Verification Card */}
 <div style={styles.card}>
-  <div style={styles.cardHeader}>
-    <Camera color="#8b5cf6" size={28} />
-    <h2 style={styles.cardTitle}>Payment & Order Verification</h2>
+  <div style={{
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '12px',
+    marginBottom: '24px'
+  }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <Camera color="#8b5cf6" size={28} />
+      <h2 style={{ ...styles.cardTitle, margin: 0 }}>Payment & Order Verification</h2>
+    </div>
+    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      {isOrderDeleteMode ? (
+        <>
+          <button
+            onClick={() => {
+              setIsOrderDeleteMode(false);
+              setOrdersMarkedForDeletion([]);
+            }}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '8px',
+              border: '2px solid #cbd5e1',
+              backgroundColor: 'white',
+              color: '#64748b',
+              fontWeight: '600',
+              fontSize: '14px',
+              cursor: 'pointer'
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleBulkDeleteOrders}
+            disabled={ordersMarkedForDeletion.length === 0}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '8px',
+              border: 'none',
+              backgroundColor: ordersMarkedForDeletion.length === 0 ? '#fca5a5' : '#ef4444',
+              color: 'white',
+              fontWeight: '600',
+              fontSize: '14px',
+              cursor: ordersMarkedForDeletion.length === 0 ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <Trash2 size={16} />
+            Delete Selected ({ordersMarkedForDeletion.length})
+          </button>
+        </>
+      ) : (
+        <button
+          onClick={() => setIsOrderDeleteMode(true)}
+          style={{
+            padding: '10px 16px',
+            borderRadius: '8px',
+            border: '2px solid #ef4444',
+            backgroundColor: 'white',
+            color: '#ef4444',
+            fontWeight: '600',
+            fontSize: '14px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+        >
+          <Trash2 size={16} />
+          Delete Order
+        </button>
+      )}
+    </div>
   </div>
-  
+
   {todayUsers.length > 0 ? (
     <div style={{
       display: 'grid',
@@ -2364,18 +2475,53 @@ const firstThreePaidUsers = todayUsers
 
 const isFirstThreeUser = firstThreePaidUsers.some(paidUser => paidUser.firestoreId === user.firestoreId);
         
+        const isMarkedForDeletion = userOrder && ordersMarkedForDeletion.includes(userOrder.id);
+        const isSelectableForDeletion = isOrderDeleteMode && userOrder;
+
         return (
-          <div key={user.id} style={{
-            backgroundColor: '#f8fafc',
-            border: userOrder
+          <div
+            key={user.id}
+            onClick={() => {
+              if (isSelectableForDeletion) toggleOrderMarkedForDeletion(userOrder.id);
+            }}
+            style={{
+            backgroundColor: isMarkedForDeletion ? '#fef2f2' : '#f8fafc',
+            border: isMarkedForDeletion
+              ? '2px solid #ef4444'
+              : userOrder
               ? '2px solid #10b981'
               : '2px solid #f59e0b',
             borderRadius: '16px',
             padding: windowWidth <= 480 ? '16px' : '20px',
             transition: 'all 0.3s ease',
             position: 'relative',
-            minWidth: 0
+            minWidth: 0,
+            cursor: isSelectableForDeletion ? 'pointer' : 'default',
+            opacity: isOrderDeleteMode && !userOrder ? 0.5 : 1,
+            boxShadow: isMarkedForDeletion ? '0 0 0 3px rgba(239, 68, 68, 0.2)' : 'none'
           }}>
+            {/* Delete-mode selection badge */}
+            {isSelectableForDeletion && (
+              <div style={{
+                position: 'absolute',
+                top: '-8px',
+                left: '16px',
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                backgroundColor: isMarkedForDeletion ? '#ef4444' : 'white',
+                border: '2px solid #ef4444',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px',
+                fontWeight: '700',
+                color: isMarkedForDeletion ? 'white' : '#ef4444',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+              }}>
+                {isMarkedForDeletion ? '✓' : ''}
+              </div>
+            )}
             {/* First Three Users Badge - Only for users who are actually in first 3 paid */}
 {isFirstThreeUser && (
   <div style={{
@@ -2594,7 +2740,8 @@ const isFirstThreeUser = firstThreePaidUsers.some(paidUser => paidUser.firestore
               {/* Base Delivery Fee (Only for first 3 paid users OR unpaid users when system not active) */}
 {(isFirstThreeUser || (!user.commitmentPaid && prebookUsers.filter(u => u.commitmentPaid).length < 3)) && (
   <button
-    onClick={() => {
+    onClick={(e) => {
+      e.stopPropagation();
       if (user.receiptURL) {
         setSelectedImage(user.receiptURL);
       } else {
@@ -2630,7 +2777,8 @@ const isFirstThreeUser = firstThreePaidUsers.some(paidUser => paidUser.firestore
               {/* Order Receipt */}
               <button
                 // Replace this onClick:
-onClick={() => {
+onClick={(e) => {
+  e.stopPropagation();
   const orderImages = userOrder?.orderImageURLs;
   if (orderImages && orderImages.length > 0) {
     if (orderImages.length === 1) {
@@ -2678,7 +2826,8 @@ border: `2px solid ${(userOrder?.orderImageURLs && userOrder.orderImageURLs.leng
 
               {/* Delivery Fee Payment */}
               <button
-                onClick={() => {
+                onClick={(e) => {
+  e.stopPropagation();
   const deliveryPayment = userOrder?.paymentProofURL;
   if (deliveryPayment) {
     setSelectedImage(deliveryPayment);
@@ -2787,7 +2936,8 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
   gap: '8px'
 }}>
   <button
-    onClick={() => {
+    onClick={(e) => {
+      e.stopPropagation();
       setSelectedOrderForAction(userOrder || user);
       setShowOrderActionModal(true);
     }}
