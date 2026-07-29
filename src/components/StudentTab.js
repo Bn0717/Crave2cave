@@ -37,6 +37,11 @@ const StudentTab = ({
   setIsCurrentUserEligible,
   setSelectedVendor,
 }) => {
+  // TEMPORARY — matches App.js's SKIP_MINIMUM_ORDER_REQUIREMENT. Set to true to bring
+  // back the "Minimum 3 official users" progress bar + RM10 deposit note once the
+  // minimum-user requirement is switched back on.
+  const SHOW_MINIMUM_USERS_UI_TEMP = false;
+
   const [userStep, setUserStep] = useState(() => {
   // ✅ Initialize with session step if available
   return rememberedStudent?.sessionStep || 1;
@@ -538,7 +543,7 @@ const existingUser = todayUsers.find(user => {
 
         hideLocalLoading();
 
-        const message = currentPaidUsersCount >= 3
+        const message = nextStep === 3
           ? 'System is already activated! You can submit your order directly.'
           : 'Please proceed to pay the RM10 base delivery fee to activate the system.';
 
@@ -1283,6 +1288,7 @@ const isSubmitDisabled =
         windowWidth={windowWidth} 
       />
 
+      {SHOW_MINIMUM_USERS_UI_TEMP && (
       <div style={styles.progressBar}>
   <div style={styles.progressText}>
     <span>Minimum 3 official users</span>
@@ -1296,16 +1302,17 @@ const isSubmitDisabled =
   width: `${Math.min((todayUsers.filter(u => u.commitmentPaid).length / 3) * 100, 100)}%`
 }}></div>
         </div>
-        
-        <p style={{ 
-          fontSize: windowWidth <= 480 ? '12px' : '13px', 
-          color: '#64748b', 
+
+        <p style={{
+          fontSize: windowWidth <= 480 ? '12px' : '13px',
+          color: '#64748b',
           marginTop: '8px',
           lineHeight: '1.5'
         }}>
           <strong>Note:</strong> Official users are those who have registered and paid the RM10 deposit, which will be deducted from their total delivery fee when you submit your order.
         </p>
       </div>
+      )}
 
       {userStep === 1 && (
         <div>
