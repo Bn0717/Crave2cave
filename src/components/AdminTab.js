@@ -2033,7 +2033,7 @@ const medianInterval = getMedianReceiptInterval();
     }}>
       Enter Custom Driver Cost (RM):
     </label>
-    <div style={{ display: 'flex', gap: '8px' }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
       <input
         type="number"
         min="0"
@@ -2041,12 +2041,14 @@ const medianInterval = getMedianReceiptInterval();
         onChange={(e) => setCustomDriverCostInput(e.target.value)}
         placeholder="e.g., 40"
         style={{
-          flex: 1,
+          flex: '1 1 120px',
+          minWidth: 0,
           padding: '12px',
           borderRadius: '8px',
           border: '2px solid #fecaca',
           fontSize: '16px',
-          fontWeight: '600'
+          fontWeight: '600',
+          boxSizing: 'border-box'
         }}
       />
       <button
@@ -2071,13 +2073,15 @@ const medianInterval = getMedianReceiptInterval();
           }
         }}
         style={{
+          flexShrink: 0,
           padding: '12px 24px',
           borderRadius: '8px',
           border: 'none',
           backgroundColor: '#ef4444',
           color: 'white',
           fontWeight: '600',
-          cursor: 'pointer'
+          cursor: 'pointer',
+          boxSizing: 'border-box'
         }}
       >
         Set
