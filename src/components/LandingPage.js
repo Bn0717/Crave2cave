@@ -17,7 +17,8 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
   const [isStaffMenuOpen, setIsStaffMenuOpen] = useState(false);
 
   const vendors = [
-    { id: 'mcd', name: "McDonald's", logo: '🍔', logoImage: mcdLogo, color: '#ffc72c' },
+    // TEMP: McDonald's disabled, re-add when back in service
+    // { id: 'mcd', name: "McDonald's", logo: '🍔', logoImage: mcdLogo, color: '#ffc72c' },
     { id: 'douglas_street', name: 'The Douglas Street', logo: '🍽️', logoImage: douglasStreetLogo, color: '#4b5563' },
     { id: 'kfc', name: 'KFC', logo: '🍗', logoImage: kfcLogo, color: '#e4002b' },
     { id: 'dominos', name: "Domino's Pizza", logo: '🍕', logoImage: dominosLogo, color: '#0078d4' },

@@ -1704,7 +1704,8 @@ const isSubmitDisabled =
                 { id: 'bakers_cottage', name: 'Baker\'s Cottage', emoji: '🥐', color: '#D97706' },
                 { id: 'zus_coffee', name: 'Zus Coffee', emoji: '☕', color: '#0057A0' },
                 { id: 'kfc', name: 'KFC', emoji: '🍗', color: '#e4002b' },
-                { id: 'mcd', name: "McDonald's", emoji: '🍔', color: '#ffc72c' },
+                // TEMP: McDonald's disabled, re-add when back in service
+                // { id: 'mcd', name: "McDonald's", emoji: '🍔', color: '#ffc72c' },
                 { id: 'douglas_street', name: 'The Douglas Street', emoji: '🍽️', color: '#4b5563' }
               ].map((vendor) => (
                 <div
