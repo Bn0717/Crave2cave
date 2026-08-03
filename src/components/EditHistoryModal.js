@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, DollarSign, Package, Users, TrendingUp, Lock, Loader2 } from 'lucide-react';
 
-const EditHistoryModal = ({ isOpen, onClose, entry, onSave, adminPasscode }) => {
+const EditHistoryModal = ({ isOpen, onClose, entry, onSave, onVerifyPasscode }) => {
   const [showPasswordForm, setShowPasswordForm] = useState(true);
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [isChecking, setIsChecking] = useState(false);
   const [registeredUsers, setRegisteredUsers] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -25,8 +26,11 @@ const EditHistoryModal = ({ isOpen, onClose, entry, onSave, adminPasscode }) => 
 
   if (!isOpen || !entry) return null;
 
-  const handlePasswordCheck = () => {
-    if (passwordInput === adminPasscode) {
+  const handlePasswordCheck = async () => {
+    setIsChecking(true);
+    const ok = await onVerifyPasscode(passwordInput);
+    setIsChecking(false);
+    if (ok) {
       setShowPasswordForm(false);
       setPasswordError('');
     } else {
@@ -208,20 +212,21 @@ const EditHistoryModal = ({ isOpen, onClose, entry, onSave, adminPasscode }) => 
                 </button>
                 <button
                   onClick={handlePasswordCheck}
+                  disabled={isChecking}
                   style={{
                     flex: 1,
                     padding: '14px',
                     border: 'none',
                     borderRadius: '12px',
-                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                    background: isChecking ? '#9ca3af' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                     color: 'white',
                     fontSize: '15px',
                     fontWeight: '700',
-                    cursor: 'pointer',
+                    cursor: isChecking ? 'not-allowed' : 'pointer',
                     boxShadow: '0 4px 14px rgba(59, 130, 246, 0.3)'
                   }}
                 >
-                  Proceed
+                  {isChecking ? 'Checking...' : 'Proceed'}
                 </button>
               </div>
             </>

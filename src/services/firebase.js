@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDoc, getDocs, deleteDoc, addDoc, query, where, writeBatch, doc, updateDoc, limit, orderBy, setDoc, deleteField } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
 // Firebase configuration — loaded from environment variables (see .env)
 const firebaseConfig = {
@@ -19,6 +20,42 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app); // Export db for direct use
 const storage = getStorage(app);
 const functions = getFunctions(app);
+
+// Silently sign every visitor in anonymously so Firestore/Storage rules
+// can require "signed in" without adding any login step for students.
+export const auth = getAuth(app);
+signInAnonymously(auth).catch((e) => console.error('Anonymous sign-in failed:', e));
+export const authReady = new Promise((resolve) => {
+  const unsub = onAuthStateChanged(auth, (user) => {
+    if (user) {
+      unsub();
+      resolve(user);
+    }
+  });
+});
+
+// Checks a passcode against the real value on the server (never shipped to
+// the browser) and, on success, tags this visitor's auth token with the
+// matching role via a Firebase custom claim.
+export const verifyPasscode = async (passcode, role) => {
+  try {
+    await authReady;
+    const res = await fetch(`${process.env.REACT_APP_FUNCTIONS_BASE_URL}/verify-passcode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passcode, role, uid: auth.currentUser?.uid }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      await auth.currentUser.getIdToken(true); // pick up the new claim
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.error('Passcode verification failed:', e);
+    return false;
+  }
+};
 
 export const savePrebookUser = async (user) => {
   try {

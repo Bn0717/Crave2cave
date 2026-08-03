@@ -99,9 +99,6 @@ function App() {
   malaysiaTime: new Date() 
 });
 
-  const ADMIN_PASSCODE = 'byycky';
-  const DRIVER_PASSCODE = 'c2ckyuem123';
-
   // TEMPORARY — set to false to restore the 3-paid-user minimum before students can order.
   const SKIP_MINIMUM_ORDER_REQUIREMENT = true;
 
@@ -182,8 +179,14 @@ function App() {
     };
   };
 
+  const [authReady, setAuthReady] = useState(false);
+  useEffect(() => {
+    firebaseService.authReady.then(() => setAuthReady(true));
+  }, []);
+
   // 1. Fetch Special Order Days from Firestore
   useEffect(() => {
+    if (!authReady) return;
     const unsubscribe = onSnapshot(collection(db, "specialOrderDays"), (snapshot) => {
       const days = snapshot.docs
         .filter(doc => doc.data().isSpecialOrder)
@@ -191,17 +194,18 @@ function App() {
       setSpecialDays(days);
     });
     return () => unsubscribe();
-  }, []);
+  }, [authReady]);
 
   // 2. Listen to TODAY'S settings specifically for the Cutoff Extension
   useEffect(() => {
+    if (!authReady) return;
     const malaysiaTime = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" }));
     const todayStr = malaysiaTime.toLocaleDateString('en-CA');
     const unsubscribe = onSnapshot(doc(db, "dailySettings", todayStr), (docSnap) => {
       setTodaySettings(docSnap.exists() ? docSnap.data() : {});
     });
     return () => unsubscribe();
-  }, []);
+  }, [authReady]);
 
   // 3. Centralized Master Timer
   useEffect(() => {
@@ -292,8 +296,8 @@ function App() {
 
 
   useEffect(() => {
-      if (!showMainApp) return;
-      
+      if (!showMainApp || !authReady) return;
+
       const targetDeliveryDate = stableDeliveryDate;
       
       if (!targetDeliveryDate) {
@@ -348,7 +352,7 @@ function App() {
         unsubscribeSettings(); 
       };
     
- }, [stableDeliveryDate, showMainApp, specialDays]);// Re-run this effect if the date or app visibility changes
+ }, [stableDeliveryDate, showMainApp, specialDays, authReady]);// Re-run this effect if the date or app visibility changes
 
 
   const handleMultipleImages = (images) => {
@@ -411,16 +415,24 @@ function App() {
     setLoadingMessage(''); 
   };
 
-  const handleAuthentication = (passcodeAttempt, tabType) => {
-  if (tabType === 'admin' && passcodeAttempt === ADMIN_PASSCODE) {
-    localStorage.setItem('isAdminAuthenticated', 'true');
-    setIsAdminAuthenticated(true);
-  } else if (tabType === 'driver' && passcodeAttempt === DRIVER_PASSCODE) {
-    localStorage.setItem('isDriverAuthenticated', 'true');
-    setIsDriverAuthenticated(true);
-  } else {
-    alert('Invalid passcode');
-  }
+  const handleAuthentication = async (passcodeAttempt, tabType) => {
+    try {
+      const ok = await firebaseService.verifyPasscode(passcodeAttempt, tabType);
+      if (ok) {
+        if (tabType === 'admin') {
+          localStorage.setItem('isAdminAuthenticated', 'true');
+          setIsAdminAuthenticated(true);
+        } else if (tabType === 'driver') {
+          localStorage.setItem('isDriverAuthenticated', 'true');
+          setIsDriverAuthenticated(true);
+        }
+      } else {
+        alert('Invalid passcode');
+      }
+    } catch (e) {
+      console.error('Passcode verification failed:', e);
+      alert('Could not verify passcode, please try again');
+    }
 };
 
   const resetAuth = () => {

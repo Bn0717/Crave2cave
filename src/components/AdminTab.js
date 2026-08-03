@@ -138,7 +138,6 @@ const [distributionFormData, setDistributionFormData] = useState({
   },
   date: new Date().toLocaleDateString('en-CA')
 });
-const ADMIN_PASSWORD = 'byycky';
 const [distributionPasscode, setDistributionPasscode] = useState('');
 const [showAddHistoryModal, setShowAddHistoryModal] = useState(false);
 const [showSpecialOrderModal, setShowSpecialOrderModal] = useState(false);
@@ -195,7 +194,7 @@ const [addHistoryForm, setAddHistoryForm] = useState({
     return;
   }
 
-  if (openSystemPasscode !== ADMIN_PASSWORD) {
+  if (!(await firebaseService.verifyPasscode(openSystemPasscode, 'admin'))) {
     showSuccessAnimation(
       'Invalid Passcode',
       'Please enter the correct admin passcode.',
@@ -277,7 +276,7 @@ const [addHistoryForm, setAddHistoryForm] = useState({
     return;
   }
 
-  if (adminPasscodeInput !== ADMIN_PASSWORD) {
+  if (!(await firebaseService.verifyPasscode(adminPasscodeInput, 'admin'))) {
     showSuccessAnimation(
       'Invalid Passcode',
       'Please enter the correct admin passcode.',
@@ -412,7 +411,7 @@ const handleEditLoss = (loss) => {
 
 const handleDeleteLoss = async (lossId) => {
   const passcode = prompt('Enter admin passcode to delete this loss:');
-  if (passcode !== ADMIN_PASSWORD) {
+  if (!(await firebaseService.verifyPasscode(passcode, 'admin'))) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -435,7 +434,7 @@ const handleDeleteLoss = async (lossId) => {
 };
 
 const handleSaveLoss = async () => {
-  if (lossPasscode !== ADMIN_PASSWORD) {
+  if (!(await firebaseService.verifyPasscode(lossPasscode, 'admin'))) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -566,7 +565,7 @@ const handleEditDistribution = (distribution) => {
 
 const handleDeleteDistribution = async (distributionId) => {
   const passcode = prompt('Enter admin passcode to delete this distribution:');
-  if (passcode !== ADMIN_PASSWORD) {
+  if (!(await firebaseService.verifyPasscode(passcode, 'admin'))) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -596,7 +595,7 @@ const handleAddReserveUsage = () => {
 };
 
 const handleSaveReserveUsage = async () => {
-  if (reservePasscode !== ADMIN_PASSWORD) {
+  if (!(await firebaseService.verifyPasscode(reservePasscode, 'admin'))) {
     showSuccessAnimation('Invalid Passcode', 'Please enter the correct admin passcode.', null, 2500, true);
     return;
   }
@@ -641,7 +640,7 @@ const handleTotalAmountChange = (value) => {
 
 
 const handleSaveDistribution = async () => {
-  if (distributionPasscode !== ADMIN_PASSWORD) {
+  if (!(await firebaseService.verifyPasscode(distributionPasscode, 'admin'))) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -753,7 +752,7 @@ const handleChangeAdminName = () => {
 };
 
 const handleSaveAdminName = async () => {
-  if (adminNamePasscode !== ADMIN_PASSWORD) {
+  if (!(await firebaseService.verifyPasscode(adminNamePasscode, 'admin'))) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -801,7 +800,7 @@ const handleSaveAdminName = async () => {
 
 const handleDeleteOrder = async (orderId) => {
   const passcode = prompt('Enter admin passcode to delete this order:');
-  if (passcode !== ADMIN_PASSWORD) {
+  if (!(await firebaseService.verifyPasscode(passcode, 'admin'))) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -834,7 +833,7 @@ const handleBulkDeleteOrders = async () => {
   if (ordersMarkedForDeletion.length === 0) return;
 
   const passcode = prompt(`Enter admin passcode to delete ${ordersMarkedForDeletion.length} selected order(s):`);
-  if (passcode !== ADMIN_PASSWORD) {
+  if (!(await firebaseService.verifyPasscode(passcode, 'admin'))) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -861,7 +860,7 @@ const handleBulkDeleteOrders = async () => {
 
 const handleDeleteUser = async (userId) => {
   const passcode = prompt('Enter admin passcode to delete this user:');
-  if (passcode !== ADMIN_PASSWORD) {
+  if (!(await firebaseService.verifyPasscode(passcode, 'admin'))) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -897,7 +896,7 @@ const handleDeleteUser = async (userId) => {
 }, [historyData, driverCost]); // Add driverCost here
 
 const handleAddHistorySubmit = async () => {
-  if (adminPasscodeInput !== ADMIN_PASSWORD) { // Re-using your existing passcode state variable
+  if (!(await firebaseService.verifyPasscode(adminPasscodeInput, 'admin'))) { // Re-using your existing passcode state variable
     showSuccessAnimation('Invalid Passcode', 'Please enter admin passcode in the modal.', null, 2000, true);
     return;
   }
@@ -954,7 +953,7 @@ const handleIndividualAmountChange = (key, newAmount) => {
 };
 
 const handleActivateSpecialOrder = async () => {
-  if (specialOrderPasscode !== ADMIN_PASSWORD) {
+  if (!(await firebaseService.verifyPasscode(specialOrderPasscode, 'admin'))) {
     showSuccessAnimation(
       'Invalid Passcode',
       'Please enter the correct admin passcode.',
@@ -1291,7 +1290,7 @@ const displayDeliveryFees = liveDeliveryFees;
 
   const handleDeleteHistoryEntry = async (entryId, entryDate) => {
   const passcode = prompt('Enter admin passcode to delete this history entry:');
-  if (passcode !== ADMIN_PASSWORD) {
+  if (!(await firebaseService.verifyPasscode(passcode, 'admin'))) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
@@ -5349,7 +5348,7 @@ border: `2px solid ${userOrder?.paymentProofURL ? '#10b981' : '#d1d5db'}`,
       onClose={() => setIsEditModalOpen(false)}
       entry={editingEntry}
       onSave={handleSaveChanges}
-      adminPasscode={ADMIN_PASSWORD} // Your admin passcode
+      onVerifyPasscode={(code) => firebaseService.verifyPasscode(code, 'admin')}
     />
 
     {/* Emergency Loss Modal */}
