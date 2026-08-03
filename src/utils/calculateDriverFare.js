@@ -1,20 +1,18 @@
 // src/utils/calculateDriverFare.js
 // TEMPORARY driver-fare formula. Does NOT replace calculateDeliveryFee.js
 // (the student-facing delivery fee) — this only calculates what the driver is paid.
+import { VENDOR_CATALOG } from '../constants/vendors';
 
 const BASE_FARE = 30;
 const MAX_FARE = 59;
 
 // Surcharge applied once per DISTINCT vendor visited that day (not per order).
-const VENDOR_SURCHARGE = {
-  mixue: 1,
-  family_mart: 2,
-  mcd: 2,
-  kfc: 3,
-  douglas_street: 3,
-  zus_coffee: 3,
-  // dominos, ayam_gepuk, bakers_cottage: no surcharge
-};
+// dominos, ayam_gepuk, bakers_cottage have no surcharge entry in the catalog.
+const VENDOR_SURCHARGE = Object.fromEntries(
+  Object.entries(VENDOR_CATALOG)
+    .filter(([, v]) => v.surcharge != null)
+    .map(([id, v]) => [id, v.surcharge])
+);
 
 // Only the highest-qualifying bonus applies (checked highest-first).
 const BONUS_TIERS = [
