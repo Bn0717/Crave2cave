@@ -366,7 +366,7 @@ await firebaseService.extendSystemCutoff(todayString, extendUntilTime);
 
 const handleResetHistoryEntry = async (entryId) => {
   const passcode = prompt('Enter admin passcode to reset this entry to live data:');
-  if (passcode !== 'byyc') {
+  if (!(await firebaseService.verifyPasscode(passcode, 'admin'))) {
     showSuccessAnimation('Invalid Passcode', 'Incorrect admin passcode.', null, 2500, true);
     return;
   }
