@@ -30,7 +30,7 @@ app.use(express.json());
 // on the caller's (anonymous) Firebase Auth account. Rate-limited by IP so
 // the passcode can't be brute-forced with scripted guesses.
 const RATE_LIMIT_MAX_ATTEMPTS = 10;
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 
 app.post("/verify-passcode", async (req, res) => {
   try {
