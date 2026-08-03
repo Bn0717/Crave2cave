@@ -22,6 +22,7 @@ import {
 import AuthScreen from './AuthScreen';
 import SimpleChart from './SimpleChart';
 import EditHistoryModal from './EditHistoryModal';
+import DashboardSkeleton from './DashboardSkeleton';
 import * as firebaseService from '../services/firebase';
 import RechartsCharts from './SimpleChart';
 import { calculateDriverFare } from '../utils/calculateDriverFare';
@@ -1533,20 +1534,7 @@ const medianInterval = getMedianReceiptInterval();
   }
 
   if (loadingUsers || loadingOrders || loadingHistory) {
-    return (
-      <div style={{ 
-        textAlign: 'center', 
-        padding: '60px', 
-        backgroundColor: 'white', 
-        borderRadius: '20px', 
-        marginBottom: '32px' 
-      }}>
-        <Loader2 size={56} color="#3b82f6" style={{ animation: 'spin 1s linear infinite' }} />
-        <p style={{ marginTop: '24px', color: '#64748b', fontSize: '18px' }}>
-          Loading dashboard data...
-        </p>
-      </div>
-    );
+    return <DashboardSkeleton cardCount={4} rowCount={6} />;
   }
 
   const paidUsers = todayUsers.filter(u => u.commitmentPaid).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));

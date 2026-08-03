@@ -79,8 +79,13 @@ export const uploadFileToStorage = async (file) => {
     console.error('Invalid file: File object is required');
     throw new Error('Invalid file: Please select a valid file');
   }
+  await authReady;
+  const uid = auth.currentUser?.uid;
+  if (!uid) {
+    throw new Error('Not signed in — please refresh and try again');
+  }
   const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const storageRef = ref(storage, `uploads/${Date.now()}_${sanitizedFileName}`);
+  const storageRef = ref(storage, `uploads/${uid}/${Date.now()}_${sanitizedFileName}`);
   console.log('Uploading to:', storageRef.fullPath);
   try {
     await uploadBytes(storageRef, file);
