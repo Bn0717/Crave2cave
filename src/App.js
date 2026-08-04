@@ -416,8 +416,10 @@ function App() {
   };
 
   const handleAuthentication = async (passcodeAttempt, tabType) => {
+    showLoadingAnimation('Verifying password...');
     try {
       const ok = await firebaseService.verifyPasscode(passcodeAttempt, tabType);
+      hideLoadingAnimation();
       if (ok) {
         if (tabType === 'admin') {
           localStorage.setItem('isAdminAuthenticated', 'true');
@@ -430,6 +432,7 @@ function App() {
         alert('Invalid passcode');
       }
     } catch (e) {
+      hideLoadingAnimation();
       console.error('Passcode verification failed:', e);
       alert('Could not verify passcode, please try again');
     }
@@ -724,13 +727,6 @@ useEffect(() => {
   filterTodayData(allOrders, prebookUsers);
 }, [allOrders, prebookUsers, filterTodayData]);
 
-useEffect(() => {
-  // If the app is NOT in a loading state for users or orders,
-  // then we can safely hide any active loading animation.
-  if (!loadingUsers && !loadingOrders) {
-    hideLoadingAnimation();
-  }
-}, [loadingUsers, loadingOrders]);
 
   const sharedProps = {
     prebookUsers,
