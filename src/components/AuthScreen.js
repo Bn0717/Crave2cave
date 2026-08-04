@@ -4,6 +4,7 @@ import { Lock, Eye, EyeOff } from 'lucide-react';
 const AuthScreen = ({ title, onAuth }) => {
   const [passcode, setPasscode] = useState('');
   const [showPasscode, setShowPasscode] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Define styles locally within the component
   const styles = {
@@ -79,11 +80,16 @@ const AuthScreen = ({ title, onAuth }) => {
     },
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onAuth(passcode);
+    if (isSubmitting) return; // guard against double-submit
+    setIsSubmitting(true);
+    try {
+      await onAuth(passcode);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-
 
   return (
     <div style={styles.authCard}>
@@ -101,6 +107,7 @@ const AuthScreen = ({ title, onAuth }) => {
             onChange={(e) => setPasscode(e.target.value)}
             style={styles.input}
             placeholder="••••••••"
+            disabled={isSubmitting}
             onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
             onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
           />
@@ -109,12 +116,21 @@ const AuthScreen = ({ title, onAuth }) => {
             onClick={() => setShowPasscode(!showPasscode)}
             style={styles.toggleButton}
             aria-label="Toggle passcode visibility"
+            disabled={isSubmitting}
           >
             {showPasscode ? <EyeOff size={20} /> : <Eye size={20} />}
           </button>
         </div>
-        <button type="submit" style={styles.button}>
-          Access Dashboard
+        <button
+          type="submit"
+          style={{
+            ...styles.button,
+            opacity: isSubmitting ? 0.7 : 1,
+            cursor: isSubmitting ? 'not-allowed' : 'pointer',
+          }}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Verifying...' : 'Access Dashboard'}
         </button>
       </form>
     </div>
