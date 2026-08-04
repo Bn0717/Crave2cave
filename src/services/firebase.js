@@ -19,7 +19,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app); // Export db for direct use
 const storage = getStorage(app);
-const functions = getFunctions(app);
+const functions = getFunctions(app, 'asia-southeast1');
 
 // Silently sign every visitor in anonymously so Firestore/Storage rules
 // can require "signed in" without adding any login step for students.

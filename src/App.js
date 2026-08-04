@@ -647,10 +647,45 @@ useEffect(() => {
   // Other setups remain the same...
   const handleResize = () => setWindowWidth(window.innerWidth);
   window.addEventListener('resize', handleResize);
-  const adminAuth = localStorage.getItem('isAdminAuthenticated');
-  if (adminAuth === 'true') setIsAdminAuthenticated(true);
-  const driverAuth = localStorage.getItem('isDriverAuthenticated');
-  if (driverAuth === 'true') setIsDriverAuthenticated(true);
+
+  // Validate Firebase custom claims before restoring admin/driver state.
+  // localStorage remembers "you logged in" but Firestore rules need the
+  // actual auth token to carry the claim. Force-refresh the token so the
+  // latest claims are present; if the claim is missing, clear localStorage.
+  const restoreAuthClaims = async () => {
+    try {
+      await firebaseService.authReady;
+      const user = firebaseService.auth.currentUser;
+      if (!user) return;
+
+      // Force-refresh to pick up any custom claims stamped on this UID
+      const tokenResult = await user.getIdTokenResult(true);
+      const claims = tokenResult.claims || {};
+
+      const adminAuth = localStorage.getItem('isAdminAuthenticated');
+      if (adminAuth === 'true') {
+        if (claims.admin === true) {
+          setIsAdminAuthenticated(true);
+        } else {
+          localStorage.removeItem('isAdminAuthenticated');
+        }
+      }
+
+      const driverAuth = localStorage.getItem('isDriverAuthenticated');
+      if (driverAuth === 'true') {
+        if (claims.driver === true) {
+          setIsDriverAuthenticated(true);
+        } else {
+          localStorage.removeItem('isDriverAuthenticated');
+        }
+      }
+    } catch (e) {
+      console.error('Failed to restore auth claims:', e);
+      localStorage.removeItem('isAdminAuthenticated');
+      localStorage.removeItem('isDriverAuthenticated');
+    }
+  };
+  restoreAuthClaims();
 
   return () => window.removeEventListener('resize', handleResize);
 }, []);

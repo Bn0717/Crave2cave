@@ -16,7 +16,7 @@ const nodemailer = require("nodemailer");
 admin.initializeApp();
 
 setGlobalOptions({
-  region: "us-central1",
+  region: "asia-southeast1",
   maxInstances: 10,
 });
 
@@ -62,8 +62,11 @@ app.post("/verify-passcode", async (req, res) => {
       return res.status(401).json({ success: false });
     }
 
-    await rateLimitRef.delete().catch(() => {});
-    await admin.auth().setCustomUserClaims(uid, { [role]: true });
+    // Run in parallel — both are independent; saves ~100-150ms
+    await Promise.all([
+      admin.auth().setCustomUserClaims(uid, { [role]: true }),
+      rateLimitRef.delete().catch(() => {}),
+    ]);
     res.json({ success: true });
   } catch (error) {
     console.error("VERIFY-PASSCODE ERROR:", error);
@@ -131,7 +134,7 @@ const createTransporter = () => {
 
 exports.sendDeliveryEmail = onCall(
   {
-    region: "us-central1",
+    region: "asia-southeast1",
     memory: "256MiB",
     timeoutSeconds: 60,
     maxInstances: 10,
