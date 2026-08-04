@@ -1,21 +1,20 @@
 import React, { useState } from 'react';
 import { Users, Truck, BarChart3, Menu, X, Home, BookOpen, Heart } from 'lucide-react';
 import logo from '../assets/logo(1).png';
+import { VENDOR_CATALOG } from '../constants/vendors';
 
 // --- THIS IS THE CRITICAL FIX ---
 // Define VENDORS as a constant OUTSIDE the component.
 // This object is created only once and is always up-to-date.
-const VENDORS = {
-    'mixue': { name: 'Mixue', icon: '🧋', shortName: 'Mixue' },
-    'dominos': { name: 'Dominos', icon: '🍕', shortName: 'Dominos' },
-    'ayam_gepuk': { name: "Ayam Gepuk", icon: '🍗', shortName: "Ayam Gepuk" },
-    'family_mart': { name: 'Family Mart', icon: '🏪', shortName: 'Family Mart' },
-    'bakers_cottage': { name: 'Baker\'s Cottage', icon: '🥐', shortName: 'Bakers Cottage' },
-    'zus_coffee': { name: 'Zus Coffee', icon: '☕', shortName: 'Zus Coffee' },
-    'kfc': { name: 'KFC', icon: '🍗', shortName: 'KFC' },
-    'mcd': { name: "McDonald's", icon: '🍔', shortName: "McDonald's" },
-    'douglas_street': { name: 'The Douglas Street', icon: '🍽️', shortName: 'Douglas St.' },
+// A couple of vendors get an even shorter label on narrow screens (<=480px);
+// everyone else's shortName just falls back to their regular name.
+const NAV_MOBILE_SHORT_NAME = {
+    bakers_cottage: 'Bakers Cottage',
+    douglas_street: 'Douglas St.',
 };
+const VENDORS = Object.fromEntries(
+    Object.entries(VENDOR_CATALOG).map(([id, v]) => [id, { name: v.name, icon: v.icon, shortName: NAV_MOBILE_SHORT_NAME[id] || v.name }])
+);
 
 // A fallback for any case where the vendor might not be found.
 const FALLBACK_VENDOR = { name: 'Select Vendor', icon: '🏪', shortName: 'Vendor' };

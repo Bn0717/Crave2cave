@@ -18,17 +18,12 @@ import {
 
 import AuthScreen from './AuthScreen';
 import DashboardSkeleton from './DashboardSkeleton';
+import { VENDOR_CATALOG } from '../constants/vendors';
 
 const VENDOR_DATA = {
-  dominos: { name: "Domino's", color: '#006491', backgroundColor: '#E5F0F4' },
-  ayam_gepuk: { name: "Ayam Gepuk Pak Gembus", color: '#f1af20ff', backgroundColor: '#FFDBCF' },
-  mixue: { name: 'Mixue', color: '#ef0a0aff', backgroundColor: '#F9EBEB' },
-  family_mart: { name: 'Family Mart', color: '#00642e', backgroundColor: '#E6F5EC' },
-  bakers_cottage: { name: 'Baker\'s Cottage', color: '#92400e', backgroundColor: '#FEF3C7' },
-  zus_coffee: { name: 'Zus Coffee', color: '#003a71', backgroundColor: '#E0EFFF' },
-  kfc: { name: 'KFC', color: '#e4002b', backgroundColor: '#FCE4E7' },
-  mcd: { name: "McDonald's", color: '#946200', backgroundColor: '#FFF6DC' },
-  douglas_street: { name: 'The Douglas Street', color: '#374151', backgroundColor: '#F1F5F9' },
+  ...Object.fromEntries(
+    Object.entries(VENDOR_CATALOG).map(([id, v]) => [id, { name: v.name, color: v.driverTagColor, backgroundColor: v.driverTagBg }])
+  ),
   default: { name: 'Unknown Store', color: '#475569', backgroundColor: '#F1F5F9', logoUrl: '' }
 };
 

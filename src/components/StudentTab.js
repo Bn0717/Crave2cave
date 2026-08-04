@@ -11,6 +11,11 @@ import UnifiedQRCodeDisplay from './UnifiedQRCodeDisplay';
 import imageCompression from 'browser-image-compression';
 import LoadingAnimation from './LoadingAnimation';
 import deliveryAnimation from '../assets/mascot.mp4';
+import { VENDOR_CATALOG } from '../constants/vendors';
+
+// Display order for the merchant-selection grid (McDonald's stays in place,
+// second-to-last, for whenever VENDOR_CATALOG.mcd.enabled flips back to true).
+const STUDENT_VENDOR_ORDER = ['dominos', 'ayam_gepuk', 'mixue', 'family_mart', 'bakers_cottage', 'zus_coffee', 'kfc', 'mcd', 'douglas_street'];
 
 const StudentTab = ({
   prebookUsers,
@@ -1696,18 +1701,13 @@ const isSubmitDisabled =
               gap: '12px',
               marginBottom: '8px'
             }}>
-              {[
-                { id: 'dominos', name: "Domino's Pizza", emoji: '🍕', color: '#0078d4' },
-                { id: 'ayam_gepuk', name: "Ayam Gepuk Pak Gembus", emoji: '🍗', color: '#ffcc02' },
-                { id: 'mixue', name: 'MIXUE', emoji: '🧋', color: '#ff69b4' },
-                { id: 'family_mart', name: 'Family Mart', emoji: '🏪', color: '#009a44' },
-                { id: 'bakers_cottage', name: 'Baker\'s Cottage', emoji: '🥐', color: '#D97706' },
-                { id: 'zus_coffee', name: 'Zus Coffee', emoji: '☕', color: '#0057A0' },
-                { id: 'kfc', name: 'KFC', emoji: '🍗', color: '#e4002b' },
-                // TEMP: McDonald's disabled, re-add when back in service
-                // { id: 'mcd', name: "McDonald's", emoji: '🍔', color: '#ffc72c' },
-                { id: 'douglas_street', name: 'The Douglas Street', emoji: '🍽️', color: '#4b5563' }
-              ].map((vendor) => (
+              {STUDENT_VENDOR_ORDER
+                .filter((id) => VENDOR_CATALOG[id].enabled)
+                .map((id) => {
+                  const v = VENDOR_CATALOG[id];
+                  return { id, name: v.name, emoji: v.icon, color: v.selectionColor };
+                })
+                .map((vendor) => (
                 <div
                   key={vendor.id}
                   onClick={() => setSelectedVendor(vendor.id)}
@@ -2012,15 +2012,7 @@ const isSubmitDisabled =
             }}>
               <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Merchant</div>
               <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>
-                {selectedVendor === 'dominos' && "🍕 Domino's Pizza"}
-                {selectedVendor === 'ayam_gepuk' && "🍗 Ayam Gepuk"}
-                {selectedVendor === 'mixue' && "🧋 MIXUE"}
-                {selectedVendor === 'family_mart' && "🏪 Family Mart"}
-                {selectedVendor === 'bakers_cottage' && "🥐 Baker's Cottage"}
-                {selectedVendor === 'zus_coffee' && "☕ Zus Coffee"}
-                {selectedVendor === 'kfc' && "🍗 KFC"}
-                {selectedVendor === 'mcd' && "🍔 McDonald's"}
-                {selectedVendor === 'douglas_street' && "🍽️ The Douglas Street"}
+                {selectedVendor && VENDOR_CATALOG[selectedVendor] && `${VENDOR_CATALOG[selectedVendor].icon} ${VENDOR_CATALOG[selectedVendor].name}`}
               </div>
             </div>
             
