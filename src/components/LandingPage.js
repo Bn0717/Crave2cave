@@ -11,23 +11,34 @@ import zusCoffeeLogo from '../assets/merchant_logo/Zus Coffee.png';
 import kfcLogo from '../assets/merchant_logo/KFC.png';
 import mcdLogo from '../assets/merchant_logo/Mcd.png';
 import douglasStreetLogo from '../assets/merchant_logo/The Douglas Street.jpg';
+import { VENDOR_CATALOG } from '../constants/vendors';
+
+const VENDOR_LOGO_IMAGES = {
+  mcd: mcdLogo,
+  douglas_street: douglasStreetLogo,
+  kfc: kfcLogo,
+  dominos: dominosLogo,
+  ayam_gepuk: ayamGepukLogo,
+  mixue: mixueLogo,
+  family_mart: familyMartLogo,
+  bakers_cottage: bakersCottageLogo,
+  zus_coffee: zusCoffeeLogo,
+};
+
+// Display order on the landing page (McDonald's stays in place, first,
+// for whenever VENDOR_CATALOG.mcd.enabled flips back to true).
+const VENDOR_DISPLAY_ORDER = ['mcd', 'douglas_street', 'kfc', 'dominos', 'ayam_gepuk', 'mixue', 'family_mart', 'bakers_cottage', 'zus_coffee'];
 
 const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
   const [selectedVendor, setSelectedVendor] = useState('');
   const [isStaffMenuOpen, setIsStaffMenuOpen] = useState(false);
 
-  const vendors = [
-    // TEMP: McDonald's disabled, re-add when back in service
-    // { id: 'mcd', name: "McDonald's", logo: '🍔', logoImage: mcdLogo, color: '#ffc72c' },
-    { id: 'douglas_street', name: 'The Douglas Street', logo: '🍽️', logoImage: douglasStreetLogo, color: '#4b5563' },
-    { id: 'kfc', name: 'KFC', logo: '🍗', logoImage: kfcLogo, color: '#e4002b' },
-    { id: 'dominos', name: "Domino's Pizza", logo: '🍕', logoImage: dominosLogo, color: '#0078d4' },
-    { id: 'ayam_gepuk', name: "Ayam Gepuk Pak Gembus", logo: '🍗', logoImage: ayamGepukLogo, color: '#ffcc02' },
-    { id: 'mixue', name: 'MIXUE', logo: '🧋', logoImage: mixueLogo, color: '#ff69b4' },
-    { id: 'family_mart', name: 'Family Mart', logo: '🏪', logoImage: familyMartLogo, color: '#009a44' },
-    { id: 'bakers_cottage', name: 'Baker\'s Cottage', logo: '🥐', logoImage: bakersCottageLogo, color: '#D97706' },
-    { id: 'zus_coffee', name: 'Zus Coffee', logo: '☕', logoImage: zusCoffeeLogo, color: '#0057A0' }
-  ];
+  const vendors = VENDOR_DISPLAY_ORDER
+    .filter((id) => VENDOR_CATALOG[id].enabled)
+    .map((id) => {
+      const v = VENDOR_CATALOG[id];
+      return { id, name: v.landingName || v.name, logo: v.icon, logoImage: VENDOR_LOGO_IMAGES[id], color: v.selectionColor };
+    });
 
   const foodItems = [
     { emoji: '🍔' }, { emoji: '🍕' }, { emoji: '🍟' }, { emoji: '🧋' },

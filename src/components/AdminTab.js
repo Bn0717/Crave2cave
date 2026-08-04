@@ -26,6 +26,7 @@ import DashboardSkeleton from './DashboardSkeleton';
 import * as firebaseService from '../services/firebase';
 import RechartsCharts from './SimpleChart';
 import { calculateDriverFare } from '../utils/calculateDriverFare';
+import { VENDOR_CATALOG } from '../constants/vendors';
 
 const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1PydOwXd4EA_pp6g3AB0-E1dYvXHY768h/edit?usp=sharing&ouid=102038458839648014695&rtpof=true&sd=true";
 
@@ -151,23 +152,15 @@ const [addHistoryForm, setAddHistoryForm] = useState({
   profit: ''
 });
 
-  const VENDOR_MAP = {
-  'mixue': { name: 'Mixue', icon: '🧋' },
-  'dominos': { name: 'Dominos', icon: '🍕' },
-  'ayam_gepuk': { name: 'Ayam Gepuk', icon: '🍗' },
-  'family_mart': { name: 'Family Mart', icon: '🏪' },
-  'bakers_cottage': { name: 'Baker\'s Cottage', icon: '🥐' },
-  'zus_coffee': { name: 'Zus Coffee', icon: '☕' },
-  'kfc': { name: 'KFC', icon: '🍗' },
-  'mcd': { name: "McDonald's", icon: '🍔' },
-  'douglas_street': { name: 'The Douglas Street', icon: '🍽️' },
-};
+  const VENDOR_MAP = Object.fromEntries(
+    Object.entries(VENDOR_CATALOG).map(([id, v]) => [id, { name: v.name, icon: v.icon }])
+  );
 
-  const VENDOR_CATEGORIES = {
-    'mixue': 1, 'dominos': 1, 'ayam_gepuk': 1, 'bakers_cottage': 1,
-    'family_mart': 2,
-    'zus_coffee': 3,
-  };
+  const VENDOR_CATEGORIES = Object.fromEntries(
+    Object.entries(VENDOR_CATALOG)
+      .filter(([, v]) => v.category != null)
+      .map(([id, v]) => [id, v.category])
+  );
 
   const calculateSuggestedDriverCost = (orders) => {
     if (!orders || orders.length === 0) return 0;
