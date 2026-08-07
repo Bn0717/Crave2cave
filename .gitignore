@@ -1,2 +1,10 @@
 .env
+.env.local
 /node_modules
+/build
+
+# Ignore functions dependencies and secrets
+functions/node_modules/
+functions/service-account.json
+functions/.env
+functions/.env.local

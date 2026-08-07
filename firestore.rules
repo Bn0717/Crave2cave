@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+    function isDriver() {
+      return isSignedIn() && request.auth.token.driver == true;
+    }
+
+    // Student registrations. Students create their own doc and later flip
+    // fields like commitmentPaid on it themselves (self-reported payment,
+    // same trust model the app already used before these rules existed).
+    match /prebookUsers/{userId} {
+      allow read, create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // Student-submitted orders. Drivers update status (picked up/delivered);
+    // only admins delete.
+    match /orders/{orderId} {
+      allow read, create: if isSignedIn();
+      allow update: if isAdmin() || isDriver();
+      allow delete: if isAdmin();
+    }
+
+    // Daily history is written both by ordinary student order submission
+    // (saveOrder -> updateDailyHistory) and by admin edit/manual-entry tools,
+    // so create/update stay open to any signed-in visitor; only deletes
+    // (admin-only UI action) require the admin claim.
+    match /history/{historyId} {
+      allow read, create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    match /feedbacks/{feedbackId} {
+      allow read, create: if isSignedIn();
+    }
+
+    match /emergencyLosses/{lossId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /moneyDistributions/{distributionId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /systemSettings/{settingsId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Read publicly (App.js needs this for every visitor to know if today
+    // is a special order day); only admins can activate one.
+    match /specialOrderDays/{dayId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Read publicly (every visitor's App.js listens to this to know system
+    // availability/cutoff times); only admins change it.
+    match /dailySettings/{dateId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

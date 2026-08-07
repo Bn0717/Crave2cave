@@ -1,8 +1,25 @@
 import React, { useState } from 'react';
-import { Users, Truck, BarChart3, Menu, X, Home } from 'lucide-react';
+import { Users, Truck, BarChart3, Menu, X, Home, BookOpen, Heart } from 'lucide-react';
 import logo from '../assets/logo(1).png';
+import { VENDOR_CATALOG } from '../constants/vendors';
 
-// *** FIXED: Re-added `setIsAuthenticated` to the props destructuring ***
+// --- THIS IS THE CRITICAL FIX ---
+// Define VENDORS as a constant OUTSIDE the component.
+// This object is created only once and is always up-to-date.
+// A couple of vendors get an even shorter label on narrow screens (<=480px);
+// everyone else's shortName just falls back to their regular name.
+const NAV_MOBILE_SHORT_NAME = {
+    bakers_cottage: 'Bakers Cottage',
+    douglas_street: 'Douglas St.',
+};
+const VENDORS = Object.fromEntries(
+    Object.entries(VENDOR_CATALOG).map(([id, v]) => [id, { name: v.name, icon: v.icon, shortName: NAV_MOBILE_SHORT_NAME[id] || v.name }])
+);
+
+// A fallback for any case where the vendor might not be found.
+const FALLBACK_VENDOR = { name: 'Select Vendor', icon: '🏪', shortName: 'Vendor' };
+
+
 const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransitioning, windowWidth }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -12,30 +29,18 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
         setIsMobileMenuOpen(false);
     };
 
-        // Add this helper function inside your Navigation component
-    const getVendorDetails = (vendorId) => {
-        const vendors = {
-            'mixue': { name: 'Mixue', icon: '🧋' },
-            'dominos': { name: 'Dominos', icon: '🍕' },
-            'mcdonalds': { name: "McDonald's", icon: '🍟' },
-            // Add any other vendors here
-        };
-        return vendors[vendorId]; // Return the details object
-    };
-
-    const vendorDetails = getVendorDetails(selectedVendor);
-
-    // *** FIXED: The logic to reset authentication is restored here ***
-     const handleTabClick = (tabId) => {
+    const handleTabClick = (tabId) => {
         if (isTransitioning) return;
-        onTabChange(tabId); // Just tell App.js what happened
+        onTabChange(tabId);
         setIsMobileMenuOpen(false);
     };
 
     const tabs = [
         { id: 'student', label: 'Student Portal', icon: Users },
         { id: 'driver', label: 'Driver Portal', icon: Truck },
-        { id: 'admin', label: 'Admin Portal', icon: BarChart3 }
+        { id: 'admin', label: 'Admin Portal', icon: BarChart3 },
+        { id: 'guide', label: 'User Guide', icon: BookOpen },
+        { id: 'feedback', label: 'Feedback', icon: Heart }
     ];
 
     const navStyles = {
@@ -53,47 +58,49 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
             maxWidth: '1200px', margin: '0 auto', padding: '0 20px',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '70px'
         },
-            //... inside navStyles
-    leftSection: {
-      display: 'flex',
-      alignItems: 'center',
-      // Use a smaller gap on mobile
-      gap: windowWidth <= 768 ? '10px' : '20px' 
-    },
-    logoContainer: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px', // Space between logo image and text
-      cursor: 'pointer',
-      padding: '5px', // Add some padding for the hover effect
-      borderRadius: '10px',
-      transition: 'background-color 0.2s ease',
-    },
-    logoImage: {
-      height: '45px', // Slightly smaller logo for better balance
-      width: 'auto',
-      objectFit: 'contain'
-    },
-    logoText: {
-      fontSize: windowWidth <= 768 ? '18px' : '20px', // Adjust font size
-      fontWeight: 'bold',
-      background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
-      WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-      // Hide the text on very narrow screens if needed, otherwise it should fit
-      display: windowWidth <= 370 ? 'none' : 'block',
-    },
-    vendorName: {
-        display: 'flex',
-        alignItems: 'center',
-        padding: '6px 12px', // Consistent padding
-        backgroundColor: '#eef2ff', 
-        color: '#4338ca', 
-        borderRadius: '9999px',
-        fontSize: '13px', // A good, readable size for mobile
-        fontWeight: '600',
-        border: '1px solid #c7d2fe',
-        // We no longer need textTransform: 'capitalize' if using getVendorDetails
-    },
+        leftSection: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: windowWidth <= 400 ? '4px' : (windowWidth <= 768 ? '8px' : '20px'),
+            flex: 1,
+            minWidth: 0
+        },
+        logoContainer: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            cursor: 'pointer',
+            padding: '5px',
+            borderRadius: '10px',
+            transition: 'background-color 0.2s ease',
+            minWidth: 0,
+        },
+        logoImage: {
+            height: '45px',
+            width: 'auto',
+            objectFit: 'contain'
+        },
+        logoText: {
+            fontSize: windowWidth <= 400 ? '16px' : (windowWidth <= 768 ? '18px' : '20px'),
+            fontWeight: 'bold',
+            background: 'linear-gradient(135deg, #3b82f5 0%, #1e40af 100%)',
+            WebkitBackgroundClip: 'text', 
+            WebkitTextFillColor: 'transparent', 
+            backgroundClip: 'text',
+            whiteSpace: 'nowrap',
+        },
+        vendorName: {
+            display: 'flex',
+            alignItems: 'center',
+            padding: windowWidth <= 400 ? '4px 8px' : '6px 12px',
+            backgroundColor: '#eef2ff', 
+            color: '#4338ca', 
+            borderRadius: '9999px',
+            fontSize: windowWidth <= 400 ? '11px' : '13px',
+            fontWeight: '600',
+            border: '1px solid #c7d2fe',
+            whiteSpace: 'nowrap',
+        },
         desktopMenu: { display: 'flex', alignItems: 'center', gap: '8px' },
         navButton: {
             display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px',
@@ -128,15 +135,19 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
         }
     };
 
+    // --- ANOTHER CRITICAL FIX ---
+    // Look up the details directly from the constant VENDORS object.
+    const vendorDetails = VENDORS[selectedVendor] || FALLBACK_VENDOR;
+
     return (
         <>
             <style>
                 {`
-                @media (max-width: 860px) {
+                @media (max-width: 1161px) {
                     .desktop-menu { display: none !important; }
                     .mobile-menu-button { display: block !important; }
                 }
-                @media (min-width: 861px) {
+                @media (min-width: 1041px) {
                     .mobile-menu-button { display: none !important; }
                 }
                 .nav-button:hover:not(.active) {
@@ -156,18 +167,20 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
                 <div style={navStyles.container}>
                     <div style={navStyles.leftSection}>
                         <div className="logo-container" style={navStyles.logoContainer} onClick={handleHomeClick}>
-                        <img src={logo} alt="Crave 2 Cave Logo" style={navStyles.logoImage} />
-                        <span className="logo-text" style={navStyles.logoText}>
-                            Crave 2 Cave
-                        </span>
-                    </div>
-
-                    {selectedVendor && (
-                        <div className="vendor-name-display" style={navStyles.vendorName}>
-                             <span style={{ marginRight: '8px', fontSize: '18px', lineHeight: 1 }}>{getVendorDetails(selectedVendor).icon}</span>
-                             <span>{getVendorDetails(selectedVendor).name}</span>
+                            <img src={logo} alt="Crave 2 Cave Logo" style={navStyles.logoImage} />
+                            <span className="logo-text" style={navStyles.logoText}>Crave 2 Cave</span>
                         </div>
-                    )}
+
+                        {selectedVendor && (
+                            <div className="vendor-name-display" style={navStyles.vendorName}>
+                                <span style={{ marginRight: '8px', fontSize: '18px', lineHeight: 1 }}>
+                                    {vendorDetails.icon}
+                                </span>
+                                <span>
+                                    {windowWidth <= 480 ? vendorDetails.shortName : vendorDetails.name}
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="desktop-menu" style={navStyles.desktopMenu}>
@@ -179,7 +192,6 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
                         {tabs.map((tab) => {
                             const IconComponent = tab.icon;
                             const isActive = activeTab === tab.id;
-                            // The onClick here now calls the corrected handleTabClick function
                             return (
                                 <button key={tab.id} className={`nav-button ${isActive ? 'active' : ''}`} style={{ ...navStyles.navButton, ...(isActive ? navStyles.activeTab : {}) }} onClick={() => handleTabClick(tab.id)}>
                                     <IconComponent size={18} />
@@ -195,7 +207,6 @@ const Navigation = ({ activeTab, onTabChange, onHome, selectedVendor, isTransiti
                 </div>
             </nav>
 
-            {/* Also fix the mobile menu to use the correct handler */}
             <div style={navStyles.mobileMenu}>
                  <button onClick={handleHomeClick} style={navStyles.mobileMenuItem}>
                     <Home size={20} />

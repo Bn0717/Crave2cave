@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "crave-2-cave"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

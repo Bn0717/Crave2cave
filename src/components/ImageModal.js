@@ -100,7 +100,7 @@ const ImageModal = ({ imageUrl, onClose }) => {
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      zIndex: 3000,
+      zIndex: 4000,
       padding: '20px',
       cursor: scale > 0.5 ? (isDragging ? 'grabbing' : 'grab') : 'default',
       touchAction: 'none',

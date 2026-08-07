@@ -1,16 +1,44 @@
 import React, { useState } from 'react';
-import { ChevronRight, Truck, UserCog, Shield } from 'lucide-react';
+// 1. IMPORTED NEW ICONS
+import { ChevronRight, Truck, UserCog, Shield, HelpCircle, MessageSquare } from 'lucide-react';
 import logo from '../assets/logo(1).png';
+import dominosLogo from "../assets/merchant_logo/Domino's.png";
+import ayamGepukLogo from '../assets/merchant_logo/Ayam Gepuk Pak Gembus.png';
+import mixueLogo from '../assets/merchant_logo/mixue.png';
+import familyMartLogo from '../assets/merchant_logo/Family Mart.png';
+import bakersCottageLogo from "../assets/merchant_logo/Baker's Cottage.png";
+import zusCoffeeLogo from '../assets/merchant_logo/Zus Coffee.png';
+import kfcLogo from '../assets/merchant_logo/KFC.png';
+import mcdLogo from '../assets/merchant_logo/Mcd.png';
+import douglasStreetLogo from '../assets/merchant_logo/The Douglas Street.jpg';
+import { VENDOR_CATALOG } from '../constants/vendors';
+
+const VENDOR_LOGO_IMAGES = {
+  mcd: mcdLogo,
+  douglas_street: douglasStreetLogo,
+  kfc: kfcLogo,
+  dominos: dominosLogo,
+  ayam_gepuk: ayamGepukLogo,
+  mixue: mixueLogo,
+  family_mart: familyMartLogo,
+  bakers_cottage: bakersCottageLogo,
+  zus_coffee: zusCoffeeLogo,
+};
+
+// Display order on the landing page (McDonald's stays in place, first,
+// for whenever VENDOR_CATALOG.mcd.enabled flips back to true).
+const VENDOR_DISPLAY_ORDER = ['mcd', 'douglas_street', 'kfc', 'dominos', 'ayam_gepuk', 'mixue', 'family_mart', 'bakers_cottage', 'zus_coffee'];
 
 const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
   const [selectedVendor, setSelectedVendor] = useState('');
   const [isStaffMenuOpen, setIsStaffMenuOpen] = useState(false);
 
-  const vendors = [
-    { id: 'dominos', name: "Domino's Pizza", logo: '🍕', color: '#0078d4' },
-    { id: 'mcdonalds', name: "McDonald's", logo: '🍟', color: '#ffcc02' },
-    { id: 'mixue', name: 'MIXUE', logo: '🧋', color: '#ff69b4' }
-  ];
+  const vendors = VENDOR_DISPLAY_ORDER
+    .filter((id) => VENDOR_CATALOG[id].enabled)
+    .map((id) => {
+      const v = VENDOR_CATALOG[id];
+      return { id, name: v.landingName || v.name, logo: v.icon, logoImage: VENDOR_LOGO_IMAGES[id], color: v.selectionColor };
+    });
 
   const foodItems = [
     { emoji: '🍔' }, { emoji: '🍕' }, { emoji: '🍟' }, { emoji: '🧋' },
@@ -71,26 +99,42 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
       marginBottom: '40px', textShadow: '0 2px 10px rgba(0,0,0,0.3)',
     },
     vendorContainer: {
-      display: 'grid', gridTemplateColumns: windowWidth <= 768 ? '1fr' : 'repeat(3, 1fr)',
-      gap: '16px', maxWidth: '1000px',
-      width: '100%', marginBottom: '40px', zIndex: 2, position: 'relative',
+      display: 'flex', // CHANGED FROM 'grid'
+      flexWrap: 'wrap', // ADDED: to allow items to go to the next line
+      justifyContent: 'center', // ADDED: this is the magic that centers each line
+      gap: '16px',
+      maxWidth: '1000px',
+      width: '100%',
+      marginBottom: '40px',
+      zIndex: 2,
+      position: 'relative',
     },
     vendorCard: {
       background: 'rgba(255, 255, 255, 0.95)', borderRadius: '24px',
-      padding: windowWidth <= 768 ? '20px' : '32px', textAlign: 'center',
+      padding: windowWidth <= 768 ? '11px' : '32px', textAlign: 'center',
       cursor: 'pointer', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-      border: '2px solid transparent', position: 'relative', overflow: 'hidden',
+      border: '5px solid transparent', position: 'relative', overflow: 'hidden',
       backdropFilter: 'blur(20px)', boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+      width: windowWidth <= 768 ? '100%' : '300px',
     },
     vendorCardSelected: {
       transform: 'scale(1.05)', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
     },
     vendorLogo: {
-      fontSize: windowWidth <= 768 ? '40px' : '56px', marginBottom: '16px',
+      fontSize: windowWidth <= 768 ? '36px' : '56px', marginBottom: '12px',
       display: 'block', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.1))',
     },
+    vendorLogoImage: {
+      width: windowWidth <= 768 ? '85px' : '120px',
+      height: windowWidth <= 768 ? '85px' : '120px',
+      marginBottom: '12px',
+      marginLeft: 'auto',
+      marginRight: 'auto',
+      display: 'block',
+      objectFit: 'contain',
+    },
     vendorName: {
-      fontSize: windowWidth <= 768 ? '1rem' : '1.25rem', fontWeight: '700',
+      fontSize: windowWidth <= 768 ? '1.6rem' : '1.25rem', fontWeight: '700',
       color: '#1a1a1a',
     },
     startButton: {
@@ -215,6 +259,30 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
             <UserCog size={20} />
             <span>Admin Portal</span>
           </button>
+
+          {/* 2. ADDED THE NEW MENU ITEMS HERE */}
+          <button
+            className="staff-menu-item"
+            style={styles.staffMenuItem}
+            onClick={() => {
+              onNavigateToPortal('guide');
+              setIsStaffMenuOpen(false);
+            }}
+          >
+            <HelpCircle size={20} />
+            <span>User Guide</span>
+          </button>
+          <button
+            className="staff-menu-item"
+            style={styles.staffMenuItem}
+            onClick={() => {
+              onNavigateToPortal('feedback');
+              setIsStaffMenuOpen(false);
+            }}
+          >
+            <MessageSquare size={20} />
+            <span>Feedback</span>
+          </button>
         </div>
       </div>
 
@@ -253,17 +321,40 @@ const LandingPage = ({ onStart, onNavigateToPortal, windowWidth }) => {
       </div>
 
       <div style={styles.vendorContainer}>
-        {vendors.map((vendor) => (
-          <div
-            key={vendor.id}
-            style={{ ...styles.vendorCard, ...(selectedVendor === vendor.id ? styles.vendorCardSelected : {}), borderColor: selectedVendor === vendor.id ? vendor.color : 'transparent' }}
-            onClick={() => setSelectedVendor(vendor.id)}
-          >
-            {selectedVendor === vendor.id && <div style={styles.shimmer} />}
-            <div style={styles.vendorLogo}>{vendor.logo}</div>
-            <h3 style={styles.vendorName}>{vendor.name}</h3>
-          </div>
-        ))}
+        {vendors.map((vendor) => {
+          const isSelected = selectedVendor === vendor.id;
+          const hasSelection = selectedVendor !== '';
+
+          // Define dynamic styles here for clarity
+          const dynamicStyles = {
+            borderColor: isSelected ? vendor.color : 'transparent',
+            opacity: hasSelection && !isSelected ? 0.6 : 1, // Fade if another card is selected
+            ... (isSelected && {
+              // Apply a colored glow ONLY when selected
+              boxShadow: `0 0 30px -5px ${vendor.color}, 0 10px 30px -10px rgba(0,0,0,0.3)`
+            })
+          };
+
+          return (
+            <div
+              key={vendor.id}
+              style={{
+                ...styles.vendorCard,
+                ...(isSelected ? styles.vendorCardSelected : {}),
+                ...dynamicStyles
+              }}
+              onClick={() => setSelectedVendor(vendor.id)}
+            >
+              {isSelected && <div style={styles.shimmer} />}
+              {vendor.logoImage ? (
+                <img src={vendor.logoImage} alt={vendor.name} style={styles.vendorLogoImage} />
+              ) : (
+                <div style={styles.vendorLogo}>{vendor.logo}</div>
+              )}
+              <h3 style={styles.vendorName}>{vendor.name}</h3>
+            </div>
+          );
+        })}
       </div>
 
       <button
